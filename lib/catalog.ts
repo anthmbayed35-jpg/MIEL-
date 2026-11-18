@@ -4,7 +4,7 @@ import {
   DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
   type Policies, type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
 } from "@/config/content";
-import { dbMode, getDb, type Row } from "./db";
+import { getDb, usesDb, type Row } from "./db";
 
 export type Zone = { id: string; name: string; fee: number; free_over: number | null; eta: string; active: boolean; sort: number };
 
@@ -48,7 +48,7 @@ const configCatalog = (): Catalog => ({
 
 /** Everything the storefront needs. Falls back to the config files when the database is unavailable or empty. */
 export async function getCatalog(): Promise<Catalog> {
-  if (dbMode() === "none") return configCatalog();
+  if (!usesDb()) return configCatalog();
   try {
     const db = getDb();
     const [{ data: prods }, { data: imgs }, { data: zones }, { data: content }, { data: settings }] = await Promise.all([

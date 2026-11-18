@@ -20,7 +20,7 @@ export default async function TeamPage() {
     <>
       <PageHeader eyebrow="Who can sign in" title="Team" />
       <SubNav items={SETTINGS_TABS} role={admin.role} />
-      {dbMode() === "local" && <p className="mb-5 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-[14px] text-body">Local demo mode: team rows are stored locally and nobody can sign in with a password. On Supabase, adding a member also creates their login.</p>}
+      {(dbMode() === "local" || dbMode() === "demo") && <p className="mb-5 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-[14px] text-body">Local demo mode: team rows are stored locally and nobody can sign in with a password. On Supabase, adding a member also creates their login.</p>}
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card>
           <SectionTitle>Members</SectionTitle>

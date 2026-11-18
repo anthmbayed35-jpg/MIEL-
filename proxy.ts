@@ -13,6 +13,7 @@ export async function proxy(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
   const localOn = !process.env.VERCEL && (process.env.NODE_ENV !== "production" || process.env.MIEL_LOCAL_DB === "1");
+  const demoOn = !supabaseOn && !localOn && process.env.ADMIN_DEMO === "1";
 
   let res = NextResponse.next({ request: req });
   Object.entries(SECURITY).forEach(([k, v]) => res.headers.set(k, v));
@@ -34,6 +35,8 @@ export async function proxy(req: NextRequest) {
     authed = !!data.user;
   } else if (localOn) {
     authed = !!req.cookies.get("miel_local_admin")?.value;
+  } else if (demoOn) {
+    authed = true; // preview mode: no sign-in
   }
 
   if (!authed && !isLogin) {

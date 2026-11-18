@@ -11,10 +11,15 @@ import { SearchButton } from "@/components/admin/SearchButton";
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
   // Local dev convenience: fill the (file) database from config/products.ts on first run.
-  if (dbMode() === "local" && !must(await getDb().from("products").select("id").limit(1)).length) await seedBase();
+  if ((dbMode() === "local" || dbMode() === "demo") && !must(await getDb().from("products").select("id").limit(1)).length) await seedBase();
 
   return (
     <div className="relative min-h-screen pb-32 lg:pb-12">
+      {dbMode() === "demo" && (
+        <div role="status" className="relative z-50 bg-acid px-4 py-2 text-center text-[13px] font-semibold text-black">
+          PREVIEW MODE: sample data only, nothing is saved permanently and the live store is not affected. Connect Supabase to go live (see ADMIN_SETUP.md).
+        </div>
+      )}
       <div className="sticky top-3 z-40 mx-3">
         <header className="glass-strong mx-auto flex max-w-[1400px] items-center justify-between gap-3 rounded-full px-5 py-[18px] md:px-8">
           <Link href="/admin" aria-label="Dashboard" className="block shrink-0">

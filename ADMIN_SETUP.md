@@ -35,3 +35,6 @@ Push to GitHub; Vercel redeploys. Until the Supabase variables are set, the live
 
 ## Local development without Supabase
 `npm run dev` with no Supabase variables uses a local JSON store in `.data/` (git-ignored). The login page offers "Enter as owner / manager / staff". This mode is disabled on Vercel.
+
+## Preview mode (no Supabase, no sign-in)
+Set `ADMIN_DEMO=1` in Vercel and `/admin` opens straight in as owner on **sample data** (a bundled snapshot, shifted to "today"). Changes are temporary (stored in the server's temp folder and lost on cold starts), image uploads are disabled, and the real storefront is untouched (still WhatsApp-only). It switches itself off the moment the three Supabase variables exist. **Anyone with the `/admin` link can open it**, so delete `ADMIN_DEMO` when you no longer want that.

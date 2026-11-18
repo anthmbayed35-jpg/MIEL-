@@ -10,7 +10,14 @@ export type Db = {
   rpc(name: string, args?: Row): PromiseLike<Result>;
 };
 
-export type DbMode = "supabase" | "local" | "none";
+/**
+ * supabase: production database.
+ * local:    JSON-file store for local development only.
+ * demo:     opt-in PREVIEW on Vercel (ADMIN_DEMO=1) when Supabase is NOT configured: the admin opens as owner on
+ *           sample data in /tmp (ephemeral). The storefront ignores it and keeps using the config files.
+ * none:     nothing configured.
+ */
+export type DbMode = "supabase" | "local" | "demo" | "none";
 
 export const hasSupabase = () =>
   !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -18,7 +25,11 @@ export const hasSupabase = () =>
 /** The JSON-file store is for local dev/demo only. Never on Vercel. */
 const localAllowed = () => !process.env.VERCEL && (process.env.NODE_ENV !== "production" || process.env.MIEL_LOCAL_DB === "1");
 
-export const dbMode = (): DbMode => (hasSupabase() ? "supabase" : localAllowed() ? "local" : "none");
+export const dbMode = (): DbMode =>
+  hasSupabase() ? "supabase" : localAllowed() ? "local" : process.env.ADMIN_DEMO === "1" ? "demo" : "none";
+
+/** Real storefront data (orders, stock, prices from the DB). False in demo/none: the store runs from config + WhatsApp. */
+export const usesDb = () => dbMode() === "supabase" || dbMode() === "local";
 
 let supa: Db | null = null;
 
@@ -31,7 +42,7 @@ export function getDb(): Db {
     }) as unknown as Db;
     return supa;
   }
-  if (mode === "local") return createLocalClient() as unknown as Db;
+  if (mode === "local" || mode === "demo") return createLocalClient() as unknown as Db;
   throw new Error("Database not configured. Set the Supabase env vars (see .env.example).");
 }
 

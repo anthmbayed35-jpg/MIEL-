@@ -12,6 +12,7 @@ import { dbMode } from "./db";
  * Local dev: public/uploads/.
  */
 export async function saveProductImage(file: File): Promise<string> {
+  if (dbMode() === "demo") throw new Error("Image uploads need Supabase Storage, which isn't connected in preview mode.");
   if (!file || !file.size) throw new Error("Choose an image file.");
   if (file.size > 8 * 1024 * 1024) throw new Error("That image is over 8 MB.");
   let out: Buffer;

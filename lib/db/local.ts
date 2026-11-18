@@ -1,5 +1,6 @@
 import "server-only";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 
@@ -11,7 +12,28 @@ import crypto from "node:crypto";
 type Row = Record<string, any>;
 type State = { tables: Record<string, Row[]>; meta: Record<string, number> };
 
-const FILE = path.join(process.cwd(), ".data", "db.json");
+// Local dev: .data/db.json. Preview mode on Vercel (read-only disk): the OS temp dir, which is per-instance and ephemeral.
+const FILE = process.env.VERCEL ? path.join(os.tmpdir(), "miel-preview-db.json") : path.join(process.cwd(), ".data", "db.json");
+
+/**
+ * Preview mode starts from a bundled sample-data snapshot. Timestamps are shifted forward so the data always ends
+ * "today", which keeps the dashboard populated whenever the preview is opened.
+ */
+function loadSnapshot(): State | null {
+  if (!process.env.VERCEL) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const snap = require("../demo-snapshot.json") as { generatedAt: string; state: State };
+    const shift = Date.now() - new Date(snap.generatedAt).getTime();
+    const iso = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/;
+    for (const rows of Object.values(snap.state.tables))
+      for (const r of rows)
+        for (const k of Object.keys(r)) if (typeof r[k] === "string" && iso.test(r[k])) r[k] = new Date(new Date(r[k]).getTime() + shift).toISOString();
+    return snap.state;
+  } catch {
+    return null;
+  }
+}
 const g = globalThis as unknown as { __mielLocal?: { state: State; mtime: number; dirty?: boolean; timer?: NodeJS.Timeout } };
 
 function state(): State {
@@ -20,7 +42,7 @@ function state(): State {
     mtime = fs.statSync(FILE).mtimeMs;
   } catch {}
   if (!g.__mielLocal || (!g.__mielLocal.dirty && mtime && mtime !== g.__mielLocal.mtime)) {
-    let s: State = { tables: {}, meta: {} };
+    let s: State = loadSnapshot() ?? { tables: {}, meta: {} };
     try {
       s = JSON.parse(fs.readFileSync(FILE, "utf8"));
     } catch {}

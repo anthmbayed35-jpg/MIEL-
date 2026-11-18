@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { dbMode, getDb } from "@/lib/db";
+import { getDb, usesDb } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 
 // Tiny first-party funnel tracking: visit -> add_to_cart -> begin_checkout. No personal data.
 export async function POST(req: Request) {
   try {
-    if (dbMode() === "none") return NextResponse.json({ ok: true });
+    if (!usesDb()) return NextResponse.json({ ok: true });
     const ip = (req.headers.get("x-forwarded-for") ?? "u").split(",")[0].trim();
     if (!rateLimit(`track:${ip}`, 60, 60_000)) return NextResponse.json({ ok: false }, { status: 429 });
     const b = await req.json();

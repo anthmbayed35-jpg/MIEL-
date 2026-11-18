@@ -1,6 +1,6 @@
 import "server-only";
 import { DEFAULT_NOTIFICATIONS } from "@/config/content";
-import { dbMode, getDb, type Row } from "./db";
+import { getDb, usesDb, type Row } from "./db";
 
 /**
  * Optional email alert for new orders via Resend (https://resend.com). Needs RESEND_API_KEY and NOTIFY_FROM
@@ -9,7 +9,7 @@ import { dbMode, getDb, type Row } from "./db";
  */
 export async function notifyNewOrder(o: { number: number; total: number; customer: string; phone: string; region: string; lines: { name: string; qty: number }[] }) {
   try {
-    if (!process.env.RESEND_API_KEY || !process.env.NOTIFY_FROM || dbMode() === "none") return;
+    if (!process.env.RESEND_API_KEY || !process.env.NOTIFY_FROM || !usesDb()) return;
     const row = ((await getDb().from("settings").select("*").eq("key", "notifications")) as { data: Row[] }).data?.[0];
     const n = { ...DEFAULT_NOTIFICATIONS, ...(row?.value ?? {}) };
     if (!n.email_on_new_order || !n.email) return;

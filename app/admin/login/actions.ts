@@ -12,6 +12,7 @@ import type { ActionState } from "@/components/admin/ActionForm";
 export async function login(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const mode = dbMode();
   if (mode === "none") return { error: "Admin isn't configured on this deployment yet. See the setup steps." };
+  if (mode === "demo") redirect("/admin");
 
   if (mode === "local") {
     const role = String(fd.get("role") ?? "owner");

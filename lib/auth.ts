@@ -15,6 +15,8 @@ export const LOCAL_COOKIE = "miel_local_admin";
 export const getAdmin = cache(async (): Promise<Admin | null> => {
   const mode = dbMode();
   if (mode === "none") return null;
+  // Opt-in PREVIEW (ADMIN_DEMO=1, no Supabase): opens as owner on sample data. Switches itself off once Supabase is configured.
+  if (mode === "demo") return { id: "demo-owner", email: "owner@preview.local", name: "Owner", role: "owner" };
   if (mode === "local") {
     const role = (await cookies()).get(LOCAL_COOKIE)?.value as Role | undefined;
     if (role && ["owner", "manager", "staff"].includes(role)) {

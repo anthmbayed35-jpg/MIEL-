@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { getDb, dbMode, must, type Row } from "@/lib/db";
+import { getDb, usesDb, must, type Row } from "@/lib/db";
 import { getCatalog } from "@/lib/catalog";
 import { createOrder, quoteOrder } from "@/lib/orders";
 import { orderMessage } from "@/lib/messages";
@@ -25,7 +25,7 @@ export type QuoteView = {
 
 /** Live price preview for the cart drawer (shipping zone + discount code). */
 export async function quoteAction(items: CartInput, region: string, code: string): Promise<QuoteView> {
-  if (dbMode() === "none") return fallbackQuote(items);
+  if (!usesDb()) return fallbackQuote(items);
   const cat = await getCatalog();
   if (!cat.live) return fallbackQuote(items);
   const q = await quoteOrder({ items, region, code });
@@ -63,7 +63,7 @@ export async function placeOrder(input: {
     if (cat.live && !cat.store.cod_enabled) return { ok: false, error: "Online ordering is paused right now. Message us on WhatsApp and we'll take your order." };
 
     // No database yet: keep the original behaviour (WhatsApp-only order, prices from the config).
-    if (!cat.live || dbMode() === "none") {
+    if (!cat.live || !usesDb()) {
       const lines = input.items
         .map((i) => ({ i, p: cat.products.find((p) => p.id === i.productId) }))
         .filter((x) => x.p && x.i.qty > 0 && x.i.qty < 100)
@@ -111,7 +111,7 @@ export async function placeOrder(input: {
 /** Remember a started checkout (name + valid phone) so the store can follow up on WhatsApp. */
 export async function captureCheckout(input: { name: string; phone: string; items: CartInput; utm_source?: string }) {
   try {
-    if (dbMode() === "none") return;
+    if (!usesDb()) return;
     const phone = normalizeLebanesePhone(input.phone);
     if (!phone || !input.items.length) return;
     const h = await headers();
