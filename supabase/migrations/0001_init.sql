@@ -126,6 +126,7 @@ create table if not exists delivery_partners (
   phone text not null default '',
   notes text not null default '',
   active boolean not null default true,
+  is_demo boolean not null default false,
   created_at timestamptz not null default now()
 );
 

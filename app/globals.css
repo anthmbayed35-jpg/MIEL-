@@ -257,10 +257,10 @@ input, textarea { border-radius: 14px; }
 .admin-card-flat { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; }
 
 /* Header band: deep crimson fading into the base colour, with a faint lime glow */
-.admin-band { position: absolute; inset: 0 0 auto 0; height: 560px; pointer-events: none; z-index: -1;
+.admin-band { position: absolute; top: -130px; left: 50%; width: 100vw; margin-left: -50vw; height: 700px; pointer-events: none; z-index: -1;
   background: linear-gradient(180deg, #b8143e 0%, rgba(184, 20, 62, 0.72) 28%, rgba(140, 22, 52, 0.32) 58%, rgba(35, 32, 28, 0) 100%); }
-.admin-band-short { height: 260px; }
-.admin-band::after { content: ""; position: absolute; right: 8%; top: 90px; width: 420px; height: 420px; border-radius: 50%;
+.admin-band-short { height: 380px; }
+.admin-band::after { content: ""; position: absolute; right: 10%; top: 150px; width: 420px; height: 420px; border-radius: 50%;
   background: radial-gradient(circle, rgba(218, 252, 105, 0.16), rgba(218, 252, 105, 0) 70%); }
 
 .pill-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 22px; border-radius: 999px;

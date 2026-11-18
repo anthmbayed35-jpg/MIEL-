@@ -12,14 +12,14 @@ type Row = Record<string, any>;
 type State = { tables: Record<string, Row[]>; meta: Record<string, number> };
 
 const FILE = path.join(process.cwd(), ".data", "db.json");
-const g = globalThis as unknown as { __mielLocal?: { state: State; mtime: number } };
+const g = globalThis as unknown as { __mielLocal?: { state: State; mtime: number; dirty?: boolean; timer?: NodeJS.Timeout } };
 
 function state(): State {
   let mtime = 0;
   try {
     mtime = fs.statSync(FILE).mtimeMs;
   } catch {}
-  if (!g.__mielLocal || (mtime && mtime !== g.__mielLocal.mtime)) {
+  if (!g.__mielLocal || (!g.__mielLocal.dirty && mtime && mtime !== g.__mielLocal.mtime)) {
     let s: State = { tables: {}, meta: {} };
     try {
       s = JSON.parse(fs.readFileSync(FILE, "utf8"));
@@ -28,10 +28,20 @@ function state(): State {
   }
   return g.__mielLocal.state;
 }
-function save() {
+// Writes are coalesced (many small mutations during seeding become one file write).
+function flush() {
+  const m = g.__mielLocal;
+  if (!m) return;
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(g.__mielLocal!.state));
-  g.__mielLocal!.mtime = fs.statSync(FILE).mtimeMs;
+  fs.writeFileSync(FILE, JSON.stringify(m.state));
+  m.mtime = fs.statSync(FILE).mtimeMs;
+  m.dirty = false;
+}
+function save() {
+  const m = g.__mielLocal!;
+  m.dirty = true;
+  clearTimeout(m.timer);
+  m.timer = setTimeout(flush, 40);
 }
 const rows = (t: string) => (state().tables[t] ??= []);
 const now = () => new Date().toISOString();

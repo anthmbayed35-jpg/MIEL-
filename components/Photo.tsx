@@ -25,7 +25,25 @@ export function Photo({
   className?: string;
 }) {
   const m = photoMeta[src];
-  if (!m) return null;
+  if (!m) {
+    // Image uploaded from the admin (single file, no pre-generated sizes): plain responsive <img>.
+    if (!/^https?:\/\//.test(src) && !src.startsWith("/uploads/")) return null;
+    return (
+      <span className={`relative block overflow-hidden ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt}
+          sizes={sizes}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={priority ? "high" : "auto"}
+          className={`absolute inset-0 h-full w-full ${fit === "cover" ? "object-cover" : "object-contain"}`}
+          style={{ objectPosition: position }}
+        />
+      </span>
+    );
+  }
   const set = (ext: string) => m.widths.map((w) => `${src}-${w}.${ext} ${w}w`).join(", ");
   const mid = m.widths.includes(1080) ? 1080 : m.widths[m.widths.length - 1];
   return (

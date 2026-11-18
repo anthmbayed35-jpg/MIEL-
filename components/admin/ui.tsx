@@ -118,9 +118,10 @@ export function KV({ k, children }: { k: string; children: React.ReactNode }) {
 }
 
 /** Responsive table: a real table from md up, stacked cards on phones. Each column provides a `label` for the mobile card. */
-export type Col<T> = { key: string; label: string; render: (row: T) => React.ReactNode; className?: string; primary?: boolean };
-export function DataTable<T extends { id: string }>({ rows, cols, href, empty }: { rows: T[]; cols: Col<T>[]; href?: (row: T) => string; empty?: React.ReactNode }) {
+export type Col<T> = { key: string; label: string; render: (row: T) => React.ReactNode; className?: string; primary?: boolean; noLink?: boolean };
+export function DataTable<T extends Record<string, any>>({ rows, cols, href, empty }: { rows: T[]; cols: Col<T>[]; href?: (row: T) => string; empty?: React.ReactNode }) {
   if (!rows.length) return <>{empty ?? <Empty title="Nothing here yet." />}</>;
+  const linkKey = cols.find((c) => !c.noLink)?.key;
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
@@ -130,10 +131,10 @@ export function DataTable<T extends { id: string }>({ rows, cols, href, empty }:
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id}>
-                {cols.map((c, i) => (
+              <tr key={String(r.id)}>
+                {cols.map((c) => (
                   <td key={c.key} className={c.className}>
-                    {i === 0 && href ? (
+                    {c.key === linkKey && href ? (
                       <Link href={href(r)} className="font-semibold text-fg underline-offset-4 hover:underline focus-visible:underline">
                         {c.render(r)}
                       </Link>
@@ -159,7 +160,7 @@ export function DataTable<T extends { id: string }>({ rows, cols, href, empty }:
               ))}
             </div>
           );
-          return <li key={r.id}>{href ? <Link href={href(r)} className="block rounded-[20px]">{inner}</Link> : inner}</li>;
+          return <li key={String(r.id)}>{href ? <Link href={href(r)} className="block rounded-[20px]">{inner}</Link> : inner}</li>;
         })}
       </ul>
     </>
