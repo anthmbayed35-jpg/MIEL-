@@ -31,7 +31,7 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
       {canEdit ? (
         <div className="space-y-5">
           <ProductForm product={product} others={others} />
-          <ImageManager productId={id} images={images} />
+          <ImageManager productId={id} images={images} canDelete={can(admin.role, "data.delete")} />
           <ArchiveBox productId={id} archived={product.status === "archived"} />
         </div>
       ) : (

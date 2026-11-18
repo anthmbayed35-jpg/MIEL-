@@ -29,6 +29,7 @@ export type StoreSettings = {
   instagram_handle: string;
   instagram_url: string;
   currency: string;
+  timezone: string;
   cod_enabled: boolean;
   free_delivery_note: string;
 };
@@ -40,6 +41,7 @@ export const DEFAULT_STORE: StoreSettings = {
   instagram_handle: INSTAGRAM_HANDLE,
   instagram_url: INSTAGRAM_URL,
   currency: "USD",
+  timezone: "Asia/Beirut",
   cod_enabled: true,
   free_delivery_note: "",
 };

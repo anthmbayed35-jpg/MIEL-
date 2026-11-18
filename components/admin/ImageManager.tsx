@@ -5,7 +5,7 @@ import { ActionForm, SubmitButton } from "./ActionForm";
 import { Card, SectionTitle } from "./ui";
 
 /** Product images: upload, alt text, role, reorder, remove. Everything is logged in the activity log. */
-export function ImageManager({ productId, images }: { productId: string; images: Row[] }) {
+export function ImageManager({ productId, images, canDelete }: { productId: string; images: Row[]; canDelete: boolean }) {
   return (
     <Card>
       <SectionTitle>Images</SectionTitle>
@@ -36,10 +36,12 @@ export function ImageManager({ productId, images }: { productId: string; images:
                   <SubmitButton variant="glass" name="dir" value="up">↑ Up</SubmitButton>
                   <SubmitButton variant="glass" name="dir" value="down">↓ Down</SubmitButton>
                 </ActionForm>
-                <ActionForm action={deleteImage} className="contents">
-                  <input type="hidden" name="image_id" value={im.id} />
-                  <SubmitButton variant="danger" confirm="Remove this image from the product?">Remove</SubmitButton>
-                </ActionForm>
+                {canDelete && (
+                  <ActionForm action={deleteImage} className="contents">
+                    <input type="hidden" name="image_id" value={im.id} />
+                    <SubmitButton variant="danger" confirm="Remove this image from the product?">Remove</SubmitButton>
+                  </ActionForm>
+                )}
                 <span className="mono self-center !text-muted">#{n + 1}</span>
               </div>
             </div>

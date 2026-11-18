@@ -127,6 +127,7 @@ export async function setTestimonial(_p: ActionState, fd: FormData): Promise<Act
   const admin = await requirePerm("content.manage");
   const id = String(fd.get("id"));
   const act = String(fd.get("act"));
+  if (act === "remove") await requirePerm("data.delete");
   let list = await testimonials();
   if (act === "remove") list = list.filter((t) => t.id !== id);
   else list = list.map((t) => (t.id === id ? { ...t, approved: act === "approve" } : t));

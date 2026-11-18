@@ -1,11 +1,15 @@
-import "server-only";
-import { getDb, must, type Row } from "./db";
-import { addEvent, createOrder, restoreStock } from "./orders";
-import { seedBase } from "./seed";
+import { getDb, must, type Row } from "../lib/db";
+import { assertEnv } from "../lib/env";
+import { addEvent, createOrder, restoreStock } from "../lib/orders";
+import { seedBase } from "../lib/seed";
 
 /**
- * DEMO DATA. Everything created here is flagged is_demo = true so "Wipe demo data" removes it
- * (and reverses its stock movements). Never touches real orders or customers.
+ * DEMO DATA GENERATOR (development / staging ONLY). Everything it creates is flagged is_demo = true so that
+ * `npm run purge-demo` can find, back up and remove it. It REFUSES to run against production:
+ *   - NODE_ENV, MIEL_ENV or VERCEL_ENV is production, or
+ *   - the Supabase URL equals MIEL_PRODUCTION_SUPABASE_URL, or
+ *   - MIEL_PRODUCTION_SUPABASE_URL is not set (it cannot prove this is not the production project).
+ * Run:  npm run seed-demo -- --yes
  */
 const DAY = 86_400_000;
 
@@ -18,7 +22,7 @@ const NAMES = ["Rami Khoury", "Lina Haddad", "Karim Saad", "Nour Fadel", "George
 const STREETS = ["Hamra St", "Achrafieh, Sassine Sq", "Jounieh Highway", "Verdun, Rafic Hariri Ave", "Jal el Dib", "Dbayeh", "Mar Mikhael", "Zalka", "Tripoli, El Mina", "Saida, Riad el Solh", "Zahle, Main Rd", "Nabatieh, Mall St", "Batroun Old Souk", "Jbeil, Byblos"];
 const REGION_FOR = (st: string) => (/Tripoli|Batroun/.test(st) ? "North Lebanon" : /Saida/.test(st) ? "South Lebanon" : /Zahle/.test(st) ? "Bekaa" : /Nabatieh/.test(st) ? "Nabatieh" : /Hamra|Achrafieh|Verdun|Mar Mikhael/.test(st) ? "Beirut" : "Mount Lebanon");
 
-export async function seedDemo(actor: string) {
+async function seedDemo(actor: string) {
   await seedBase();
   const db = getDb();
   const rand = rng(42);
@@ -55,7 +59,8 @@ export async function seedDemo(actor: string) {
       if (rand() > 0.72) lines.push({ productId: pick(products).id, qty: 1 });
       const merged = lines.reduce<{ productId: string; qty: number }[]>((acc, l) => {
         const e = acc.find((x) => x.productId === l.productId);
-        e ? (e.qty += l.qty) : acc.push({ ...l });
+        if (e) e.qty += l.qty;
+        else acc.push({ ...l });
         return acc;
       }, []);
       try {
@@ -155,35 +160,40 @@ export async function seedDemo(actor: string) {
   return { orders: made };
 }
 
-export async function wipeDemo() {
-  const db = getDb();
-  const orders = must(await db.from("orders").select("id").eq("is_demo", true)) as Row[];
-  const ids = orders.map((o) => o.id);
-  if (ids.length) {
-    await db.from("order_events").delete().in("order_id", ids);
-    await db.from("order_items").delete().in("order_id", ids);
+
+function refuseIfProduction() {
+  const host = (u?: string) => {
+    try {
+      return new URL(u ?? "").host.toLowerCase();
+    } catch {
+      return "";
+    }
+  };
+  const prodHost = host(process.env.MIEL_PRODUCTION_SUPABASE_URL);
+  const reasons: string[] = [];
+  if (process.env.NODE_ENV === "production") reasons.push("NODE_ENV is production");
+  if (process.env.MIEL_ENV === "production" || process.env.VERCEL_ENV === "production") reasons.push("this is the production environment");
+  if (!prodHost) reasons.push("MIEL_PRODUCTION_SUPABASE_URL is not set, so it cannot be proven this is not the production project");
+  else if (host(process.env.NEXT_PUBLIC_SUPABASE_URL) === prodHost) reasons.push("NEXT_PUBLIC_SUPABASE_URL is the production project");
+  if (!["staging", "development"].includes(process.env.MIEL_ENV ?? "")) reasons.push("MIEL_ENV must be staging or development");
+  if (reasons.length) {
+    console.error("Refusing to seed demo data:\n - " + reasons.join("\n - "));
+    process.exit(1);
   }
-  // reverse demo stock movements
-  const mv = must(await db.from("stock_movements").select("*").eq("is_demo", true)) as Row[];
-  const per = new Map<string, number>();
-  for (const m of mv) per.set(m.inventory_item_id, (per.get(m.inventory_item_id) ?? 0) + m.delta);
-  for (const [item, delta] of per) {
-    const cur = (must(await db.from("inventory_items").select("on_hand").eq("id", item).maybeSingle()) as Row | null)?.on_hand ?? 0;
-    await db.from("inventory_items").update({ on_hand: Math.max(0, cur - delta) }).eq("id", item);
-  }
-  await db.from("stock_movements").delete().eq("is_demo", true);
-  await db.from("orders").delete().eq("is_demo", true);
-  await db.from("customers").delete().eq("is_demo", true);
-  await db.from("discounts").delete().eq("is_demo", true);
-  await db.from("abandoned_checkouts").delete().eq("is_demo", true);
-  await db.from("events").delete().eq("is_demo", true);
-  await db.from("delivery_partners").delete().eq("is_demo", true);
-  const batches = must(await db.from("batches").select("id, lot_number")) as Row[];
-  for (const b of batches) if (String(b.lot_number).startsWith("DEMO-")) await db.from("batches").delete().eq("id", b.id);
-  return { orders: ids.length };
 }
 
-export async function hasDemo() {
-  const r = await getDb().from("orders").select("id", { count: "exact", head: true }).eq("is_demo", true);
-  return (r.count ?? 0) > 0;
+async function main() {
+  refuseIfProduction();
+  assertEnv();
+  if (!process.argv.includes("--yes")) {
+    console.error("This adds about 230 fake orders and 28 fake customers to the CONFIGURED (staging) database. Re-run with --yes to continue.");
+    process.exit(1);
+  }
+  const { orders } = await seedDemo("seed-script");
+  console.log(`Done: ${orders} demo orders created (all flagged is_demo). Remove them with: npm run purge-demo -- --confirm`);
 }
+
+main().catch((e) => {
+  console.error(String(e?.message ?? e));
+  process.exit(1);
+});

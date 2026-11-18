@@ -139,7 +139,7 @@ export async function moveImage(_p: ActionState, fd: FormData): Promise<ActionSt
 }
 
 export async function deleteImage(_p: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requirePerm("products.write");
+  const admin = await requirePerm("data.delete");
   const db = getDb();
   const imgId = String(fd.get("image_id"));
   const img = must(await db.from("product_images").select("*").eq("id", imgId).single()) as Row;

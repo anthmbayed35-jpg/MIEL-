@@ -10,6 +10,7 @@ screenshots
 .vercel
 .env*
 
-# local demo database + uploads (dev only)
-.data
-public/uploads
+# CSV backups taken before any deletion (never commit)
+/backups
+
+!.env.example

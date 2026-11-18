@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
@@ -145,9 +146,9 @@ export function CartDrawer() {
             (items.length === 0 ? (
               <div>
                 <p className="body-lg mb-6">Your cart is empty. Fuel up.</p>
-                <a href="/#lineup" onClick={close} className="btn btn-block">
+                <Link href="/#lineup" onClick={close} className="btn btn-block">
                   SHOP THE LINEUP
-                </a>
+                </Link>
               </div>
             ) : (
               <ul className="divide-y divide-white/10">

@@ -3,7 +3,7 @@ import { requireAdmin, can } from "@/lib/auth";
 import { dashboard } from "@/lib/stats";
 import { Card, Delta, Empty, Flash, Money, Num, PillLink, SectionTitle, StatusBadge } from "@/components/admin/ui";
 import { BarChart } from "@/components/admin/BarChart";
-import { ORDER_STATUSES, STATUS_LABEL } from "@/lib/status";
+import { ORDER_STATUSES } from "@/lib/status";
 
 export const metadata = { title: "Dashboard" };
 
@@ -72,8 +72,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Card className="mb-6">
           <Empty
             title="No orders yet."
-            hint="Orders from your store land here in real time. Want to see the dashboard filled in first? Load the demo data (you can wipe it with one click)."
-            action={admin.role === "owner" ? <PillLink href="/admin/settings#demo" variant="lime">Load demo data</PillLink> : undefined}
+            hint="Orders from your store land here within seconds of being placed."
           />
         </Card>
       )}

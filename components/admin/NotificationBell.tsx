@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { browserClient } from "@/lib/supabase-browser";
 
 type Note = { id: string; number: number; total: number; customer: string; region: string; created_at: string };
 
@@ -27,7 +26,10 @@ function beep() {
   } catch {}
 }
 
-/** New-order alerts: Supabase Realtime when configured, with polling as a fallback. Soft sound, mutable. */
+/**
+ * New-order alerts. Polls a session-protected endpoint every 5 seconds (no browser-side database client, so the
+ * session cookie can stay httpOnly). New orders show a toast, a badge and a soft sound that can be muted.
+ */
 export function NotificationBell() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [open, setOpen] = useState(false);
@@ -63,16 +65,8 @@ export function NotificationBell() {
     setMuted(m);
     mutedRef.current = m;
     load();
-    const iv = setInterval(load, 15000);
-    const sb = browserClient();
-    const ch = sb
-      ?.channel("orders-feed")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => load())
-      .subscribe();
-    return () => {
-      clearInterval(iv);
-      if (sb && ch) sb.removeChannel(ch);
-    };
+    const iv = setInterval(load, 5000);
+    return () => clearInterval(iv);
   }, [load]);
 
   useEffect(() => {

@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const admin = await getAdmin();
-  if (!admin || !can(admin.role, "customers.read")) return new Response("Forbidden", { status: 403 });
+  if (!admin) return new Response("Unauthorized", { status: 401 });
+  if (!can(admin.role, "exports.run")) return new Response("Forbidden", { status: 403 });
   const list = await customersWithStats();
   const rows = list.map((c) => [c.name, c.phone, c.email, c.orders, c.spent, c.last, (c.tags as string[]).join(" "), c.blocked ? "yes" : "no", c.created_at].map(csvCell).join(","));
   return new Response("﻿" + ["name,phone,email,orders,total_spent,last_order,tags,blocked,created", ...rows].join("\n"), {

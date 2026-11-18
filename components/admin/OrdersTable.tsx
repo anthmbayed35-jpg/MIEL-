@@ -26,7 +26,13 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
   const all = rows.length > 0 && sel.size === rows.length;
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggle = (id: string) =>
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   const cols: Col<OrderRow>[] = [
     { key: "num", label: "Order", render: (r) => <span className="mono !text-[14px] !text-fg">#{r.number}</span>, primary: true },

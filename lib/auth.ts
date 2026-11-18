@@ -1,47 +1,63 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { dbMode, getDb, must } from "./db";
+import { forbidden, redirect, unauthorized } from "next/navigation";
+import { getDb, hasSupabase, must, type Row } from "./db";
 import { authClient } from "./supabase-server";
-import { can, type Admin, type Perm, type Role } from "./roles";
+import { can, type Admin, type Perm } from "./roles";
 
 export { can };
-export type { Admin, Role, Perm };
+export type { Admin, Perm };
 
-export const LOCAL_COOKIE = "miel_local_admin";
+/** "ok" = fully signed in. "verify" = must enter the TOTP code. "enroll" = owner requires 2FA and this person has none yet. */
+export type MfaState = "ok" | "verify" | "enroll";
 
-/** The current admin, or null. Supabase mode: verified JWT + active row in admin_users. Local mode: demo cookie. */
-export const getAdmin = cache(async (): Promise<Admin | null> => {
-  const mode = dbMode();
-  if (mode === "none") return null;
-  // Opt-in PREVIEW (ADMIN_DEMO=1, no Supabase): opens as owner on sample data. Switches itself off once Supabase is configured.
-  if (mode === "demo") return { id: "demo-owner", email: "owner@preview.local", name: "Owner", role: "owner" };
-  if (mode === "local") {
-    const role = (await cookies()).get(LOCAL_COOKIE)?.value as Role | undefined;
-    if (role && ["owner", "manager", "staff"].includes(role)) {
-      const name = role === "owner" ? "Nixtio" : role === "manager" ? "Maya" : "Karim";
-      return { id: `local-${role}`, email: `${role}@demo.local`, name, role };
-    }
+type SessionUser = { id: string; email: string; currentLevel: string; nextLevel: string };
+
+/** The Supabase Auth user for this request (verified with the Auth server, not just decoded from the cookie). */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  if (!hasSupabase()) return null;
+  try {
+    const supabase = await authClient();
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return null;
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    return { id: data.user.id, email: data.user.email ?? "", currentLevel: aal?.currentLevel ?? "aal1", nextLevel: aal?.nextLevel ?? "aal1" };
+  } catch {
     return null;
   }
-  const supabase = await authClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  const row = must(await getDb().from("admin_users").select("*").eq("id", data.user.id).maybeSingle());
-  if (!row || !row.active) return null;
-  return { id: row.id, email: row.email, name: row.name || row.email.split("@")[0], role: row.role };
 });
 
-export async function requireAdmin(): Promise<Admin> {
-  const a = await getAdmin();
-  if (!a) redirect("/admin/login");
-  return a;
+/** Signed in AND listed as an active team member. Includes the 2FA state so the MFA pages can use it. */
+export const getAdminState = cache(async (): Promise<{ admin: Admin; mfa: MfaState } | null> => {
+  const s = await getSessionUser();
+  if (!s) return null;
+  const db = getDb();
+  const row = must(await db.from("admin_users").select("*").eq("id", s.id).maybeSingle()) as Row | null;
+  if (!row || !row.active) return null;
+  const sec = (must(await db.from("settings").select("*").eq("key", "security")) as Row[])[0]?.value as { require_2fa?: boolean } | undefined;
+  let mfa: MfaState = "ok";
+  if (s.nextLevel === "aal2" && s.currentLevel !== "aal2") mfa = "verify";
+  else if (sec?.require_2fa && s.currentLevel !== "aal2") mfa = "enroll";
+  return { admin: { id: row.id, email: row.email, name: row.name || String(row.email).split("@")[0], role: row.role }, mfa };
+});
+
+/** The current admin, or null. Null also when 2FA is still pending, so APIs treat a half-signed-in session as signed out. */
+export async function getAdmin(): Promise<Admin | null> {
+  const st = await getAdminState();
+  return st && st.mfa === "ok" ? st.admin : null;
 }
 
-/** Use at the top of every admin page and server action. */
+/** For pages, actions and routes: 401 when not signed in, redirect to the 2FA step when it is pending. */
+export async function requireAdmin(): Promise<Admin> {
+  const st = await getAdminState();
+  if (!st) unauthorized();
+  if (st.mfa !== "ok") redirect("/admin/mfa");
+  return st.admin;
+}
+
+/** Use at the top of every admin page, server action and route. 401 if signed out, 403 if the role can't do this. */
 export async function requirePerm(perm: Perm): Promise<Admin> {
   const a = await requireAdmin();
-  if (!can(a.role, perm)) redirect("/admin?denied=" + encodeURIComponent(perm));
+  if (!can(a.role, perm)) forbidden();
   return a;
 }

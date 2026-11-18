@@ -169,7 +169,9 @@ function Lightbox({ slots, start, onClose }: { slots: Slot[]; start: number; onC
   const closeBtn = useRef<HTMLButtonElement>(null);
   const [i, setI] = useState(start);
   const iRef = useRef(start);
-  iRef.current = i;
+  useEffect(() => {
+    iRef.current = i;
+  }, [i]);
 
   const goTo = useCallback(
     (n: number) => {

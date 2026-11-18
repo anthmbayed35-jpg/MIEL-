@@ -119,7 +119,7 @@ export function KV({ k, children }: { k: string; children: React.ReactNode }) {
 
 /** Responsive table: a real table from md up, stacked cards on phones. Each column provides a `label` for the mobile card. */
 export type Col<T> = { key: string; label: string; render: (row: T) => React.ReactNode; className?: string; primary?: boolean; noLink?: boolean };
-export function DataTable<T extends Record<string, any>>({ rows, cols, href, empty }: { rows: T[]; cols: Col<T>[]; href?: (row: T) => string; empty?: React.ReactNode }) {
+export function DataTable<T extends Record<string, unknown>>({ rows, cols, href, empty }: { rows: T[]; cols: Col<T>[]; href?: (row: T) => string; empty?: React.ReactNode }) {
   if (!rows.length) return <>{empty ?? <Empty title="Nothing here yet." />}</>;
   const linkKey = cols.find((c) => !c.noLink)?.key;
   return (

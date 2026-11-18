@@ -1,50 +1,81 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { audit } from "@/lib/audit";
-import { LOCAL_COOKIE } from "@/lib/auth";
-import { dbMode, getDb, must } from "@/lib/db";
-import { rateLimit } from "@/lib/rate-limit";
+import { getAdminState } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { SEEN_COOKIE } from "@/lib/cookies";
+import { getDb, hasSupabase, must } from "@/lib/db";
+import { clientIp, isThrottled, recordAuthEvent } from "@/lib/security";
 import { authClient } from "@/lib/supabase-server";
 import type { ActionState } from "@/components/admin/ActionForm";
 
+const GENERIC = "Wrong email or password.";
+const SITE = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+
 export async function login(_prev: ActionState, fd: FormData): Promise<ActionState> {
-  const mode = dbMode();
-  if (mode === "none") return { error: "Admin isn't configured on this deployment yet. See the setup steps." };
-  if (mode === "demo") redirect("/admin");
-
-  if (mode === "local") {
-    const role = String(fd.get("role") ?? "owner");
-    if (!["owner", "manager", "staff"].includes(role)) return { error: "Pick a role." };
-    (await cookies()).set(LOCAL_COOKIE, role, { httpOnly: true, sameSite: "lax", path: "/" });
-    redirect("/admin");
-  }
-
-  const ip = ((await headers()).get("x-forwarded-for") ?? "u").split(",")[0].trim();
-  if (!rateLimit(`login:${ip}`, 8, 10 * 60_000)) return { error: "Too many attempts. Wait a few minutes and try again." };
-
-  const email = String(fd.get("email") ?? "").trim().toLowerCase();
-  const password = String(fd.get("password") ?? "");
-  if (!email || !password) return { error: "Enter your email and password." };
+  if (!hasSupabase()) return { error: "Admin isn't configured on this deployment yet." };
+  const ip = await clientIp();
+  const email = String(fd.get("email") ?? "").trim().toLowerCase().slice(0, 200);
+  const password = String(fd.get("password") ?? "").slice(0, 200);
+  if (!email || !password) return { error: GENERIC };
+  if (await isThrottled("login_failed", ip, email)) return { error: "Too many attempts. Wait 15 minutes and try again." };
 
   const supabase = await authClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.user) return { error: "Wrong email or password." };
-
-  // Only people listed (and active) in admin_users may enter, even if they hold a valid Supabase account.
+  if (error || !data.user) {
+    await recordAuthEvent("login_failed", { ip, email, details: { reason: "bad_credentials" } });
+    return { error: GENERIC };
+  }
+  // Only active team members may enter, even with a valid Supabase account. Same generic message either way.
   const row = must(await getDb().from("admin_users").select("*").eq("id", data.user.id).maybeSingle());
   if (!row || !row.active) {
     await supabase.auth.signOut();
-    return { error: "This account doesn't have admin access." };
+    await recordAuthEvent("login_failed", { ip, email, details: { reason: "not_an_active_admin" } });
+    return { error: GENERIC };
   }
-  await audit({ id: row.id, email: row.email }, "login", "admin_user", row.id);
+  await recordAuthEvent("login", { ip, actorId: row.id, actorEmail: row.email });
   redirect("/admin");
 }
 
+/** End this browser's session. */
 export async function logout() {
-  const mode = dbMode();
-  if (mode === "local") (await cookies()).delete(LOCAL_COOKIE);
-  else if (mode === "supabase") await (await authClient()).auth.signOut();
+  if (hasSupabase()) {
+    const st = await getAdminState();
+    const ip = await clientIp();
+    await (await authClient()).auth.signOut({ scope: "local" });
+    if (st) await recordAuthEvent("logout", { ip, actorId: st.admin.id, actorEmail: st.admin.email });
+  }
+  (await cookies()).delete(SEEN_COOKIE);
   redirect("/admin/login");
+}
+
+/** End every session of this account, on every device. */
+export async function logoutEverywhere() {
+  if (hasSupabase()) {
+    const st = await getAdminState();
+    const ip = await clientIp();
+    await (await authClient()).auth.signOut({ scope: "global" });
+    if (st) await recordAuthEvent("logout_all", { ip, actorId: st.admin.id, actorEmail: st.admin.email });
+  }
+  (await cookies()).delete(SEEN_COOKIE);
+  redirect("/admin/login");
+}
+
+/** Password reset by email. The answer is always the same, whether or not the address belongs to a team member. */
+export async function requestReset(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const SAME: ActionState = { ok: "If that address belongs to a team member, a reset link is on its way. It expires in an hour." };
+  if (!hasSupabase()) return { error: "Admin isn't configured on this deployment yet." };
+  const ip = await clientIp();
+  const email = String(fd.get("email") ?? "").trim().toLowerCase().slice(0, 200);
+  if (!/^\S+@\S+\.\S+$/.test(email)) return SAME;
+  if (await isThrottled("reset_requested", ip, email)) return SAME; // silently ignore floods
+  await recordAuthEvent("reset_requested", { ip, email });
+  const row = must(await getDb().from("admin_users").select("id, active").eq("email", email).maybeSingle());
+  if (row?.active) {
+    // The email template links to /admin/auth/confirm?token_hash=...&type=recovery (see docs/OPERATIONS.md)
+    await (await authClient()).auth.resetPasswordForEmail(email, { redirectTo: `${SITE()}/admin/auth/confirm?next=/admin/set-password` });
+    await audit({ id: row.id, email }, "password_reset_requested", "admin_user", row.id);
+  }
+  return SAME;
 }

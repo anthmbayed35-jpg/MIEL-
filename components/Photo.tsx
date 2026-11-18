@@ -27,7 +27,7 @@ export function Photo({
   const m = photoMeta[src];
   if (!m) {
     // Image uploaded from the admin (single file, no pre-generated sizes): plain responsive <img>.
-    if (!/^https?:\/\//.test(src) && !src.startsWith("/uploads/")) return null;
+    if (!/^https:\/\//.test(src)) return null;
     return (
       <span className={`relative block overflow-hidden ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -54,7 +54,6 @@ export function Photo({
       <picture>
         <source type="image/avif" srcSet={set("avif")} sizes={sizes} />
         <source type="image/webp" srcSet={set("webp")} sizes={sizes} />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`${src}-${mid}.webp`}
           alt={alt}

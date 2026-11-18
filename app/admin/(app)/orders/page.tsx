@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requirePerm } from "@/lib/auth";
+import { can, requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
 import { listOrders, PAGE_SIZE } from "@/lib/queries";
 import { ORDER_STATUSES, STATUS_LABEL } from "@/lib/status";
@@ -11,7 +11,7 @@ export const metadata = { title: "Orders" };
 type SP = { q?: string; status?: string; pay?: string; region?: string; from?: string; to?: string; page?: string };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requirePerm("orders.read");
+  const admin = await requirePerm("orders.read");
   const sp = await searchParams;
   let data;
   try {
@@ -34,7 +34,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         title="Orders"
         actions={
           <>
-            <PillLink href={`/admin/orders/export?${exportQs}`} variant="glass">Export CSV</PillLink>
+            {can(admin.role, "exports.run") && <PillLink href={`/admin/orders/export?${exportQs}`} variant="glass">Export CSV</PillLink>}
             <PillLink href="/admin/orders?status=draft" variant="glass">Drafts</PillLink>
             <PillLink href="/admin/orders/new" variant="lime">+ New order</PillLink>
           </>

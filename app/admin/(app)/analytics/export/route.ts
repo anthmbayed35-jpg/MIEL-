@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 /** CSV exports for the analytics tables. */
 export async function GET(req: Request) {
   const admin = await getAdmin();
-  if (!admin || !can(admin.role, "analytics.read")) return new Response("Forbidden", { status: 403 });
+  if (!admin) return new Response("Unauthorized", { status: 401 });
+  if (!can(admin.role, "exports.run") || !can(admin.role, "analytics.read")) return new Response("Forbidden", { status: 403 });
   const kind = new URL(req.url).searchParams.get("kind") ?? "sales";
   const a = await analytics();
   let head: string[] = [];

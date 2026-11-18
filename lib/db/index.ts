@@ -1,49 +1,36 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { createLocalClient } from "./local";
+import { validateEnv } from "../env";
 
 export type Row = Record<string, any>;
 type Result<T = any> = { data: T; error: { message: string; code?: string } | null; count?: number | null };
-// Loose structural type: both the Supabase client and the local store satisfy this.
 export type Db = {
   from(table: string): any;
   rpc(name: string, args?: Row): PromiseLike<Result>;
 };
 
-/**
- * supabase: production database.
- * local:    JSON-file store for local development only.
- * demo:     opt-in PREVIEW on Vercel (ADMIN_DEMO=1) when Supabase is NOT configured: the admin opens as owner on
- *           sample data in /tmp (ephemeral). The storefront ignores it and keeps using the config files.
- * none:     nothing configured.
- */
-export type DbMode = "supabase" | "local" | "demo" | "none";
+export type DbMode = "supabase" | "none";
 
 export const hasSupabase = () =>
   !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-/** The JSON-file store is for local dev/demo only. Never on Vercel. */
-const localAllowed = () => !process.env.VERCEL && (process.env.NODE_ENV !== "production" || process.env.MIEL_LOCAL_DB === "1");
+/** "supabase" when the project is configured, otherwise "none": the storefront then runs from config and /admin stays closed. */
+export const dbMode = (): DbMode => (hasSupabase() ? "supabase" : "none");
 
-export const dbMode = (): DbMode =>
-  hasSupabase() ? "supabase" : localAllowed() ? "local" : process.env.ADMIN_DEMO === "1" ? "demo" : "none";
-
-/** Real storefront data (orders, stock, prices from the DB). False in demo/none: the store runs from config + WhatsApp. */
-export const usesDb = () => dbMode() === "supabase" || dbMode() === "local";
+/** Real storefront data (orders, stock, prices from the DB). False when no database is configured. */
+export const usesDb = () => dbMode() === "supabase";
 
 let supa: Db | null = null;
 
-/** Server-side database client (service role). Throws in "none" mode: callers should check dbMode() first. */
+/** Server-side database client (service role). Refuses to run against the wrong project for this environment. */
 export function getDb(): Db {
-  const mode = dbMode();
-  if (mode === "supabase") {
-    supa ??= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as Db;
-    return supa;
-  }
-  if (mode === "local" || mode === "demo") return createLocalClient() as unknown as Db;
-  throw new Error("Database not configured. Set the Supabase env vars (see .env.example).");
+  if (!hasSupabase()) throw new Error("Database not configured. Set the Supabase environment variables (see docs/OPERATIONS.md).");
+  const problems = validateEnv().filter((p) => /PRODUCTION Supabase|production deployment/.test(p));
+  if (problems.length) throw new Error(problems[0]);
+  supa ??= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  }) as unknown as Db;
+  return supa;
 }
 
 /** Throw on a Supabase-style error result, otherwise return data. */

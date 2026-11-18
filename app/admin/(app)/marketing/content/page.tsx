@@ -1,4 +1,4 @@
-import { requirePerm } from "@/lib/auth";
+import { can, requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
 import { DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO } from "@/config/content";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
@@ -67,7 +67,7 @@ export default async function ContentPage() {
                   <ActionForm action={setTestimonial} className="flex gap-2">
                     <input type="hidden" name="id" value={t.id} />
                     <SubmitButton variant={t.approved ? "glass" : "lime"} name="act" value={t.approved ? "hide" : "approve"} className="!min-h-10">{t.approved ? "Hide" : "Approve"}</SubmitButton>
-                    <SubmitButton variant="danger" name="act" value="remove" confirm="Remove this testimonial?" className="!min-h-10">Remove</SubmitButton>
+                    {can(admin.role, "data.delete") && <SubmitButton variant="danger" name="act" value="remove" confirm="Remove this testimonial?" className="!min-h-10">Remove</SubmitButton>}
                   </ActionForm>
                 </div>
               </li>

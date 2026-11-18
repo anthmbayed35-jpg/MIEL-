@@ -1,24 +1,23 @@
 import { requirePerm } from "@/lib/auth";
-import { dbMode, getDb, must, type Row } from "@/lib/db";
-import { hasDemo } from "@/lib/demo";
+import { getDb, must, type Row } from "@/lib/db";
 import { DEFAULT_NOTIFICATIONS, DEFAULT_POLICIES, DEFAULT_STORE } from "@/config/content";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, Field, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { SETTINGS_TABS, SubNav } from "@/components/admin/SubNav";
-import { loadDemoAction, saveNotifications, savePolicies, saveStore, seedStoreAction, wipeDemoAction } from "./actions";
+import { saveNotifications, savePolicies, saveSecurity, saveStore, seedStoreAction } from "./actions";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const admin = await requirePerm("settings.read");
   const db = getDb();
-  const demo = await hasDemo();
   const productCount = must(await db.from("products").select("id")).length;
   const rows = must(await db.from("settings").select("*")) as Row[];
   const s = (k: string) => rows.find((r) => r.key === k)?.value;
   const store = { ...DEFAULT_STORE, ...(s("store") ?? {}) };
   const notif = { ...DEFAULT_NOTIFICATIONS, ...(s("notifications") ?? {}) };
   const pol = { ...DEFAULT_POLICIES, ...(s("policies") ?? {}) };
+  const security = { require_2fa: false, ...(s("security") ?? {}) } as { require_2fa: boolean };
   const owner = admin.role === "owner";
 
   const lock = (children: React.ReactNode) => (owner ? children : <p className="text-[14px] text-muted">Only the owner can change this.</p>);
@@ -42,7 +41,10 @@ export default async function SettingsPage() {
                 <Field label="Instagram handle"><input name="instagram_handle" defaultValue={store.instagram_handle} className="a-input" /></Field>
                 <Field label="Instagram URL"><input name="instagram_url" defaultValue={store.instagram_url} className="a-input" /></Field>
               </div>
-              <Field label="Currency display"><input value="USD ($)" readOnly className="a-input opacity-70" /></Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Currency"><input value="USD ($)" readOnly className="a-input opacity-70" /></Field>
+                <Field label="Store timezone"><input value={store.timezone} readOnly className="a-input opacity-70" /></Field>
+              </div>
               <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="cod_enabled" defaultChecked={store.cod_enabled} className="h-6 w-6 accent-[#DAFC69]" />Accept orders (cash on delivery)</label>
               <p className="-mt-2 text-[13px] text-muted">Untick to pause online ordering, for example when you are out of stock or on holiday.</p>
               <SubmitButton variant="lime">Save store details</SubmitButton>
@@ -67,7 +69,6 @@ export default async function SettingsPage() {
 
           <Card>
             <SectionTitle>Database</SectionTitle>
-            <p className="text-[16px] text-body">Mode: <span className="mono">{dbMode().toUpperCase()}</span>{dbMode() === "local" && " (local JSON file, development only)"}</p>
             <p className="mt-1 text-[16px] text-body">Products in database: {productCount}</p>
             {owner && (
               <ActionForm action={seedStoreAction} className="mt-4">
@@ -93,21 +94,13 @@ export default async function SettingsPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <div id="demo" />
-          <SectionTitle>Demo data</SectionTitle>
-          <p className="text-[16px] text-body">
-            Fill the dashboard with ~90 days of sample orders, customers, discounts and stock so you can see how everything looks. Everything is flagged as demo and is removed (with stock restored) when you wipe it. Your real data is never touched.
-          </p>
-          {owner ? (
-            <div className="mt-4 flex flex-wrap gap-3">
-              {!demo ? (
-                <ActionForm action={loadDemoAction}><SubmitButton variant="lime">Load demo data</SubmitButton></ActionForm>
-              ) : (
-                <ActionForm action={wipeDemoAction}><SubmitButton variant="danger" confirm="Delete all demo data? Real orders and customers are not affected.">Wipe demo data</SubmitButton></ActionForm>
-              )}
-            </div>
-          ) : (
-            <p className="mt-3 text-[14px] text-muted">Only the owner can load or wipe demo data.</p>
+          <SectionTitle>Security</SectionTitle>
+          {lock(
+            <ActionForm action={saveSecurity} className="space-y-4">
+              <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="require_2fa" defaultChecked={security.require_2fa} className="h-6 w-6 accent-[#DAFC69]" />Require two-factor authentication for everyone on the team</label>
+              <p className="-mt-2 text-[13px] text-muted">People without it are asked to set it up (authenticator app) the next time they open the admin. Sessions end after 12 hours of inactivity.</p>
+              <SubmitButton variant="lime">Save security settings</SubmitButton>
+            </ActionForm>,
           )}
         </Card>
       </div>

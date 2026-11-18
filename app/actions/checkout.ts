@@ -103,8 +103,8 @@ export async function placeOrder(input: {
     revalidatePath("/admin", "layout");
     void notifyNewOrder({ number: order.order_number, total: quote.total, customer: input.customer.name, phone, region: input.region, lines: quote.lines });
     return { ok: true, orderNumber: String(order.order_number), whatsappUrl: waLink(wa, text), total: quote.total };
-  } catch (e: any) {
-    return { ok: false, error: e?.message ?? "Could not place the order. Please try again or message us on WhatsApp." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Could not place the order. Please try again or message us on WhatsApp." };
   }
 }
 

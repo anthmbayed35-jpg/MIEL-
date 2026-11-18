@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
-import { seedDemo, wipeDemo } from "@/lib/demo";
 import { seedBase } from "@/lib/seed";
 import { getDb, must, type Row } from "@/lib/db";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -14,26 +13,6 @@ export async function seedStoreAction(): Promise<ActionState> {
   await audit(admin, "seed_store", "store", "", { created });
   revalidatePath("/", "layout");
   return { ok: created ? `Added ${created} product(s) from the config.` : "Everything from the config is already in the database." };
-}
-
-export async function loadDemoAction(): Promise<ActionState> {
-  const admin = await requirePerm("settings.write");
-  try {
-    const { orders } = await seedDemo(admin.email);
-    await audit(admin, "load_demo", "demo", "", { orders });
-    revalidatePath("/admin", "layout");
-    return { ok: `Demo data loaded (${orders} orders). Wipe it any time below.` };
-  } catch (e: any) {
-    return { error: e?.message ?? "Could not load the demo data." };
-  }
-}
-
-export async function wipeDemoAction(): Promise<ActionState> {
-  const admin = await requirePerm("settings.write");
-  const { orders } = await wipeDemo();
-  await audit(admin, "wipe_demo", "demo", "", { orders });
-  revalidatePath("/admin", "layout");
-  return { ok: `Removed ${orders} demo orders and all other demo rows. Stock was restored.` };
 }
 
 async function putSetting(key: string, value: unknown) {
@@ -50,7 +29,7 @@ export async function saveStore(_p: ActionState, fd: FormData): Promise<ActionSt
     name: String(fd.get("name") ?? "").trim() || "MIEL+",
     email: String(fd.get("email") ?? "").trim(), phone: String(fd.get("phone") ?? "").trim(), whatsapp,
     instagram_handle: String(fd.get("instagram_handle") ?? "").trim(), instagram_url: String(fd.get("instagram_url") ?? "").trim(),
-    currency: "USD", cod_enabled: fd.get("cod_enabled") === "on", free_delivery_note: String(fd.get("free_delivery_note") ?? "").trim(),
+    currency: "USD", timezone: "Asia/Beirut", cod_enabled: fd.get("cod_enabled") === "on", free_delivery_note: String(fd.get("free_delivery_note") ?? "").trim(),
   });
   await audit(admin, "settings_store", "settings", "store", { whatsapp: !!whatsapp, cod: fd.get("cod_enabled") === "on" });
   revalidatePath("/", "layout");
@@ -75,4 +54,13 @@ export async function savePolicies(_p: ActionState, fd: FormData): Promise<Actio
   await audit(admin, "settings_policies", "settings", "policies");
   revalidatePath("/", "layout");
   return { ok: "Policy pages saved. They are live at /policies/shipping, /returns, /privacy and /terms." };
+}
+
+/** Owner-only: require 2FA for every team member. People without it are sent to set it up at their next request. */
+export async function saveSecurity(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("settings.write");
+  const require2fa = fd.get("require_2fa") === "on";
+  await putSetting("security", { require_2fa: require2fa });
+  await audit(admin, "settings_security", "settings", "security", { require_2fa: require2fa });
+  return { ok: require2fa ? "Two-factor authentication is now required for everyone." : "Two-factor authentication is optional again." };
 }

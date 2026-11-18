@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requirePerm } from "@/lib/auth";
+import { can, requirePerm } from "@/lib/auth";
 import { customersWithStats } from "@/lib/customers";
 import { Card, DataTable, Empty, Money, PageHeader, PillLink } from "@/components/admin/ui";
 
 export const metadata = { title: "Customers" };
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; blocked?: string; sort?: string }> }) {
-  await requirePerm("customers.read");
+  const admin = await requirePerm("customers.read");
   const sp = await searchParams;
   let list = await customersWithStats();
   const tags = [...new Set(list.flatMap((c) => (c.tags as string[]) ?? []))].sort();
@@ -19,7 +19,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader eyebrow="Everyone who ordered" title="Customers" actions={<PillLink href={`/admin/customers/export?${exportQs}`} variant="glass">Export CSV</PillLink>} />
+      <PageHeader eyebrow="Everyone who ordered" title="Customers" actions={can(admin.role, "exports.run") ? <PillLink href={`/admin/customers/export?${exportQs}`} variant="glass">Export CSV</PillLink> : undefined} />
       <Card>
         <form className="mb-6 grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]" role="search">
           <input name="q" defaultValue={sp.q} placeholder="Search name or phone" className="a-input" aria-label="Search customers" />

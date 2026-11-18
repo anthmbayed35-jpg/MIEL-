@@ -24,6 +24,8 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
 
   const name = (itemId: string) => products.find((p) => p.id === inv.find((i) => i.id === itemId)?.product_id)?.name ?? "—";
   const rows = inv.map((i) => ({ id: i.id, i, product: products.find((p) => p.id === i.product_id) })).filter((r) => r.product);
+  // Server Component: runs once per request, so reading the clock here is correct.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const expiring = batches.filter((b) => b.expiry_date && b.status === "received" && +new Date(b.expiry_date) - now < 60 * DAY);
 

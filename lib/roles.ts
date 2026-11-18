@@ -1,6 +1,12 @@
 export type Role = "owner" | "manager" | "staff";
 
-/** Permission -> roles allowed. Enforced in server code (and mirrored by RLS in the SQL migration). */
+/**
+ * Permission -> roles allowed. Enforced in server code on every page, action and route (requirePerm / getAdmin),
+ * and mirrored by row-level security in supabase/migrations.
+ *  - staff:   day-to-day work (orders, customers, inventory). No pricing, discounts, exports, settings or team.
+ *  - manager: everything operational, but cannot touch team/settings or DELETE data.
+ *  - owner:   everything, including settings, team and deletion.
+ */
 export const PERMS = {
   "orders.read": ["owner", "manager", "staff"],
   "orders.write": ["owner", "manager", "staff"],
@@ -20,6 +26,10 @@ export const PERMS = {
   "settings.read": ["owner", "manager"],
   "settings.write": ["owner"],
   "team.manage": ["owner"],
+  /** CSV exports (orders, customers, analytics). */
+  "exports.run": ["owner", "manager"],
+  /** Permanently removing things (images, testimonials). Everything else is archived or disabled. */
+  "data.delete": ["owner"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Perm = keyof typeof PERMS;
