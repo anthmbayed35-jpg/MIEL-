@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { products, type Product } from "@/config/products";
+import { findPhoto, products, type Product } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money, perSachet } from "@/lib/format";
 import { Blobs } from "../Blobs";
+import { Photo } from "../Photo";
 import { Reveal } from "../Reveal";
 
 const wrap = "mx-auto max-w-7xl px-5 md:px-8";
@@ -137,36 +138,115 @@ export function Inside({ product }: { product: Product }) {
   );
 }
 
+/** "12 sachets per pouch": the flat lay in a large glass frame. Rendered only when the product has a flat-lay photo. */
+export function PouchBlock({ product }: { product: Product }) {
+  const photo = findPhoto(product, "flat-lay");
+  if (!photo) return null;
+  const size = product.facts.find((f) => f.label === "Sachet size")?.value;
+  return (
+    <section className="relative isolate overflow-x-clip">
+      <Blobs spots={[{ x: "55%", y: "10%", color: product.glow }, { x: "-10%", y: "50%", delay: -9 }]} />
+      <div className={`${wrap} py-14 md:py-20`}>
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
+          <Reveal>
+            <p className="mono mb-3">IN THE POUCH</p>
+            <h2 className="display h-section">
+              {SACHETS_PER_POUCH} sachets <span className="accent">per pouch.</span>
+            </h2>
+            <p className="body-lg mt-5 max-w-lg">
+              One stand-up pouch. {SACHETS_PER_POUCH} tear-open sachets{size ? `, ${size.toLowerCase()} each` : ""}. Throw a few in your bag and go.
+            </p>
+            <p className="mono mt-5 !text-[15px]">
+              {money(product.price)} · {money(perSachet(product.price), 2)} / SACHET
+            </p>
+          </Reveal>
+          <Reveal delay={80} className="glass mx-auto w-full max-w-[560px] p-2 sm:p-3">
+            <Photo
+              src={photo.src}
+              alt={photo.alt}
+              sizes="(min-width: 1024px) 540px, calc(100vw - 56px)"
+              className="aspect-[4/5] w-full rounded-[12px]"
+            />
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ProductHowTo({ product }: { product: Product }) {
+  const photo = findPhoto(product, "sachet-open");
+  const steps = product.howTo;
   return (
     <section className={`${wrap} py-14 md:py-20`}>
       <Reveal>
         <p className="mono mb-3">HOW TO USE</p>
         <h2 className="display h-section mb-8">Rip. Take. Go.</h2>
       </Reveal>
-      <ol className="grid gap-4 lg:grid-cols-3">
-        {product.howTo.map((s, n) => (
-          <Reveal as="li" key={s.title} delay={n * 80} className="glass p-5 md:p-8">
-            <span aria-hidden className="display accent block text-[88px] leading-none md:text-[120px]">
-              {String(n + 1).padStart(2, "0")}
-            </span>
-            <h3 className="display mt-4 text-[24px]">
-              <span className="sr-only">Step {n + 1}: </span>
-              {s.title}
-            </h3>
-            <p className="body-lg mt-3">{s.text}</p>
+      {photo ? (
+        // Image beside the steps on desktop, stacked on mobile. Photo stays 4:5 so the sachet label is never cropped.
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-stretch lg:gap-10">
+          <Reveal className="glass mx-auto w-full max-w-[420px] self-start p-2 lg:mx-0">
+            <Photo
+              src={photo.src}
+              alt={photo.alt}
+              sizes="(min-width: 1024px) 400px, calc(100vw - 56px)"
+              className="aspect-[4/5] w-full rounded-[12px]"
+            />
           </Reveal>
-        ))}
-      </ol>
+          <ol className="flex flex-col gap-4">
+            {steps.map((st, n) => (
+              <Reveal as="li" key={st.title} delay={n * 80} className="glass flex flex-1 items-center gap-5 p-5 md:gap-8 md:p-8">
+                <span aria-hidden className="display accent w-[104px] shrink-0 text-[64px] leading-none md:w-[160px] md:text-[96px]">
+                  {String(n + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3 className="display text-[22px] md:text-[26px]">
+                    <span className="sr-only">Step {n + 1}: </span>
+                    {st.title}
+                  </h3>
+                  <p className="body-lg mt-2">{st.text}</p>
+                </div>
+              </Reveal>
+            ))}
+          </ol>
+        </div>
+      ) : (
+        <ol className="grid gap-4 lg:grid-cols-3">
+          {steps.map((st, n) => (
+            <Reveal as="li" key={st.title} delay={n * 80} className="glass p-5 md:p-8">
+              <span aria-hidden className="display accent block text-[88px] leading-none md:text-[120px]">
+                {String(n + 1).padStart(2, "0")}
+              </span>
+              <h3 className="display mt-4 text-[24px]">
+                <span className="sr-only">Step {n + 1}: </span>
+                {st.title}
+              </h3>
+              <p className="body-lg mt-3">{st.text}</p>
+            </Reveal>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }
 
 export function Why({ product }: { product: Product }) {
+  const bg = findPhoto(product, "ingredients");
+  const fade = "linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent)";
   return (
     <section className="relative isolate overflow-x-clip">
+      {/* Soft background: ingredients photo dimmed to ~35% under a dark overlay so the cards stay fully readable */}
+      {bg && (
+        <>
+          <div aria-hidden className="absolute inset-0 -z-20 opacity-35" style={{ maskImage: fade, WebkitMaskImage: fade }}>
+            <Photo src={bg.src} alt="" sizes="100vw" position="50% 55%" className="h-full w-full" />
+          </div>
+          <div aria-hidden className="absolute inset-0 -z-10 bg-bg/40" />
+        </>
+      )}
       <Blobs spots={[{ x: "60%", y: "-10%", color: product.glow }, { x: "-10%", y: "40%", delay: -8 }]} />
-      <div className={`${wrap} py-14 md:py-20`}>
+      <div className={`${wrap} py-16 md:py-24`}>
         <Reveal>
           <p className="mono mb-3">WHY THIS ONE</p>
           <h2 className="display h-section mb-8">
@@ -177,7 +257,7 @@ export function Why({ product }: { product: Product }) {
           {product.why.map((b, n) => (
             <Reveal key={b.title} delay={n * 80} className="glass p-5 md:p-8">
               <h3 className="display text-[24px]">{b.title}</h3>
-              <p className="body-lg mt-3">{b.text}</p>
+              <p className="body-lg mt-3 !text-fg">{b.text}</p>
             </Reveal>
           ))}
         </div>

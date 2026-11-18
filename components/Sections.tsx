@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL, POUCH_PRICE, SACHETS_PER_POUCH, WHATSAPP_NUMBER, SITE } from "@/config/site";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
@@ -185,7 +184,8 @@ export function Footer() {
       <div className={`${wrap} py-12 md:py-16`}>
         {/* 220px wide logo is ~48px tall, so 24px padding keeps the half-height clear zone. */}
         <div className="w-[220px] py-6">
-          <Image src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} className="block h-auto w-full" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} loading="lazy" className="block h-auto w-full" />
         </div>
         <ul className="mt-6 flex flex-col md:flex-row md:gap-10">
           <li>

@@ -14,6 +14,7 @@ import {
   FlavorSwitcher,
   Inside,
   Notice,
+  PouchBlock,
   PriceBlock,
   ProductFaq,
   ProductHowTo,
@@ -56,7 +57,9 @@ export default async function ProductPage({ params }: Props) {
     name: `${p.name} ${p.descriptor}`,
     description: p.description,
     brand: { "@type": "Brand", name: SITE.name },
-    image: `${SITE.url}/products/${p.slug}/opengraph-image`,
+    image: p.images.length
+      ? p.images.map((i) => `${SITE.url}${i.src}-1080.webp`)
+      : `${SITE.url}/products/${p.slug}/opengraph-image`,
     url: `${SITE.url}/products/${p.slug}`,
     offers: {
       "@type": "Offer",
@@ -100,6 +103,7 @@ export default async function ProductPage({ params }: Props) {
             </div>
           </div>
         </section>
+        <PouchBlock product={p} />
         <Inside product={p} />
         <ProductHowTo product={p} />
         <Why product={p} />

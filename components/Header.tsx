@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "./CartProvider";
 
@@ -13,14 +12,8 @@ export function Header() {
         {/* Vertical padding = half the logo height (18px mobile / 22px desktop) keeps the clear zone. */}
         <div className="flex items-center justify-between px-6 py-[18px] md:px-8 md:py-[22px]">
           <Link href="/" aria-label="MIEL+ home" className="block">
-            <Image
-              src="/brand/miel-m-plus.png"
-              alt="MIEL+"
-              width={358}
-              height={228}
-              priority
-              className="h-9 w-auto md:h-11"
-            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/miel-m-plus.png" alt="MIEL+" width={358} height={228} className="h-9 w-auto md:h-11" />
           </Link>
           <nav aria-label="Primary" className="flex items-center gap-3">
             <Link href="/#lineup" className="btn btn-sm">

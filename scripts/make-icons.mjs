@@ -16,5 +16,3 @@ async function make(file, w, h, logoW) {
 
 await make("app/icon.png", 512, 512, 400);
 await make("app/apple-icon.png", 180, 180, 140);
-await make("app/opengraph-image.png", 1200, 630, 560);
-await make("app/twitter-image.png", 1200, 630, 560);

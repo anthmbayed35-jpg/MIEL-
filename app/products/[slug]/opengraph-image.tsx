@@ -15,6 +15,11 @@ export function generateStaticParams() {
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const p = getProduct(slug);
+  if (p?.ogImage) {
+    // Ready-made 1200x630 share image (see scripts/make-images.mjs)
+    const file = await readFile(path.join(process.cwd(), "public", p.ogImage));
+    return new Response(new Uint8Array(file), { headers: { "Content-Type": "image/png" } });
+  }
   const logo = await readFile(path.join(process.cwd(), "public/brand/miel-m-plus.png"));
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
   return new ImageResponse(

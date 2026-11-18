@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "images": "node scripts/make-images.mjs"
   },
   "dependencies": {
     "next": "^16.4.6",

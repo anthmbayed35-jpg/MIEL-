@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Product } from "@/config/products";
 import { money } from "@/lib/format";
 import { useCart } from "../CartProvider";
@@ -10,17 +11,31 @@ export function BuyBox({ product }: { product: Product }) {
   const { add, open } = useCart();
   const [qty, setQty] = useState(1);
   const [stuck, setStuck] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const btn = useRef<HTMLButtonElement>(null);
   const total = qty * product.price;
 
+  // Show the bar once the main button has scrolled out of view above the viewport.
+  // (A scroll check, not IntersectionObserver: the button can start below the fold and be scrolled straight past,
+  // which never triggers an intersection change.)
   useEffect(() => {
-    const el = btn.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < 0), {
-      threshold: 0,
-    });
-    io.observe(el);
-    return () => io.disconnect();
+    let raf = 0;
+    const check = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = btn.current;
+        if (el) setStuck(el.getBoundingClientRect().bottom < 0);
+      });
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
   }, []);
 
   const addToCart = () => add(product.id, qty);
@@ -55,24 +70,28 @@ export function BuyBox({ product }: { product: Product }) {
         ADD TO CART · {money(total)}
       </button>
 
-      {/* Mobile sticky bar. Hidden while the cart drawer is open. */}
-      <div
-        aria-hidden={!stuck || open}
-        inert={!stuck || open}
-        className={`glass-strong fixed inset-x-3 bottom-3 z-30 flex items-center gap-3 rounded-2xl p-3 pb-[max(12px,env(safe-area-inset-bottom))] transition-[transform,opacity] duration-300 motion-reduce:transition-none md:hidden ${
-          stuck && !open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[130%] opacity-0"
-        }`}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="display truncate text-[16px]">{product.name}</p>
-          <p className="mono !text-body">
-            {qty} × · <span className="accent">{money(total)}</span>
-          </p>
-        </div>
-        <button onClick={addToCart} className="btn btn-sm !min-h-12 shrink-0">
-          ADD TO CART
-        </button>
-      </div>
+      {/* Mobile sticky bar. Hidden while the cart drawer is open. Portalled to <body> so no section's stacking context can paint over it. */}
+      {mounted &&
+        createPortal(
+        <div
+          aria-hidden={!stuck || open}
+          inert={!stuck || open}
+          className={`glass-strong !bg-[rgba(35,32,28,0.9)] fixed inset-x-3 bottom-3 z-30 flex items-center gap-3 rounded-2xl p-3 pb-[max(12px,env(safe-area-inset-bottom))] transition-[transform,opacity] duration-300 motion-reduce:transition-none md:hidden ${
+            stuck && !open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[130%] opacity-0"
+          }`}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="display truncate text-[16px]">{product.name}</p>
+            <p className="mono !text-body">
+              {qty} × · <span className="accent">{money(total)}</span>
+            </p>
+          </div>
+          <button onClick={addToCart} className="btn btn-sm !min-h-12 shrink-0">
+            ADD TO CART
+          </button>
+        </div>,
+          document.body,
+        )}
     </>
   );
 }

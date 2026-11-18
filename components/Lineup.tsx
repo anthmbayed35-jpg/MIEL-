@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { products } from "@/config/products";
+import { findPhoto, products } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
@@ -37,7 +37,13 @@ export function Lineup() {
               />
               <div className="glass glass-hover flex h-full flex-col overflow-hidden">
                 <Link href={`/products/${p.slug}`} aria-label={`${p.name} product page`} className="block border-b border-white/10">
-                  <ProductImage src={p.image} alt={p.imageAlt} label={`${p.name} IMAGE`} className="aspect-[4/3] w-full" />
+                  <ProductImage
+                    photo={findPhoto(p, "pouch-hero")}
+                    alt={p.imageAlt}
+                    label={`${p.name} IMAGE`}
+                    sizes="(min-width: 1024px) 380px, calc(100vw - 42px)"
+                    className="aspect-[4/5] w-full"
+                  />
                 </Link>
                 <div className="flex flex-1 flex-col p-5 md:p-6">
                   <h3 className="display h-product">

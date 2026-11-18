@@ -7,6 +7,9 @@ export const SITE = {
     "MIEL+ is honey-based sports nutrition in single-serve sachets. Made for training and running. Delivered across Lebanon.",
 };
 
+/** Product shown in the home page feature band and hero. */
+export const FEATURED_SLUG = "red-burn";
+
 export const CURRENCY = "USD";
 export const CURRENCY_SYMBOL = "$";
 

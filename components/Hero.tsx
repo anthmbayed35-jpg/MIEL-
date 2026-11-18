@@ -1,23 +1,29 @@
-import Image from "next/image";
-import { heroImage } from "@/config/products";
-import { SACHETS_PER_POUCH } from "@/config/site";
+import { preload } from "react-dom";
+import { findPhoto, getProduct } from "@/config/products";
+import { FEATURED_SLUG, SACHETS_PER_POUCH } from "@/config/site";
 import { Blobs } from "./Blobs";
+import { photoPreload } from "./Photo";
 import { ProductImage } from "./ProductImage";
 
+const HERO_SIZES = "(min-width: 1024px) 520px, calc(100vw - 56px)";
+
 export function Hero() {
+  const product = getProduct(FEATURED_SLUG);
+  const photo = product && findPhoto(product, "pouch-hero");
+
+  // The ONLY preload on the site: the hero (LCP) image.
+  if (photo) {
+    const pre = photoPreload(photo.src, HERO_SIZES);
+    if (pre) preload(pre.href, { as: "image", type: "image/avif", imageSrcSet: pre.imageSrcSet, imageSizes: pre.imageSizes, fetchPriority: "high" });
+  }
+
   return (
     <section id="top" className="relative isolate overflow-x-clip">
-      {/* Full-bleed pouch photo (when provided) with a dark overlay to keep text readable */}
-      {heroImage.src && (
-        <>
-          <Image src={heroImage.src} alt={heroImage.alt} fill priority sizes="100vw" className="-z-20 object-cover" />
-          <div aria-hidden className="absolute inset-0 -z-10 bg-bg/70" />
-        </>
-      )}
       <Blobs
+        float
         spots={[
           { x: "-12%", y: "6%" },
-          { x: "55%", y: "38%", delay: -9 },
+          { x: "55%", y: "20%", delay: -9 },
           { x: "20%", y: "72%", delay: -14 },
         ]}
       />
@@ -28,7 +34,8 @@ export function Hero() {
             className="logo-slide"
             style={{ ["--lw" as string]: "min(80vw, 520px)", width: "var(--lw)", padding: "calc(var(--lw) * 0.1085) 0" }}
           >
-            <Image src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} priority className="block h-auto w-full" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} className="block h-auto w-full" />
           </div>
           <h1 className="display h-hero">
             Fuel the
@@ -45,14 +52,19 @@ export function Hero() {
             </a>
           </div>
         </div>
-        {!heroImage.src && (
+
+        {/* Pouch photo in a glass-bordered rounded panel: right of the headline on desktop, full width below it on mobile.
+            Its own grid cell, so the headline can never overlap the pouch. Panel and photo are both 4:5. */}
+        <div className="glass mx-auto w-full max-w-[520px] p-2 sm:p-3 lg:mx-0 lg:justify-self-end">
           <ProductImage
-            src={null}
-            alt={heroImage.alt}
+            photo={photo}
+            alt={product?.imageAlt ?? "MIEL+ honey sachet pouch"}
             label="HERO POUCH IMAGE"
-            className="glass aspect-square w-full lg:aspect-[4/5]"
+            sizes={HERO_SIZES}
+            priority
+            className="aspect-[4/5] w-full rounded-[12px]"
           />
-        )}
+        </div>
       </div>
     </section>
   );

@@ -2,6 +2,7 @@ import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { ProofStrip } from "@/components/ProofStrip";
 import { Lineup } from "@/components/Lineup";
+import { FeatureBand } from "@/components/FeatureBand";
 import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer } from "@/components/Sections";
 import { products } from "@/config/products";
 import { SITE, CURRENCY } from "@/config/site";
@@ -27,6 +28,7 @@ export default function Home() {
         <Hero />
         <ProofStrip />
         <Lineup />
+        <FeatureBand />
         <HowTo />
         <WhyHoney />
         <Value />

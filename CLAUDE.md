@@ -7,6 +7,9 @@ Tone: raw, performance-driven, short punchy copy. English only. No medical claim
 - **New products are added only through `config/products.ts`.** The home lineup, `/products/[slug]` pages, compare strip, sitemap, metadata, JSON-LD and cart all read from it. Never hardcode a product elsewhere.
 - **Never invent values.** Unknown nutrition, ingredients, allergens, shelf life and warnings are `null` in config and render as a clean `TBC`.
 - Pouch price is one value: `POUCH_PRICE` in `config/site.ts`. Per-sachet price = `perSachet(price)` in `lib/format.ts` (price / 12, rounded to 2 decimals).
+- **Product photos:** originals go untouched in `assets-src/<slug>/<name>.webp` (never served). `npm run images` generates AVIF + WebP at 480/768/1080/1600 (never upscaled), blur placeholders (`config/photos.generated.ts`, generated, do not edit) and the 1200x630 OG images. Then list them in the product's `images` array in `config/products.ts` (order: pouch-hero, flat-lay, sachet-open, ingredients; each with `kind`, `src` base path, specific `alt`, short `label`). Products with 0 to 3 photos fall back to labelled placeholders automatically.
+- Photos are 4:5. Render them with `<Photo>` / `<ProductImage>` (`<picture>` AVIF+WebP, explicit width/height, lazy). Use `fit="cover"` only inside a 4:5 container; any other ratio must use `fit="contain"` or a focal-point crop that keeps all packaging text visible. Never put glass UI over a label: overlay buttons/counters live in the top corners only.
+- The only explicit preload is the home hero photo (`components/Hero.tsx`). Do not add `priority`/preload to other images.
 - Do not redraw or recolor the logos in `public/brand/` (`miel-m-plus.png`, `miel-full.png`).
 
 ## Design system (defined in `app/globals.css`)
@@ -18,19 +21,22 @@ Tone: raw, performance-driven, short punchy copy. English only. No medical claim
 - Buttons: `.btn` is solid acid with black text, 14px radius, inset highlight, min height 56px, full width on mobile; never glass. `.btn-ghost` is the glass-look secondary. `.icon-btn` is a glass circle.
 - Glass: `.glass` (cards/panels), `.glass-strong` (header, drawer, sticky bar), `.glass-accent` (hover/selected/featured), `.glass-hover` (accent + 4px lift on hover/focus/tap), `.glass-flat` (same look with NO backdrop-filter, for small chips/tiles).
   - Max about 8 backdrop-filter elements visible at once on mobile; use `.glass-flat` for small repeated items. Blur drops to 10px under 640px. Animate only transform and opacity. `@supports` fallback and `prefers-reduced-motion` are already in the CSS.
-- Every section needs something behind the glass: use `<Blobs>` (glow blobs) inside a `relative isolate overflow-x-clip` section.
+- Every section needs something behind the glass: use `<Blobs>` (glow blobs) inside a `relative isolate overflow-x-clip` section. Only the hero blobs float (`<Blobs float>`); keep the rest static for performance.
 - Text sizes: mobile hero 40px+, section headings 30px+, product names 26px+ (36px+ on product pages), body 18px. Tap targets at least 48px.
 - Header: floating glass pill (`components/Header.tsx`), sticky, 12px from the edges, logo 36px tall mobile / 44px desktop. Keep logos clear of other elements by half their own height on all sides. Hero logo is `min(80vw, 520px)` and slides in from the left over 500ms.
 - Motion is subtle: fade-up on scroll (`<Reveal>`), yellow underline on link hover.
 
 ## Structure
-- `app/page.tsx`: home (hero, proof strip, lineup, how-to, why honey, value, FAQ, final CTA, footer). Lineup cards link to product pages.
+- `app/page.tsx`: home (hero with pouch photo panel, proof strip, lineup (4:5 cards), RED BURN feature band (`components/FeatureBand.tsx`, product set by `FEATURED_SLUG` in `config/site.ts`), how-to, why honey, value, FAQ, final CTA, footer). Lineup cards link to product pages.
 - `app/products/[slug]/page.tsx`: product page template. `generateStaticParams` + `generateMetadata` (title, description, OG) + Product JSON-LD. `opengraph-image.tsx` makes a per-product OG image. Unknown slugs hit `app/not-found.tsx`.
-- Product page order: breadcrumb → hero (gallery | name, descriptor, chips, description, price + per-sachet, flavour switcher, qty + ADD TO CART, trust row) → What's inside (spec table + ingredients/allergens/warnings accordion) → How to use → Why this one → Compare strip → FAQ (caffeine notice block when `warning` is set) → Final CTA.
-- Product page components: `components/product/Gallery.tsx` (scroll-snap carousel, dots on mobile, thumbs on desktop), `BuyBox.tsx` (qty, add to cart, mobile sticky bar that appears after the main button scrolls away and hides while the cart is open), `Sections.tsx` (everything else).
+- Product page order: breadcrumb → hero (gallery | name, descriptor, chips, description, price + per-sachet, flavour switcher, qty + ADD TO CART, trust row) → "12 sachets per pouch" flat-lay block (only if the product has a flat-lay photo) → What's inside (spec table + ingredients/allergens/warnings accordion) → How to use (sachet-open photo beside the steps) → Why this one (ingredients photo as a dimmed background) → Compare strip → FAQ → Final CTA. A product `warning` (e.g. GOLD caffeine notice) shows in the info column under the description, not in the FAQ.
+- Product page components: `components/product/Gallery.tsx` (4:5 scroll-snap carousel, dots on mobile, thumbs on desktop, counter + zoom button in the top corners, full-screen zoom lightbox rendered in a portal with close button, swipe and arrow keys), `BuyBox.tsx` (qty, add to cart, mobile sticky bar that appears once the main button has scrolled above the viewport, via a scroll check, not IntersectionObserver; hides while the cart is open), `Sections.tsx` (everything else).
 - Commerce: `components/CartProvider.tsx` (localStorage cart), `CartDrawer.tsx` (cart, checkout form, cash on delivery, WhatsApp order message), `lib/order.ts`. TODO there: real payment gateway and delivery integration.
 - Site-wide settings (currency, pouch price, WhatsApp number, Instagram, site URL): `config/site.ts`.
 - Favicon, apple icon and OG images are generated from the M+ logo with `npm run icons`.
 
 ## Commands
-- `npm run dev`, `npm run build`, `npm run icons`
+- `npm run dev`, `npm run build`, `npm run icons`, `npm run images`
+- Gotcha: sections are `isolate` stacking contexts, so any `fixed` overlay rendered inside a section (sticky bar, lightbox) is trapped under later sections. Render those with `createPortal(..., document.body)`.
+- Gotcha: write only the standard `backdrop-filter` in CSS (the build adds the Safari prefix). Writing both made the minifier drop the standard one, which silently disabled blur in Chrome/Edge.
+- Gotcha: `.icon-btn` sets `position: relative` in unlayered CSS, so Tailwind `absolute` on it needs `!absolute`.

@@ -8,7 +8,10 @@ import { POUCH_PRICE } from "./site";
  * Any value that is `null` renders as a clean "TBC" on the product page. Never invent values.
  */
 
-export type GalleryItem = { label: string; alt: string; src: string | null };
+/** Photo roles. The product page puts each role in a specific place. */
+export type PhotoKind = "pouch-hero" | "flat-lay" | "sachet-open" | "ingredients";
+/** `src` is the base path (no size/extension) of files made by `npm run images`. */
+export type ProductPhoto = { kind: PhotoKind; src: string; alt: string; label: string };
 export type Fact = { label: string; value: string | null };
 export type Step = { title: string; text: string };
 export type Block = { title: string; text: string };
@@ -27,9 +30,15 @@ export type Product = {
   price: number;
   /** Soft glow colour behind cards / gallery (rgba). */
   glow: string;
-  /** Home card image, path under /public (e.g. "/products/red-burn.png"). null = placeholder. */
-  image: string | null;
+  /** Alt text for the placeholder card image (used until photos are added). */
   imageAlt: string;
+  /**
+   * Photos in gallery order: pouch-hero, flat-lay, sachet-open, ingredients. May be empty or shorter:
+   * missing slots show labelled placeholders. Run `npm run images` after adding originals to /assets-src.
+   */
+  images: ProductPhoto[];
+  /** Optional ready-made 1200x630 share image under /public (else a generated one is used). */
+  ogImage?: string;
 
   // ---- product page ----
   /** Two-line description (placeholder copy, edit freely). */
@@ -38,8 +47,6 @@ export type Product = {
   chips: string[];
   /** Short key spec for the compare strip. */
   compareSpec: string;
-  /** Gallery slots: pouch front, single sachet, pouch back/nutrition, lifestyle. */
-  gallery: GalleryItem[];
   /** Spec table. null value = TBC. */
   facts: Fact[];
   ingredients: string | null;
@@ -51,12 +58,8 @@ export type Product = {
   faqs: Faq[];
 };
 
-const gallery = (name: string): GalleryItem[] => [
-  { label: "POUCH FRONT", alt: `${name} pouch, front`, src: null },
-  { label: "SINGLE SACHET", alt: `${name} single sachet`, src: null },
-  { label: "POUCH BACK / NUTRITION", alt: `${name} pouch, back with nutrition panel`, src: null },
-  { label: "LIFESTYLE PHOTO", alt: `${name} in training`, src: null },
-];
+/** Labels for gallery slots that have no photo yet (same order as photos). */
+export const SLOT_PLACEHOLDERS = ["POUCH FRONT", "FLAT LAY", "SINGLE SACHET", "INGREDIENTS / LIFESTYLE"];
 
 // TODO: all copy below is placeholder wording. No medical claims.
 const commonFaqs = (name: string): Faq[] => [
@@ -76,12 +79,17 @@ export const products: Product[] = [
     spec: "22G · CARBS 17G · STIM-FREE",
     price: POUCH_PRICE,
     glow: "rgba(190, 30, 60, 0.45)",
-    image: null,
     imageAlt: "RED BURN Endurance Honey pouch, pomegranate and beet",
+    images: [
+      { kind: "pouch-hero", src: "/images/products/red-burn/red-burn-pouch-hero", label: "POUCH", alt: "RED BURN endurance honey pouch with pomegranate and beetroot" },
+      { kind: "flat-lay", src: "/images/products/red-burn/red-burn-flat-lay", label: "FLAT LAY", alt: "RED BURN pouch with four sachets laid flat beside pomegranate and sliced beetroot" },
+      { kind: "sachet-open", src: "/images/products/red-burn/red-burn-sachet-open", label: "SACHET", alt: "Torn-open RED BURN sachet with pomegranate honey pouring out" },
+      { kind: "ingredients", src: "/images/products/red-burn/red-burn-ingredients", label: "INGREDIENTS", alt: "Pomegranate and beetroot bursting apart with honey droplets" },
+    ],
+    ogImage: "/images/og/red-burn.png",
     description: "Pomegranate and beet in real honey. Built for the long run, the long ride, the long grind.",
     chips: ["12 SACHETS", "22G EACH", "STIM-FREE"],
     compareSpec: "22G · STIM-FREE",
-    gallery: gallery("RED BURN"),
     facts: [
       { label: "Flavor", value: "POMEGRANATE + BEET" },
       { label: "Sachet size", value: "22G" },
@@ -121,12 +129,11 @@ export const products: Product[] = [
     spec: "~21G · 150MG CAFFEINE",
     price: POUCH_PRICE,
     glow: "rgba(236, 178, 60, 0.4)",
-    image: null,
+    images: [],
     imageAlt: "GOLD Energy Honey pouch, vanilla with caffeine",
     description: "Smooth vanilla honey with 150mg of caffeine per sachet. Take it before you train and go.",
     chips: ["12 SACHETS", "~21G EACH", "150MG CAFFEINE"],
     compareSpec: "~21G · 150MG CAFFEINE",
-    gallery: gallery("GOLD"),
     facts: [
       { label: "Flavor", value: "VANILLA" },
       { label: "Sachet size", value: "~21G" },
@@ -168,12 +175,11 @@ export const products: Product[] = [
     spec: "20G · 5G CREATINE · STIM-FREE",
     price: POUCH_PRICE,
     glow: "rgba(205, 212, 224, 0.32)",
-    image: null,
+    images: [],
     imageAlt: "CREATINE Strength Honey pouch",
     description: "5g of creatine in every honey sachet. No scoops, no powder, no mess. Built for strength days.",
     chips: ["12 SACHETS", "20G EACH", "5G CREATINE"],
     compareSpec: "20G · 5G CREATINE",
-    gallery: gallery("CREATINE"),
     facts: [
       { label: "Flavor", value: null },
       { label: "Sachet size", value: "20G" },
@@ -208,7 +214,4 @@ export const products: Product[] = [
 
 export const getProduct = (slug: string) => products.find((p) => p.slug === slug);
 
-export const heroImage: { src: string | null; alt: string } = {
-  src: null, // TODO: hero pouch image
-  alt: "MIEL+ honey sachet pouches",
-};
+export const findPhoto = (p: Product, kind: PhotoKind) => p.images.find((i) => i.kind === kind);
