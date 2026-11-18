@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/config/site";
-import { products } from "@/config/products";
+import { getCatalog } from "@/lib/catalog";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const { products } = await getCatalog();
   return [
     { url: SITE.url, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
     ...products.map((p) => ({

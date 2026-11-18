@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { findPhoto, getProduct } from "@/config/products";
+import { findPhoto, type Product } from "@/config/products";
 import { FEATURED_SLUG } from "@/config/site";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
@@ -7,8 +7,8 @@ import { Photo } from "./Photo";
 import { Reveal } from "./Reveal";
 
 /** Full-bleed feature band: ingredients photo dimmed under a dark overlay + a glass card. Needs an "ingredients" photo. */
-export function FeatureBand() {
-  const p = getProduct(FEATURED_SLUG);
+export function FeatureBand({ products }: { products: Product[] }) {
+  const p = products.find((x) => x.slug === FEATURED_SLUG);
   const bg = p && findPhoto(p, "ingredients");
   if (!p || !bg) return null;
   const fade = "linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent)";

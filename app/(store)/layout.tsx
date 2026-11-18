@@ -1,0 +1,43 @@
+import Script from "next/script";
+import { getCatalog } from "@/lib/catalog";
+import { CartProvider } from "@/components/CartProvider";
+import { CartDrawer } from "@/components/CartDrawer";
+import { Tracker } from "@/components/Tracker";
+
+// Storefront pages are statically generated and refreshed every 5 minutes; admin edits revalidate them immediately.
+export const revalidate = 300;
+
+export default async function StoreLayout({ children }: { children: React.ReactNode }) {
+  const cat = await getCatalog();
+  const { announcement, tracking } = cat;
+  return (
+    <CartProvider
+      products={cat.products.map((p) => ({ id: p.id, name: p.name, price: p.price, slug: p.slug }))}
+      zones={cat.zones.map((z) => ({ name: z.name, fee: z.fee, free_over: z.free_over, eta: z.eta }))}
+    >
+      {announcement.enabled && announcement.text && (
+        <div className="bg-acid px-4 py-2.5 text-center text-[14px] font-semibold text-black">
+          {announcement.link ? (
+            <a href={announcement.link} className="underline underline-offset-2">
+              {announcement.text}
+            </a>
+          ) : (
+            announcement.text
+          )}
+        </div>
+      )}
+      {children}
+      <CartDrawer />
+      <Tracker />
+      {tracking.ga4_id && (
+        <>
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${tracking.ga4_id}`} strategy="afterInteractive" />
+          <Script id="ga4" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${tracking.ga4_id.replace(/[^A-Za-z0-9-]/g, "")}');`}</Script>
+        </>
+      )}
+      {tracking.meta_pixel_id && (
+        <Script id="meta-pixel" strategy="afterInteractive">{`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${tracking.meta_pixel_id.replace(/[^0-9]/g, "")}');fbq('track','PageView');`}</Script>
+      )}
+    </CartProvider>
+  );
+}

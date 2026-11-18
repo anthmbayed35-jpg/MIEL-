@@ -6,3 +6,10 @@ next-env.d.ts
 .env*.local
 .vercel
 screenshots
+
+.vercel
+.env*
+
+# local demo database + uploads (dev only)
+.data
+public/uploads

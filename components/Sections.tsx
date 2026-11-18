@@ -1,4 +1,5 @@
-import { INSTAGRAM_HANDLE, INSTAGRAM_URL, POUCH_PRICE, SACHETS_PER_POUCH, WHATSAPP_NUMBER, SITE } from "@/config/site";
+import { SACHETS_PER_POUCH, SITE } from "@/config/site";
+import type { FaqItem, StoreSettings } from "@/config/content";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
 import { Reveal } from "./Reveal";
@@ -69,7 +70,8 @@ export function WhyHoney() {
   );
 }
 
-export function Value() {
+export function Value({ price }: { price: number }) {
+  const POUCH_PRICE = price;
   const per = POUCH_PRICE / SACHETS_PER_POUCH;
   return (
     <section className="relative isolate overflow-x-clip">
@@ -99,35 +101,7 @@ export function Value() {
   );
 }
 
-// TODO: replace placeholder answers with the real ones.
-const faqs = [
-  {
-    q: "What's in it?",
-    a: "Honey-based sachets, flavoured with real ingredients. RED BURN is pomegranate + beet, GOLD is vanilla + 150mg caffeine, CREATINE has 5g creatine. Full ingredient lists are on every pouch. [PLACEHOLDER]",
-  },
-  {
-    q: "When should I take it?",
-    a: "Take one before your workout or run, and another during longer sessions. Start with what feels right for you. [PLACEHOLDER]",
-  },
-  {
-    q: "Is it stim-free?",
-    a: "RED BURN and CREATINE are stim-free. GOLD contains 150mg of caffeine per sachet. [PLACEHOLDER]",
-  },
-  {
-    q: "Does it need refrigeration?",
-    a: "No. Keep it in a cool, dry place. Toss a few in your gym bag. [PLACEHOLDER]",
-  },
-  {
-    q: "Do you deliver in Lebanon?",
-    a: "Yes. We deliver across Lebanon, cash on delivery. Order on the site and we confirm delivery details with you on WhatsApp. [PLACEHOLDER]",
-  },
-  {
-    q: "How many sachets in a pouch?",
-    a: `${SACHETS_PER_POUCH} sachets in every pouch.`,
-  },
-];
-
-export function Faq() {
+export function Faq({ items: faqs }: { items: FaqItem[] }) {
   return (
     <section id="faq" className="relative isolate overflow-x-clip">
       <Blobs spots={[{ x: "-12%", y: "20%" }, { x: "70%", y: "60%", delay: -9 }]} />
@@ -177,7 +151,7 @@ export function FinalCta({ action }: { action?: React.ReactNode }) {
   );
 }
 
-export function Footer() {
+export function Footer({ store }: { store: StoreSettings }) {
   return (
     <footer className="relative isolate overflow-x-clip border-t border-white/10">
       <Blobs spots={[{ x: "65%", y: "-40%" }]} />
@@ -189,12 +163,12 @@ export function Footer() {
         </div>
         <ul className="mt-6 flex flex-col md:flex-row md:gap-10">
           <li>
-            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="link text-[18px]">
-              Instagram {INSTAGRAM_HANDLE}
+            <a href={store.instagram_url} target="_blank" rel="noopener noreferrer" className="link text-[18px]">
+              Instagram {store.instagram_handle}
             </a>
           </li>
           <li>
-            <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="link text-[18px]">
+            <a href={`https://wa.me/${store.whatsapp}`} target="_blank" rel="noopener noreferrer" className="link text-[18px]">
               WhatsApp us
             </a>
           </li>

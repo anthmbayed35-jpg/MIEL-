@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProduct, products } from "@/config/products";
-import { CURRENCY, SACHETS_PER_POUCH, SITE } from "@/config/site";
+import { getCatalog } from "@/lib/catalog";
+import { CURRENCY, SITE } from "@/config/site";
 import { Header } from "@/components/Header";
 import { Blobs } from "@/components/Blobs";
 import { FinalCta, Footer } from "@/components/Sections";
@@ -24,18 +24,20 @@ import {
 
 type Props = { params: Promise<{ slug: string }> };
 
-export const dynamicParams = false;
+// Products added in the admin render on first request (then are cached); unknown slugs 404.
+export const dynamicParams = true;
+export const revalidate = 300;
 
-export function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return (await getCatalog()).products.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const p = getProduct(slug);
+  const p = (await getCatalog()).products.find((x) => x.slug === slug);
   if (!p) return {};
-  const title = `${p.name} ${p.descriptor}`;
-  const description = `${p.description} ${SACHETS_PER_POUCH} sachets per pouch. Delivered across Lebanon.`;
+  const title = p.seoTitle || `${p.name} ${p.descriptor}`;
+  const description = p.seoDescription || `${p.description} ${p.sachetCount ?? 12} sachets per pouch. Delivered across Lebanon.`;
   return {
     title,
     description,
@@ -48,7 +50,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const p = getProduct(slug);
+  const cat = await getCatalog();
+  const p = cat.products.find((x) => x.slug === slug);
   if (!p) notFound();
 
   const jsonLd = {
@@ -93,7 +96,7 @@ export default async function ProductPage({ params }: Props) {
                   <PriceBlock product={p} />
                 </div>
                 <div className="mt-7">
-                  <FlavorSwitcher current={p.slug} />
+                  <FlavorSwitcher current={p.slug} products={cat.products} />
                 </div>
                 <div className="mt-7">
                   <BuyBox product={p} />
@@ -107,11 +110,11 @@ export default async function ProductPage({ params }: Props) {
         <Inside product={p} />
         <ProductHowTo product={p} />
         <Why product={p} />
-        <Compare current={p.slug} />
+        <Compare current={p.slug} products={cat.products} />
         <ProductFaq product={p} />
         <FinalCta action={<AddOneButton product={p} />} />
       </main>
-      <Footer />
+      <Footer store={cat.store} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </>
   );

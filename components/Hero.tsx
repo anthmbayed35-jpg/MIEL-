@@ -1,5 +1,6 @@
 import { preload } from "react-dom";
-import { findPhoto, getProduct } from "@/config/products";
+import { findPhoto, type Product } from "@/config/products";
+import type { HeroContent } from "@/config/content";
 import { FEATURED_SLUG, SACHETS_PER_POUCH } from "@/config/site";
 import { Blobs } from "./Blobs";
 import { photoPreload } from "./Photo";
@@ -7,8 +8,8 @@ import { ProductImage } from "./ProductImage";
 
 const HERO_SIZES = "(min-width: 1024px) 520px, calc(100vw - 56px)";
 
-export function Hero() {
-  const product = getProduct(FEATURED_SLUG);
+export function Hero({ products, hero }: { products: Product[]; hero: HeroContent }) {
+  const product = products.find((p) => p.slug === FEATURED_SLUG) ?? products[0];
   const photo = product && findPhoto(product, "pouch-hero");
 
   // The ONLY preload on the site: the hero (LCP) image.
@@ -38,11 +39,11 @@ export function Hero() {
             <img src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} className="block h-auto w-full" />
           </div>
           <h1 className="display h-hero">
-            Fuel the
+            {hero.headline1}
             <br />
-            <span className="accent">grind.</span>
+            <span className="accent">{hero.headline2}</span>
           </h1>
-          <p className="body-lg mt-5 max-w-xl">Honey-powered sachets for people who train. Rip. Sip. Go.</p>
+          <p className="body-lg mt-5 max-w-xl">{hero.sub}</p>
           <div className="glass mt-6 inline-flex min-h-12 items-center px-5 py-2">
             <span className="mono !text-[14px]">{SACHETS_PER_POUCH} SACHETS · REAL HONEY</span>
           </div>

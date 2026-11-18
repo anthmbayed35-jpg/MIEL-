@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { findPhoto, products, type Product } from "@/config/products";
+import { findPhoto, type Product } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money, perSachet } from "@/lib/format";
 import { Blobs } from "../Blobs";
@@ -61,7 +61,7 @@ export function PriceBlock({ product }: { product: Product }) {
   );
 }
 
-export function FlavorSwitcher({ current }: { current: string }) {
+export function FlavorSwitcher({ current, products }: { current: string; products: Product[] }) {
   return (
     <nav aria-label="Choose flavour">
       <p className="mono !text-body mb-3">FLAVOUR</p>
@@ -266,7 +266,7 @@ export function Why({ product }: { product: Product }) {
   );
 }
 
-export function Compare({ current }: { current: string }) {
+export function Compare({ current, products }: { current: string; products: Product[] }) {
   return (
     <section className={`${wrap} py-14 md:py-20`}>
       <Reveal>
@@ -274,7 +274,7 @@ export function Compare({ current }: { current: string }) {
         <h2 className="display h-section mb-8">The lineup.</h2>
       </Reveal>
       <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
-        {products.map((p) => {
+        {products.filter((p) => p.kind !== "bundle").map((p) => {
           const on = p.slug === current;
           return (
             <li key={p.id} className="w-[78%] shrink-0 snap-center md:w-auto">

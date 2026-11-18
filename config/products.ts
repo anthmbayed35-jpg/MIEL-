@@ -9,7 +9,7 @@ import { POUCH_PRICE } from "./site";
  */
 
 /** Photo roles. The product page puts each role in a specific place. */
-export type PhotoKind = "pouch-hero" | "flat-lay" | "sachet-open" | "ingredients";
+export type PhotoKind = "pouch-hero" | "flat-lay" | "sachet-open" | "ingredients" | "extra";
 /** `src` is the base path (no size/extension) of files made by `npm run images`. */
 export type ProductPhoto = { kind: PhotoKind; src: string; alt: string; label: string };
 export type Fact = { label: string; value: string | null };
@@ -39,6 +39,12 @@ export type Product = {
   images: ProductPhoto[];
   /** Optional ready-made 1200x630 share image under /public (else a generated one is used). */
   ogImage?: string;
+  /** Set when products come from the database. */
+  kind?: "single" | "bundle";
+  compareAtPrice?: number | null;
+  sachetCount?: number;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 
   // ---- product page ----
   /** Two-line description (placeholder copy, edit freely). */

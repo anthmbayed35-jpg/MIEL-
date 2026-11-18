@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Space_Mono } from "next/font/google";
 import { SITE } from "@/config/site";
-import { CartProvider } from "@/components/CartProvider";
-import { CartDrawer } from "@/components/CartDrawer";
 import "./globals.css";
 
 // One family: Archivo variable with the width axis (62–125) + weight axis.
@@ -40,6 +38,7 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
+// Storefront chrome (cart, announcement, tracking) lives in app/(store)/layout.tsx; the admin has its own layout.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${archivo.variable} ${spaceMono.variable}`}>
@@ -47,10 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <noscript>
           <style>{`.reveal{opacity:1!important;transform:none!important}`}</style>
         </noscript>
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
+        {children}
       </body>
     </html>
   );

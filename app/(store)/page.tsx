@@ -4,10 +4,13 @@ import { ProofStrip } from "@/components/ProofStrip";
 import { Lineup } from "@/components/Lineup";
 import { FeatureBand } from "@/components/FeatureBand";
 import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer } from "@/components/Sections";
-import { products } from "@/config/products";
-import { SITE, CURRENCY } from "@/config/site";
+import { getCatalog } from "@/lib/catalog";
+import { FEATURED_SLUG, SITE, CURRENCY } from "@/config/site";
 
-export default function Home() {
+export default async function Home() {
+  const cat = await getCatalog();
+  const { products } = cat;
+  const featured = products.find((p) => p.slug === FEATURED_SLUG) ?? products[0];
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -25,17 +28,17 @@ export default function Home() {
     <>
       <Header />
       <main>
-        <Hero />
+        <Hero products={products} hero={cat.hero} />
         <ProofStrip />
-        <Lineup />
-        <FeatureBand />
+        <Lineup products={products} />
+        <FeatureBand products={products} />
         <HowTo />
         <WhyHoney />
-        <Value />
-        <Faq />
+        <Value price={featured?.price ?? 0} />
+        <Faq items={cat.faq} />
         <FinalCta />
       </main>
-      <Footer />
+      <Footer store={cat.store} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </>
   );

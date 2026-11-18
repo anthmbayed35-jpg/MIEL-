@@ -1,21 +1,23 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
-import { getProduct, products } from "@/config/products";
+import { getCatalog } from "@/lib/catalog";
 
 export const alt = "MIEL+ product";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return (await getCatalog()).products.map((p) => ({ slug: p.slug }));
 }
 
 // Per-product Open Graph image: M+ logo, product name and flavour glow on #23201C.
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = getProduct(slug);
-  if (p?.ogImage) {
+  const p = (await getCatalog()).products.find((x) => x.slug === slug);
+  if (p?.ogImage?.startsWith("/images/og/")) {
     // Ready-made 1200x630 share image (see scripts/make-images.mjs)
     const file = await readFile(path.join(process.cwd(), "public", p.ogImage));
     return new Response(new Uint8Array(file), { headers: { "Content-Type": "image/png" } });

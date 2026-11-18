@@ -1,11 +1,16 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { products } from "@/config/products";
+import { trackEvent } from "@/lib/track-client";
+
+export type CartProduct = { id: string; name: string; price: number; slug: string };
+export type CartZone = { name: string; fee: number; free_over: number | null; eta: string };
 
 type Lines = Record<string, number>; // productId -> qty
 
 type CartCtx = {
+  products: CartProduct[];
+  zones: CartZone[];
   lines: Lines;
   count: number;
   total: number;
@@ -19,7 +24,7 @@ type CartCtx = {
 const Ctx = createContext<CartCtx | null>(null);
 const KEY = "miel_cart_v1";
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({ products, zones, children }: { products: CartProduct[]; zones: CartZone[]; children: React.ReactNode }) {
   const [lines, setLines] = useState<Lines>({});
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -42,6 +47,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const add = useCallback((id: string, qty = 1) => {
     setLines((l) => ({ ...l, [id]: Math.min((l[id] ?? 0) + qty, 99) }));
     setOpen(true);
+    trackEvent("add_to_cart");
   }, []);
 
   const setQty = useCallback((id: string, qty: number) => {
@@ -59,8 +65,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const valid = Object.entries(lines).filter(([id]) => products.some((p) => p.id === id));
     const count = valid.reduce((n, [, q]) => n + q, 0);
     const total = valid.reduce((n, [id, q]) => n + q * (products.find((p) => p.id === id)?.price ?? 0), 0);
-    return { lines, count, total, open, setOpen, add, setQty, clear };
-  }, [lines, open, add, setQty, clear]);
+    return { products, zones, lines, count, total, open, setOpen, add, setQty, clear };
+  }, [products, zones, lines, open, add, setQty, clear]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { findPhoto, products } from "@/config/products";
+import { findPhoto, type Product } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
@@ -9,7 +9,7 @@ import { useCart } from "./CartProvider";
 import { ProductImage } from "./ProductImage";
 import { Reveal } from "./Reveal";
 
-export function Lineup() {
+export function Lineup({ products }: { products: Product[] }) {
   const { add } = useCart();
   return (
     <section id="lineup" className="relative isolate overflow-x-clip">
