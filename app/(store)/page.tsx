@@ -3,7 +3,7 @@ import { Hero } from "@/components/Hero";
 import { ProofStrip } from "@/components/ProofStrip";
 import { Lineup } from "@/components/Lineup";
 import { FeatureBand } from "@/components/FeatureBand";
-import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer } from "@/components/Sections";
+import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer, Testimonials } from "@/components/Sections";
 import { getCatalog } from "@/lib/catalog";
 import { FEATURED_SLUG, SITE, CURRENCY } from "@/config/site";
 
@@ -35,10 +35,11 @@ export default async function Home() {
         <HowTo />
         <WhyHoney />
         <Value price={featured?.price ?? 0} />
+        <Testimonials items={cat.testimonials} />
         <Faq items={cat.faq} />
         <FinalCta />
       </main>
-      <Footer store={cat.store} />
+      <Footer store={cat.store} policies={cat.policies} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </>
   );

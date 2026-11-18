@@ -114,7 +114,7 @@ export default async function ProductPage({ params }: Props) {
         <ProductFaq product={p} />
         <FinalCta action={<AddOneButton product={p} />} />
       </main>
-      <Footer store={cat.store} />
+      <Footer store={cat.store} policies={cat.policies} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </>
   );

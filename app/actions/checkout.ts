@@ -8,6 +8,7 @@ import { createOrder, quoteOrder } from "@/lib/orders";
 import { orderMessage } from "@/lib/messages";
 import { normalizeLebanesePhone, waLink } from "@/lib/phone";
 import { rateLimit } from "@/lib/rate-limit";
+import { notifyNewOrder } from "@/lib/notify";
 
 export type CartInput = { productId: string; qty: number }[];
 export type QuoteView = {
@@ -59,6 +60,7 @@ export async function placeOrder(input: {
 
     const cat = await getCatalog();
     const wa = cat.store.whatsapp;
+    if (cat.live && !cat.store.cod_enabled) return { ok: false, error: "Online ordering is paused right now. Message us on WhatsApp and we'll take your order." };
 
     // No database yet: keep the original behaviour (WhatsApp-only order, prices from the config).
     if (!cat.live || dbMode() === "none") {
@@ -99,6 +101,7 @@ export async function placeOrder(input: {
       total: quote.total, code: quote.code, region: input.region, customer: { ...input.customer, phone },
     });
     revalidatePath("/admin", "layout");
+    void notifyNewOrder({ number: order.order_number, total: quote.total, customer: input.customer.name, phone, region: input.region, lines: quote.lines });
     return { ok: true, orderNumber: String(order.order_number), whatsappUrl: waLink(wa, text), total: quote.total };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? "Could not place the order. Please try again or message us on WhatsApp." };

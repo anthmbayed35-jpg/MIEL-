@@ -1,5 +1,6 @@
 import { SACHETS_PER_POUCH, SITE } from "@/config/site";
-import type { FaqItem, StoreSettings } from "@/config/content";
+import Link from "next/link";
+import type { FaqItem, Policies, StoreSettings, Testimonial } from "@/config/content";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
 import { Reveal } from "./Reveal";
@@ -151,7 +152,8 @@ export function FinalCta({ action }: { action?: React.ReactNode }) {
   );
 }
 
-export function Footer({ store }: { store: StoreSettings }) {
+export function Footer({ store, policies }: { store: StoreSettings; policies?: Policies }) {
+  const links = (["shipping", "returns", "privacy", "terms"] as const).filter((k) => policies?.[k]?.trim());
   return (
     <footer className="relative isolate overflow-x-clip border-t border-white/10">
       <Blobs spots={[{ x: "65%", y: "-40%" }]} />
@@ -173,10 +175,45 @@ export function Footer({ store }: { store: StoreSettings }) {
             </a>
           </li>
         </ul>
+        {links.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-x-6">
+            {links.map((k) => (
+              <li key={k}>
+                <Link href={`/policies/${k}`} className="link text-[16px] capitalize">
+                  {k === "returns" ? "Returns" : k}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
         <p className="mt-8 text-[16px] !text-body">
           © {new Date().getFullYear()} {SITE.name}. Made for Lebanon.
         </p>
       </div>
     </footer>
+  );
+}
+
+export function Testimonials({ items }: { items: Testimonial[] }) {
+  if (!items.length) return null;
+  return (
+    <section className="relative isolate overflow-x-clip">
+      <Blobs spots={[{ x: "60%", y: "-10%" }]} />
+      <div className={`${wrap} py-16 md:py-24`}>
+        <Reveal>
+          <p className="mono mb-3">PEOPLE WHO TRAIN</p>
+          <h2 className="display h-section mb-10">What they <span className="accent">say.</span></h2>
+        </Reveal>
+        <ul className="grid gap-4 lg:grid-cols-3">
+          {items.slice(0, 6).map((t, i) => (
+            <Reveal as="li" key={t.id} delay={i * 80} className="glass p-5 md:p-8">
+              <p aria-label={`${t.rating} out of 5 stars`} className="accent text-[18px] tracking-widest">{"★".repeat(t.rating)}</p>
+              <p className="body-lg mt-3 !text-fg">&ldquo;{t.text}&rdquo;</p>
+              <p className="mono mt-4 !text-body">{t.name}</p>
+            </Reveal>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }

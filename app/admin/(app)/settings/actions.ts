@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { seedDemo, wipeDemo } from "@/lib/demo";
 import { seedBase } from "@/lib/seed";
+import { getDb, must, type Row } from "@/lib/db";
 import type { ActionState } from "@/components/admin/ActionForm";
 
 export async function seedStoreAction(): Promise<ActionState> {
@@ -33,4 +34,45 @@ export async function wipeDemoAction(): Promise<ActionState> {
   await audit(admin, "wipe_demo", "demo", "", { orders });
   revalidatePath("/admin", "layout");
   return { ok: `Removed ${orders} demo orders and all other demo rows. Stock was restored.` };
+}
+
+async function putSetting(key: string, value: unknown) {
+  must(await getDb().from("settings").upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" }));
+}
+
+export async function saveStore(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("settings.write");
+  const whatsapp = String(fd.get("whatsapp") ?? "").replace(/\D/g, "");
+  if (whatsapp && (whatsapp.length < 8 || whatsapp.length > 15)) return { error: "WhatsApp number: digits only with country code, e.g. 96170123456." };
+  const prev = (must(await getDb().from("settings").select("*").eq("key", "store")) as Row[])[0]?.value ?? {};
+  await putSetting("store", {
+    ...prev,
+    name: String(fd.get("name") ?? "").trim() || "MIEL+",
+    email: String(fd.get("email") ?? "").trim(), phone: String(fd.get("phone") ?? "").trim(), whatsapp,
+    instagram_handle: String(fd.get("instagram_handle") ?? "").trim(), instagram_url: String(fd.get("instagram_url") ?? "").trim(),
+    currency: "USD", cod_enabled: fd.get("cod_enabled") === "on", free_delivery_note: String(fd.get("free_delivery_note") ?? "").trim(),
+  });
+  await audit(admin, "settings_store", "settings", "store", { whatsapp: !!whatsapp, cod: fd.get("cod_enabled") === "on" });
+  revalidatePath("/", "layout");
+  return { ok: "Store settings saved." };
+}
+
+export async function saveNotifications(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("settings.write");
+  await putSetting("notifications", {
+    email: String(fd.get("email") ?? "").trim(), whatsapp_number: String(fd.get("whatsapp_number") ?? "").replace(/\D/g, ""),
+    email_on_new_order: fd.get("email_on_new_order") === "on", whatsapp_on_new_order: fd.get("whatsapp_on_new_order") === "on",
+  });
+  await audit(admin, "settings_notifications", "settings", "notifications");
+  return { ok: "Notification preferences saved." };
+}
+
+export async function savePolicies(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("settings.write");
+  await putSetting("policies", {
+    shipping: String(fd.get("shipping") ?? ""), returns: String(fd.get("returns") ?? ""), privacy: String(fd.get("privacy") ?? ""), terms: String(fd.get("terms") ?? ""),
+  });
+  await audit(admin, "settings_policies", "settings", "policies");
+  revalidatePath("/", "layout");
+  return { ok: "Policy pages saved. They are live at /policies/shipping, /returns, /privacy and /terms." };
 }

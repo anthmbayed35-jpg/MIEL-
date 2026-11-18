@@ -1,8 +1,8 @@
 import "server-only";
 import { products as configProducts, type Product, type ProductPhoto } from "@/config/products";
 import {
-  DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
-  type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
+  DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
+  type Policies, type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
 } from "@/config/content";
 import { dbMode, getDb, type Row } from "./db";
 
@@ -17,6 +17,7 @@ export type Catalog = {
   testimonials: Testimonial[];
   store: StoreSettings;
   tracking: TrackingSettings;
+  policies: Policies;
   /** true when data comes from the database (false = config fallback, checkout is WhatsApp-only) */
   live: boolean;
 };
@@ -42,7 +43,7 @@ const configCatalog = (): Catalog => ({
   products: configProducts,
   zones: DEFAULT_ZONES.map((z, i) => ({ id: `z${i}`, active: true, ...z })),
   faq: DEFAULT_FAQ, announcement: DEFAULT_ANNOUNCEMENT, hero: DEFAULT_HERO, testimonials: [],
-  store: DEFAULT_STORE, tracking: DEFAULT_TRACKING, live: false,
+  store: DEFAULT_STORE, tracking: DEFAULT_TRACKING, policies: DEFAULT_POLICIES, live: false,
 });
 
 /** Everything the storefront needs. Falls back to the config files when the database is unavailable or empty. */
@@ -69,6 +70,7 @@ export async function getCatalog(): Promise<Catalog> {
       testimonials: (c("testimonials") ?? []).filter((t: Testimonial) => t.approved),
       store: { ...DEFAULT_STORE, ...(s("store") ?? {}) },
       tracking: { ...DEFAULT_TRACKING, ...(s("tracking") ?? {}) },
+      policies: { ...DEFAULT_POLICIES, ...(s("policies") ?? {}) },
       live: true,
     };
   } catch {
