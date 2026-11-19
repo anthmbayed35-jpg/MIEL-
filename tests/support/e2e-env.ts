@@ -1,0 +1,37 @@
+import path from "node:path";
+
+/**
+ * Shared by playwright.config.ts, the seed script and the specs. The app under test is the REAL production build
+ * started with `npm start` (as Railway does), on a throwaway SQLite file. Secrets are sentinels, so the specs can prove
+ * none of them reaches a browser file.
+ */
+export const ROOT = path.resolve(__dirname, "../..");
+export const APP_PORT = 3401;
+export const BASE_URL = `http://localhost:${APP_PORT}`;
+export const E2E_DIR = path.join(ROOT, ".data-e2e");
+export const E2E_DB = path.join(E2E_DIR, "miel.db");
+export const E2E_OUTBOX = path.join(E2E_DIR, "outbox.jsonl");
+
+/** Throwaway accounts that exist only in the throwaway database. */
+export const E2E_PASSWORD = "e2e-only-passphrase-2025";
+export const USERS = {
+  owner: { id: "00000000-0000-4000-8000-0000000000a1", email: "owner@e2e.test", name: "E2E Owner", role: "owner" },
+  manager: { id: "00000000-0000-4000-8000-0000000000a2", email: "manager@e2e.test", name: "E2E Manager", role: "manager" },
+  staff: { id: "00000000-0000-4000-8000-0000000000a3", email: "staff@e2e.test", name: "E2E Staff", role: "staff" },
+} as const;
+
+export const SENTINEL_AUTH_SECRET = "SENTINEL_AUTH_SECRET_must_never_reach_a_browser_0123456789";
+export const SENTINEL_BREVO_KEY = "SENTINEL_BREVO_API_KEY_must_never_reach_a_browser";
+
+export const E2E_ENV = {
+  MIEL_ENV: "staging",
+  DATABASE_PATH: E2E_DB,
+  AUTH_SECRET: SENTINEL_AUTH_SECRET,
+  NEXT_PUBLIC_SITE_URL: BASE_URL,
+  MAIL_PROVIDER: "file",
+  MAIL_OUTBOX: E2E_OUTBOX,
+  BREVO_API_KEY: SENTINEL_BREVO_KEY,
+  MAIL_FROM: "MIEL+ <orders@e2e.test>",
+  NEXT_TELEMETRY_DISABLED: "1",
+  PORT: String(APP_PORT),
+};

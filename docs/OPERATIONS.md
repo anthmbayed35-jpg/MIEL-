@@ -1,130 +1,70 @@
 # MIEL+ operations guide
 
-Everything needed to run the store in production. Variable **names** only; never paste values into chat, tickets or git.
+Everything needed to run the store in production on Railway. Variable **names** only: never paste values into chat, tickets or git.
 
-## 1. Environments
+## 1. How it is built
 
-| Environment | Where it runs | Database | `MIEL_ENV` |
-|---|---|---|---|
-| **Production** | Railway environment named `production` | the **production** Supabase project | `production` |
-| **Staging** | another Railway environment (e.g. `staging`) | a **separate staging** Supabase project | `staging` |
-| **Local development** | your computer | the staging project (or none: the store then runs from the config files and `/admin` stays closed) | `development` |
+| Part | What | Where |
+|---|---|---|
+| App | Next.js standalone server (`npm run build`, `npm start`), **one instance** | Railway service |
+| Database | One SQLite file (WAL mode), SQL migrations applied automatically at start | volume, `/data/miel.db` |
+| Product photos you upload | AVIF + WebP files | volume, `/data/uploads` |
+| Backups | nightly snapshots (+ optional encrypted off-site copy) | volume, `/data/backups` |
+| Sign-in | email + password (argon2id), database sessions, optional TOTP 2FA | in the database |
+| Live alerts | Server-Sent Events, with 30 s polling as the fallback | in the app process |
+| Email | Brevo API (default) or any SMTP server | external |
 
-Two protections make it impossible for a non-production environment to touch production data:
-1. Every environment holds `MIEL_PRODUCTION_SUPABASE_URL` (the production project URL). If `NEXT_PUBLIC_SUPABASE_URL` equals it anywhere except the production deployment, the **build fails**, the **server refuses to boot**, and `getDb()` throws.
-2. The production deployment must use the production URL, and Railway's own environment name decides what counts as production: `MIEL_ENV=production` is only accepted in the Railway environment named exactly `production`, and that environment must say `MIEL_ENV=production` (a staging environment can never claim to be production).
+**The volume is the store.** Everything customers and you created lives in `/data`. Redeploys replace the app but keep `/data`. If the volume is lost and there is no backup, the data is lost. See section 6.
+
+### Why exactly one replica
+The database is a single file on one volume, a volume can only be attached to one instance, and the live-alert bus and the order lock live inside that one process. Running two instances would split the alerts (each admin would only see events from "their" instance) and cannot share the file. `railway.json` sets `numReplicas: 1`; never raise it. A redeploy has a few seconds of overlap while the new instance passes its health check, which is fine because SQLite takes a write lock per order.
 
 ## 2. Environment variables
 
-Set these as **Railway service variables** (Railway → project → environment → the web service → **Variables**) and, for your computer, in a git-ignored `.env.local`.
+Set these as **Railway service variables** (project → environment → the web service → **Variables**) and, for your computer, in a git-ignored `.env.local`.
 
-> **Every variable below must exist at BUILD time**, not only at runtime. The build validates them, bakes the three `NEXT_PUBLIC_*` values into the browser code, and pre-renders the storefront from the database. Railway makes service variables available to the build automatically; set them **before** the first deploy, and **redeploy after changing any `NEXT_PUBLIC_*` value** (a restart is not enough).
+> **Every variable below must exist at BUILD time**, not only at runtime. The build validates them and bakes `NEXT_PUBLIC_SITE_URL` into the browser code. Railway passes service variables to the build automatically; set them **before** the first deploy, and **redeploy after changing `NEXT_PUBLIC_SITE_URL`** (a restart is not enough).
+> The volume is **not** mounted during the build, only at runtime. That is fine: the build never opens the database.
 
-| Variable | Production | Staging | Local | Secret? | Purpose |
-|---|---|---|---|---|---|
-| `MIEL_ENV` | `production` | `staging` | `development` | no | which environment this is |
-| `MIEL_PRODUCTION_SUPABASE_URL` | prod URL | prod URL | prod URL | no | lets every environment refuse the production project |
-| `NEXT_PUBLIC_SUPABASE_URL` | prod URL | **staging** URL | **staging** URL | no | database for this environment |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | prod anon key | staging anon key | staging anon key | public by design | sign-in on the server; RLS limits it to storefront reads |
-| `SUPABASE_SERVICE_ROLE_KEY` | prod key | staging key | staging key | **YES** (mark Sensitive) | server-only database access; never in browser code |
-| `NEXT_PUBLIC_SITE_URL` | `https://your-domain` (final domain, https, no trailing slash) | the staging URL | `http://localhost:3000` | no | the ONLY source of absolute URLs: sitemap, robots, Open Graph, JSON-LD, invite/reset email links |
-| `PORT` | set by Railway | set by Railway | optional | no | port the server listens on (it always binds `0.0.0.0`) |
-| `STORE_TIMEZONE` | optional | optional | optional | no | defaults to `Asia/Beirut` |
-| `RESEND_API_KEY`, `NOTIFY_FROM` | optional | optional | optional | **YES** | new-order emails |
-| `SKIP_ENV_CHECK` | never | never | only for tests | no | bypasses the startup check (emergency/CI) |
+| Variable | Needed in | Secret? | Purpose |
+|---|---|---|---|
+| `MIEL_ENV` | production, staging | no | `production`, `staging` or `development`. Must be `production` exactly in the Railway environment named `production` |
+| `NEXT_PUBLIC_SITE_URL` | all hosted | no | the final domain, `https://…`, no trailing slash. The ONLY source of absolute URLs: sitemap, robots, Open Graph, invite and reset links. Build-time |
+| `DATABASE_PATH` | all hosted | no | absolute path of the database file. Production: `/data/miel.db` (the volume mount path + file name) |
+| `AUTH_SECRET` | all hosted | **YES** | 32+ random characters. Encrypts two-factor secrets and salts hashes in logs and rate limits. Changing it invalidates every enrolled authenticator (people re-enrol) |
+| `MAIL_FROM` | production | no | sender, e.g. `MIEL+ <orders@your-domain.com>` (a verified sender, see section 7) |
+| `BREVO_API_KEY` | production (default mail provider) | **YES** | Brevo API key |
+| `MAIL_PROVIDER` | optional | no | `brevo` (default) or `smtp` |
+| `SMTP_URL` | when `MAIL_PROVIDER=smtp` | **YES** | `smtp://user:password@host:587` |
+| `STORE_TIMEZONE` | optional | no | defaults to `Asia/Beirut` |
+| `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_PREFIX` | optional | key and secret: **YES** | off-site backup bucket (section 6). Keep the encryption key too |
+| `BACKUP_ENCRYPTION_KEY` | required when `BACKUP_S3_BUCKET` is set | **YES** | 32+ characters. Encrypts each off-site backup. **Store it somewhere other than Railway**: without it the off-site copies cannot be opened |
+| `BACKUPS_DISABLED` | never in production | no | `1` turns off the nightly backups (tests only) |
+| `MIGRATIONS_DIR` | optional | no | override the migrations folder (default `./migrations`) |
+| `SKIP_ENV_CHECK` | never | no | bypasses the startup check (emergency/CI) |
 
-Railway also sets `RAILWAY_ENVIRONMENT_NAME` itself (do not set it). Nothing in the app reads any Vercel variable any more.
+Railway sets `PORT` and `RAILWAY_ENVIRONMENT_NAME` itself; do not set them. `npm run check-env` checks your environment without printing values. The build and the server **refuse to start** with a clear message when a hosted environment is missing a variable.
 
-The build and the server **fail with a clear message** when a hosted environment is missing any required variable or points at the wrong project. Run `npm run check-env` to check without printing values.
+## 3. Exact Railway steps (first deploy)
 
-## 3. One-time Supabase setup (do it for production AND staging)
-
-1. Create the project (Frankfurt is closest to Lebanon; put Railway in Europe West / Amsterdam so app and database are in the same region). Production should be on the **Pro** plan: free projects pause after a week of inactivity and have no daily backups.
-2. **SQL editor** → run `supabase/migrations/0001_init.sql`, then `supabase/migrations/0002_security.sql` (once each, in order). `0002` enables strict row-level security, locks down functions, adds the storage limits and removes order data from Realtime.
-3. **Authentication → Sign In / Providers → Email**: keep Email enabled and **turn OFF "Allow new users to sign up"**. (The code never calls sign-up and admin access also requires an active row in `admin_users`, but keep the switch off.)
-4. **Authentication → Providers**: leave every social/phone provider off. **Multi-Factor → TOTP** must be enabled (it is by default).
-5. **Authentication → Policies / Password**: minimum length 12 (the app also enforces it). On Pro, turn on leaked-password protection.
-6. **Authentication → URL Configuration**: *Site URL* = the environment's `NEXT_PUBLIC_SITE_URL` exactly (e.g. `https://your-domain`); add `<that URL>/admin/auth/confirm` to *Redirect URLs*. Remove the old `*.vercel.app` entries (see section 5).
-7. **Authentication → Email Templates**. Replace the link in these two templates (this makes links work server-side and keeps email scanners from using them up):
-   - *Invite user*: `<a href="{{ .SiteURL }}/admin/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/admin/set-password">Accept the invite</a>`
-   - *Reset password*: `<a href="{{ .SiteURL }}/admin/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/admin/set-password">Choose a new password</a>`
-8. **Authentication → SMTP**: Supabase's built-in mailer is heavily rate-limited. Add your own SMTP (e.g. Resend) before inviting more than a couple of people.
-9. **Storage**: bucket `product-images` should exist (public read, 8 MB, webp/jpeg/png). `0002` sets this.
-10. **Database → Replication**: `orders` should NOT be in `supabase_realtime` (`0002` removes it).
-11. **Settings → API**: copy the URL, `anon` key and `service_role` key into the matching environment (section 2).
-
-## 4. First owner (once per environment)
-
-With that environment's variables loaded in your terminal (and `MIEL_ENV` set to match):
-
-```bash
-npm run create-owner -- --email you@example.com --name "Your Name"
-```
-
-It emails you a link; you choose your own password. It never creates, shows or logs a password, and **refuses to run if an owner already exists**. Everyone after that is invited from **Settings → Team** (owner only). Sign in at `/admin/login`, then open **My account** and turn on two-factor authentication. In **Settings → Security** the owner can require it for everyone.
-
-## 5. Deploy on Railway
-
-The repo contains `railway.json`, so Railway already knows how to build, start, health-check and restart the app:
-
-| Setting | Value |
-|---|---|
-| Builder | Railpack (Node ≥ 22, from `package.json`) |
-| Build | `npm run build` (clears stale fetch cache → `next build` → copies static files into the standalone server) |
-| Start | `npm start` (runs `scripts/start.mjs`: standalone server on `0.0.0.0:$PORT`) |
-| Health check | `/api/health` (200 only when the server is up **and** the database answers; 503 otherwise) |
-| Restart policy | on failure, up to 10 times |
-| Replicas | **1** |
-
-### Why exactly one replica
-Storefront pages are cached by the Next.js server (ISR, refreshed every 5 minutes). When an admin saves a product, setting, discount or shipping zone, the server runs `revalidatePath`, which clears the cache **inside that one process**. With two or more replicas only the replica that handled the admin's save would update. The others would keep serving the old price, stock or content for up to 5 minutes, and different visitors would see different prices depending on which replica answered. The in-memory rate limiter on checkout is also per instance. Never raise `numReplicas`, or the replica count in the dashboard, above 1. (If you ever need more capacity, the cache must first move to a shared store.) A deploy replaces the instance, with a few seconds of overlap while the new one passes its health check, which is fine.
-
-### Exact steps (first deploy)
 1. Run `npm run verify` locally (everything green).
-2. **Railway → New Project → Deploy from GitHub repo** → pick this repository, branch `main`. Name the environment `production`.
-3. **Settings → Region**: choose **Europe West (Amsterdam)**, replicas **1** (the region is set in the dashboard; it is not in `railway.json`).
-4. **Variables**: add every production variable from section 2 (`MIEL_ENV=production`, `MIEL_PRODUCTION_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`, and optionally `STORE_TIMEZONE`, `RESEND_API_KEY`, `NOTIFY_FROM`). Do not set `PORT`.
-5. **Settings → Networking → Generate domain** (a temporary `*.up.railway.app` address) and, when ready, **Custom domain** → your final domain. Railway shows the DNS record to create at your registrar (usually a `CNAME`; for a bare domain use the `ALIAS`/`ANAME` or the A record Railway lists). Railway issues the HTTPS certificate automatically once DNS resolves.
-6. **Set `NEXT_PUBLIC_SITE_URL` to the final domain *before* the build you will go live with**, because it is baked in at build time. If you change it later, redeploy.
-7. **Settings → Deploy**: confirm start command `npm start`, health check path `/api/health`, and that the config source is `railway.json`.
-8. Deploy. The build fails with a clear message if a variable is missing or points at the wrong Supabase project. The deploy only goes live when `/api/health` returns 200.
-9. Update **Supabase Auth URLs** (below), then do section 4 (first owner) if this is a new project.
-10. After the first production deploy: **Settings → Sync products from config**, then **Inventory** (starting stock), **Shipping & delivery** (real fees and couriers), **Settings → Store details** (real WhatsApp number).
+2. **Railway → New Project → Deploy from GitHub repo**, pick this repository and branch. Name the environment `production`.
+3. **Service → Settings → Region**: Europe West (Amsterdam). Replicas: **1** (set in the dashboard; `railway.json` also says 1).
+4. **Service → Volumes → New Volume**, mount path **`/data`**. (If the app later reports permission errors writing `/data`, add the variable `RAILWAY_RUN_UID=0`.)
+5. **Variables**: add every production variable from section 2: `MIEL_ENV=production`, `NEXT_PUBLIC_SITE_URL`, `DATABASE_PATH=/data/miel.db`, `AUTH_SECRET`, `MAIL_FROM`, `BREVO_API_KEY`. Generate `AUTH_SECRET` with a password manager or `openssl rand -base64 48`, and keep a copy outside Railway.
+6. **Networking → Generate domain** (a temporary `*.up.railway.app` address), then **Custom domain** → your final domain. Create the DNS record Railway shows at your registrar (a `CNAME`; for a bare domain the `ALIAS`/`ANAME` or A record it lists). HTTPS is automatic once DNS resolves.
+7. Set `NEXT_PUBLIC_SITE_URL` to the **final** domain before the build you go live with.
+8. **Settings → Deploy**: confirm start command `npm start`, health check `/api/health`, config from `railway.json`.
+9. Deploy. The first start creates `/data/miel.db`, applies the migrations and loads the products, delivery zones and content from `config/*`. The deploy goes live only when `/api/health` returns 200.
+10. **Create the owner** (once): Railway → service → **Shell** (or `railway ssh`), then
+    ```bash
+    npm run create-owner -- --email you@example.com --name "Your Name"
+    ```
+    It emails a one-time link (valid 48 h). It never accepts, shows or logs a password and refuses to run if an owner exists. Open the link, choose your password, sign in at `/admin/login`, and turn on two-factor in **My account** (save the recovery codes). Everyone else is invited from **Settings → Team**.
+11. In the admin: **Inventory** (starting stock; everything starts at 0, so nothing can be sold yet), **Shipping & delivery** (real fees), **Settings → Store details** (real WhatsApp number, notification email).
+12. Go-live test (section 8).
 
-### Supabase Auth changes you must make by hand (staging and production)
-Supabase → **Authentication → URL Configuration**:
-* **Site URL**: change from the old Vercel address to `NEXT_PUBLIC_SITE_URL` (e.g. `https://your-domain`).
-* **Redirect URLs**: add `https://your-domain/admin/auth/confirm`; delete the `*.vercel.app` entries. If you test on the temporary Railway domain first, add `https://<name>.up.railway.app/admin/auth/confirm` too and remove it afterwards.
-* **Email templates** (Invite user, Reset password) use `{{ .SiteURL }}`, so they follow the Site URL automatically; re-check them after the change (section 3, step 7).
-
-Invite and reset links are generated from `NEXT_PUBLIC_SITE_URL`. If the Redirect URL list does not contain it, Supabase silently falls back to the Site URL and the link may not work.
-
-### Moving from Vercel (cut-over order)
-1. Deploy on Railway with the temporary domain and run section 6 against it.
-2. Switch DNS to Railway (lower the DNS TTL a day before). Wait until the custom domain shows as active in Railway.
-3. Update the Supabase Auth URLs (above) and redeploy if `NEXT_PUBLIC_SITE_URL` changed.
-4. Keep Vercel running for a day as a fallback, then delete the Vercel project. Two live copies would each have their own cache and both write to the production database.
-
-### Operating it
-* **Logs**: Railway → service → Deployments → View logs. **Rollback**: Deployments → pick an older successful deploy → Redeploy.
-* **Crashes**: restarts are automatic (policy above). A deploy whose health check keeps failing never replaces the working one.
-* **Revalidation**: admin saves update the storefront immediately (tested end to end in `tests/e2e/railway-flows.spec.ts`). Every restart or redeploy starts with an empty cache, which is harmless.
-
-## 6. Go-live test order (do this once, on production)
-
-1. On your phone open the live store, add a pouch, check out with your own number and a real address.
-2. Check: WhatsApp opens with the message to **your** number; the order shows in **Admin → Orders** as **#1001** within ~5 seconds (bell badge + soft sound); **Inventory** dropped by one; the dashboard shows the order.
-3. Open the order, move it through the statuses, then **Cancel it with a reason**. Stock is restored. Nothing is ever hard-deleted.
-
-If the first real order is not #1001 (e.g. you tested earlier), see section 7.
-
-## 7. Demo data, backups, order numbering
-
-* Demo rows are identified **only** by `is_demo = true`. `npm run purge-demo` is a dry run; `npm run purge-demo -- --confirm` backs every row up to `/backups/<timestamp>/*.csv` (git-ignored) and then deletes them. Anything marked demo but connected to a real order is **listed and skipped**, never deleted. Afterwards, if no orders remain, the counter is reset so the next order is #1001.
-* `npm run seed-demo -- --yes` creates fake data for staging only. It refuses to run if `NODE_ENV`/`MIEL_ENV` is production, if the Railway environment is named `production`, if the URL is the production project, or if `MIEL_PRODUCTION_SUPABASE_URL` is unset.
-* Production: turn on daily backups (Pro) / PITR in Supabase, and download the activity log and orders CSV regularly.
-
-## 8. Roles
+## 4. Who can do what
 
 | | Staff | Manager | Owner |
 |---|---|---|---|
@@ -132,24 +72,80 @@ If the first real order is not #1001 (e.g. you tested earlier), see section 7.
 | View products | ✅ | ✅ | ✅ |
 | Edit products, discounts, shipping, content, marketing, analytics | ❌ | ✅ | ✅ |
 | CSV exports | ❌ | ✅ | ✅ |
-| Delete anything (images, testimonials) | ❌ | ❌ | ✅ |
-| Settings, team, security | ❌ | ❌ | ✅ |
+| Delete (images, testimonials) | ❌ | ❌ | ✅ |
+| Settings, team, security, backups | ❌ | ❌ | ✅ |
 
-Enforced three times: the proxy, the server code on every page/action/route, and row-level security in Postgres.
+There is no database-level security: the database file is only reachable from server code, so these checks, made on every page, action and API route (and again at the front door, `proxy.ts`), **are** the access control. A test fails if an action is added without being classified.
 
-## 9. Sessions and sign-in
+## 5. Sign-in, sessions, 2FA
 
-* Email + password only; accounts exist only by invitation. Sessions end after **12 hours without activity**; "Sign out everywhere" is under *My account*.
-* Auth cookies are `HttpOnly`, `Secure` (production) and `SameSite=Lax`.
-* Failed logins, reset requests and wrong 2FA codes are rate-limited and logged (emails are stored only as salted hashes). Every login, failed login, logout, role change, invite and password change is in **Settings → Activity log**.
-* Lost authenticator phone: in Supabase → Authentication → Users → the person → remove their factor; they sign in with their password and set 2FA up again.
+* Email + password (argon2id). Accounts exist only by invitation: the owner enters an email and role, the person gets a single-use link (valid 48 h; only its hash is stored) and chooses their own password. No public sign-up exists anywhere.
+* Sessions live in the database; the cookie is `HttpOnly`, `Secure` in production, `SameSite=Lax`. They end after **12 hours without activity** (7 days at most). **My account** lists active sessions and has "Sign out everywhere"; changing your password signs your other devices out.
+* **Two-factor**: authenticator app (TOTP) with 10 one-time recovery codes. The owner can require it for everyone (**Settings → Security**). Lost phone: use a recovery code, or the owner removes the setup under **Settings → Team → Reset 2FA**.
+* Failed logins, resets, invites and wrong 2FA codes are rate limited (stored in the database, they survive restarts) and written to the audit log with hashed emails and IPs. **Settings → Activity** shows logins, role changes, invites, exports, backup downloads and every destructive action.
+* Password reset: **Forgot password** emails a one-hour link; using it signs out every old session.
 
-## 10. Quality gate
+## 6. Backups and restore
 
-`npm run verify` = typecheck → lint → unit → integration (incl. real-Postgres row-level-security tests) → production build → end-to-end tests. The end-to-end tests build the app and start it with `npm start` exactly as Railway does, against a tests-only mock of Supabase (`tests/support/mock-supabase.ts`), and cover the health check, login, checkout, the live new-order alert, image upload, storefront revalidation after an admin edit, and the URL rules.
+* **Nightly** (around 03:00 Beirut, or at once if the last one is older than 24 h) the app takes a consistent snapshot with SQLite's online backup API, checks its integrity, and keeps the **newest 14 plus the newest of each of the last 8 weeks** in `/data/backups`. `/api/health` reports the age of the newest one. **Settings → Backups** shows them and has **Back up now**.
+* **Download backup** (owner only, **Settings → Backups**): a zip with the database snapshot and every uploaded image. It holds all customer data: keep it private. Each download is in the audit log.
+* **Off-site copy (optional but recommended)**: set `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_ENCRYPTION_KEY` (and `BACKUP_S3_ENDPOINT` for non-AWS storage such as Cloudflare R2 or Backblaze B2). Every nightly backup is encrypted with AES-256-GCM and uploaded as `<prefix>miel-….db.enc`. Without the encryption key nobody, including the bucket owner, can read them. Customer data never goes into git.
+* **Restore** (stop the app first so nothing is writing):
+  1. Railway → service → scale/stop the deployment (or **Remove** the latest deployment) so it is not running.
+  2. Open a shell on the service (the volume must be attached) and run
+     ```bash
+     npm run restore -- /data/backups/miel-YYYYMMDD-HHMMSS.db --yes
+     ```
+     It also accepts the `.zip` from "Download backup" (restores the images too) and `.db.enc` off-site files (needs `BACKUP_ENCRYPTION_KEY`). The backup is integrity-checked **before** anything is touched, and the current database is saved first as `backups/pre-restore-<time>.db`.
+  3. Start the deployment again and check `/api/health`.
+* A copy is also saved automatically before any database migration (`backups/pre-migration-<time>.db`).
 
-Not covered by automated tests (needs the real Supabase project): invite/reset emails actually arriving, real TOTP enrolment, and the production database itself. Use section 6 after deploying.
+## 7. Email (invites, resets, order alerts)
 
-## 11. Key rotation
+Mail goes through one small adapter. **Missing mail configuration fails loudly in production**: the build and start refuse, invites say "Email isn't set up", nothing is silently skipped.
 
-If a service-role key may have leaked: Supabase → Settings → API → regenerate, update `SUPABASE_SERVICE_ROLE_KEY` in Railway (Variables), redeploy. Then use "Sign out everywhere" and review the activity log.
+**Brevo (default):** create a Brevo account, add and verify your sending domain, create an API key (**SMTP & API → API keys**), and set `BREVO_API_KEY` and `MAIL_FROM` (an address on that verified domain).
+**SMTP alternative:** `MAIL_PROVIDER=smtp`, `SMTP_URL`, `MAIL_FROM`.
+
+DNS records at your domain registrar so the mail is not marked as spam (Brevo shows the exact values under **Senders, Domains & Dedicated IPs → Domains**):
+* **SPF**: a `TXT` record on the domain that includes Brevo (`v=spf1 include:spf.brevo.com ~all`; if you already have an SPF record, add the `include:` to it instead of creating a second one).
+* **DKIM**: the `TXT` (or `CNAME`) record Brevo gives you, usually named `brevo1._domainkey`.
+* **Brevo code** (`brevo-code:…` TXT) to verify ownership.
+* **DMARC** (recommended): `TXT` on `_dmarc` with `v=DMARC1; p=none; rua=mailto:you@your-domain.com`, then tighten later.
+Click **Authenticate** in Brevo after the records propagate (minutes to a few hours).
+
+## 8. Go-live test (do this once, on production)
+
+1. `https://your-domain/api/health` shows `{"status":"ok","db":"ok","volume":"writable",…}`.
+2. On your phone open the store, add a pouch, check out with your own number. WhatsApp opens with your message; the order shows in **Admin → Orders** as **#1001** within seconds (bell, toast and soft sound) and **Inventory** dropped by one.
+3. Move it through the statuses, mark the COD collected, then place and **cancel** a second one: stock is restored.
+4. **Settings → Team**: invite someone (the email arrives, the link works once). **Forgot password** works.
+5. **Settings → Backups → Back up now**, then **Download backup**.
+
+## 9. If something fails
+
+| Symptom | What to do |
+|---|---|
+| Deploy fails the health check | Railway keeps the previous deployment running. Open the deploy logs: a missing variable, a failed migration (`Migration … failed and was rolled back`) or a read-only volume is named there. Fix and redeploy; roll back from **Deployments → older deploy → Redeploy** if needed |
+| A migration failed | The server refuses to start rather than run on a half-migrated database; the failed migration was rolled back and a copy of the database was saved before it (`/data/backups/pre-migration-…`). Fix the migration, redeploy |
+| Volume is full | Delete old exports or enlarge the volume (Railway → Volumes). Check `/data/backups` size: it keeps at most ~22 snapshots |
+| Volume lost or corrupted | Create a new volume at `/data`, then restore the newest backup (section 6; use the off-site copy if the local ones are gone). Orders after that backup have to be re-entered from WhatsApp |
+| Bad deploy | **Deployments → previous → Redeploy**. Database migrations are forward-only: if a new migration ran, restore the `pre-migration` copy or follow the fix-forward instructions in the release notes |
+| Nobody can sign in (lost owner) | In the Railway shell, `npm run create-owner` refuses while an owner exists. Ask another owner to **Reset 2FA / send a reset link**, or restore a backup |
+| `/api/health` 503 | The database did not answer or the volume is not writable. Check the Railway volume is attached at `/data` and `DATABASE_PATH` is `/data/miel.db` |
+| Emails not arriving | Check `BREVO_API_KEY`, `MAIL_FROM` and the SPF/DKIM status in Brevo; the logs show `email provider refused…` |
+
+## 10. Demo data and order numbering
+
+* Demo rows are identified only by `is_demo = 1`. `npm run purge-demo` is a dry run; `npm run purge-demo -- --confirm` backs every row up to `/backups/<timestamp>/*.csv` and then deletes them. Anything marked demo but linked to a real order is **listed and skipped**. If no orders remain, the counter is reset so the next order is #1001.
+* `npm run seed-demo -- --yes` creates fake data for staging only; it refuses to run when `MIEL_ENV` is not `staging` or `development`, or the Railway environment is `production`.
+
+## 11. Quality gate
+
+`npm run verify` = typecheck → lint → unit → integration → production build → end-to-end tests. The integration tests run on a real temporary SQLite database (including 50 concurrent orders against 10 in stock, with exactly 10 succeeding, also across 4 separate processes). The end-to-end tests build the app, start it with `npm start` exactly as Railway does, and use the real storefront and admin in a browser: checkout, live alert, order lifecycle, cancel, discount, manual order, concurrent editing, exports, roles, invites, 2FA, password reset, uploads, backups, health, and the security checks. Not covered automatically: email delivery with your real Brevo account and DNS, and Railway's own network layer: use section 8 after deploying.
+
+## 12. Key rotation
+
+* `AUTH_SECRET` leaked: change it in Railway and redeploy; everyone must re-enrol two-factor (the old secrets can no longer be decrypted), and use "Sign out everywhere".
+* `BREVO_API_KEY` leaked: revoke it in Brevo, create a new one, update Railway, redeploy.
+* A team member's account compromised: **Settings → Team → Deactivate** (their sessions end immediately), then review **Settings → Activity**.

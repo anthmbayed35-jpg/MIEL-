@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { E2E_ENV } from "../../playwright.config";
+import { E2E_DB, E2E_DIR, SENTINEL_AUTH_SECRET, SENTINEL_BREVO_KEY } from "../support/e2e-env";
 
 const ROOT = path.resolve(__dirname, "../..");
 const NEXT = path.join(ROOT, ".next");
-const SERVICE_KEY = E2E_ENV.SUPABASE_SERVICE_ROLE_KEY;
+const SECRETS = [SENTINEL_AUTH_SECRET, SENTINEL_BREVO_KEY];
 
 function files(dir: string, out: string[] = []): string[] {
   if (!fs.existsSync(dir)) return out;
@@ -19,24 +19,37 @@ function files(dir: string, out: string[] = []): string[] {
 const read = (f: string) => fs.readFileSync(f, "utf8");
 
 test.describe("what the browser can download", () => {
-  test("the service-role key is in NO browser-visible file", () => {
+  test("no secret is in ANY browser-visible file", () => {
     const browserFiles = [...files(path.join(NEXT, "static")), ...files(path.join(ROOT, "public"))].filter((f) => /\.(js|css|html|json|txt|map|svg)$/.test(f));
     expect(browserFiles.length).toBeGreaterThan(10);
-    for (const f of browserFiles) expect(read(f), `${path.relative(ROOT, f)} contains the service key`).not.toContain(SERVICE_KEY);
-    // the static HTML that pages are served from
-    for (const f of files(path.join(NEXT, "server/app")).filter((x) => x.endsWith(".html"))) expect(read(f), path.relative(ROOT, f)).not.toContain(SERVICE_KEY);
+    for (const f of browserFiles) for (const k of SECRETS) expect(read(f), `${path.relative(ROOT, f)} contains a secret`).not.toContain(k);
+    // any static HTML the server may hold
+    for (const f of files(path.join(NEXT, "server/app")).filter((x) => x.endsWith(".html"))) for (const k of SECRETS) expect(read(f), path.relative(ROOT, f)).not.toContain(k);
   });
 
-  test("no page or API response contains the service-role key", async ({ request }) => {
-    for (const p of ["/", "/products/red-burn", "/products/gold", "/admin/login", "/admin/forgot", "/sitemap.xml", "/robots.txt", "/api/track"]) {
+  test("no page or API response contains a secret", async ({ request }) => {
+    for (const p of ["/", "/products/red-burn", "/products/gold", "/admin/login", "/admin/forgot", "/sitemap.xml", "/robots.txt", "/api/track", "/api/health"]) {
       const r = await request.get(p, { maxRedirects: 0 });
-      expect(await r.text(), p).not.toContain(SERVICE_KEY);
-      expect(JSON.stringify(r.headers()), p).not.toContain(SERVICE_KEY);
+      const text = await r.text();
+      for (const k of SECRETS) {
+        expect(text, p).not.toContain(k);
+        expect(JSON.stringify(r.headers()), p).not.toContain(k);
+      }
     }
   });
 
-  test("the variable NAME of the service key never appears in browser bundles", () => {
-    for (const f of files(path.join(NEXT, "static")).filter((x) => x.endsWith(".js"))) expect(read(f), path.relative(ROOT, f)).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  test("the names of the server secrets never appear in browser bundles", () => {
+    for (const f of files(path.join(NEXT, "static")).filter((x) => x.endsWith(".js"))) expect(read(f), path.relative(ROOT, f)).not.toMatch(/AUTH_SECRET|BREVO_API_KEY|DATABASE_PATH|SMTP_URL|BACKUP_ENCRYPTION_KEY/);
+  });
+
+  test("the database file, its journal, the uploads folder and backups are not reachable over HTTP", async ({ request }) => {
+    for (const p of ["/miel.db", "/miel.db-wal", "/.data-e2e/miel.db", "/data/miel.db", "/backups/", "/uploads/", "/uploads/miel.db", "/uploads/..%2fmiel.db", "/public/miel.db", "/.env", "/.git/config"]) {
+      const r = await request.get(p, { maxRedirects: 0 });
+      expect([404, 307, 308], p).toContain(r.status());
+      expect((await r.body()).subarray(0, 15).toString(), p).not.toBe("SQLite format 3");
+    }
+    expect(fs.existsSync(E2E_DB)).toBe(true); // it exists on disk, just not on the web
+    expect(E2E_DB.startsWith(E2E_DIR)).toBe(true);
   });
 
   test("source maps are not shipped", async ({ request }) => {

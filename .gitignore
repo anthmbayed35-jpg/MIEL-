@@ -21,3 +21,4 @@ test-results
 *.db
 *.db-wal
 *.db-shm
+.data-e2e

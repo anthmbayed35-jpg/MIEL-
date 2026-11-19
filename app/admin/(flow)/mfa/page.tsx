@@ -20,9 +20,9 @@ export default async function MfaPage() {
         {st.mfa === "verify" ? (
           <>
             <h1 className="display text-[28px]">Enter your code</h1>
-            <p className="mt-2 mb-6 text-[16px] text-body">Open your authenticator app and type the 6-digit code for MIEL+.</p>
+            <p className="mt-2 mb-6 text-[16px] text-body">Open your authenticator app and type the 6-digit code for MIEL+. Lost your phone? Use one of your recovery codes instead.</p>
             <ActionForm action={verifyLogin} className="space-y-4">
-              <input name="code" inputMode="numeric" autoComplete="one-time-code" required autoFocus placeholder="123456" className="a-input text-center !text-[24px] tracking-[0.3em]" aria-label="6-digit code" />
+              <input name="code" autoComplete="one-time-code" required autoFocus placeholder="123456" className="a-input text-center !text-[24px] tracking-[0.3em]" aria-label="6-digit code or recovery code" />
               <SubmitButton variant="lime" className="w-full">Verify</SubmitButton>
             </ActionForm>
           </>

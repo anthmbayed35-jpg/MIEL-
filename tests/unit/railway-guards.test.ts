@@ -44,17 +44,19 @@ describe("absolute URLs come from NEXT_PUBLIC_SITE_URL only", () => {
     const hits = code.filter((f) => /x-forwarded-host|headers\(\)\.get\(["']host["']\)|req(uest)?\.nextUrl\.origin/.test(read(f)));
     expect(hits).toEqual([]);
   });
-  it("auth redirect links are built with authConfirmUrl()", () => {
-    for (const f of ["app/admin/login/actions.ts", "app/admin/(app)/settings/team/actions.ts", "scripts/create-owner.ts"]) expect(read(f)).toContain("authConfirmUrl");
+  it("invite and reset links are built with inviteUrl() / resetUrl() only", () => {
+    expect(read("lib/invites.ts")).toContain("inviteUrl(token)");
+    expect(read("lib/invites.ts")).toContain("resetUrl(token)");
   });
   it("siteUrl() trims trailing slashes", async () => {
-    const { siteUrl, absoluteUrl, authConfirmUrl } = await import("../../lib/site-url");
+    const { siteUrl, absoluteUrl, inviteUrl, resetUrl } = await import("../../lib/site-url");
     const before = process.env.NEXT_PUBLIC_SITE_URL;
     process.env.NEXT_PUBLIC_SITE_URL = "https://miel.example///";
     try {
       expect(siteUrl()).toBe("https://miel.example");
       expect(absoluteUrl("/products/gold")).toBe("https://miel.example/products/gold");
-      expect(authConfirmUrl()).toBe("https://miel.example/admin/auth/confirm?next=/admin/set-password");
+      expect(inviteUrl("a b")).toBe("https://miel.example/admin/set-password?type=invite&token=a%20b");
+      expect(resetUrl("t")).toBe("https://miel.example/admin/set-password?type=reset&token=t");
     } finally {
       if (before === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
       else process.env.NEXT_PUBLIC_SITE_URL = before;
@@ -66,7 +68,7 @@ describe("Railway deployment files", () => {
   const rw = JSON.parse(read("railway.json"));
   const pkg = JSON.parse(read("package.json"));
 
-  it("runs exactly one replica (the revalidation cache is per instance)", () => expect(rw.deploy.numReplicas).toBe(1));
+  it("runs exactly one replica (SQLite file on one volume, in-process live-alert bus)", () => expect(rw.deploy.numReplicas).toBe(1));
   it("health check path is /api/health with a restart policy", () => {
     expect(rw.deploy.healthcheckPath).toBe("/api/health");
     expect(rw.deploy.restartPolicyType).toBe("ON_FAILURE");
@@ -89,13 +91,27 @@ describe("Railway deployment files", () => {
     expect(pkg.devDependencies.sharp).toBeUndefined();
   });
   it("declares a Node version", () => expect(pkg.engines.node).toBeTruthy());
+  it("native modules are runtime dependencies and kept external so the standalone build ships them", () => {
+    for (const d of ["better-sqlite3", "argon2", "sharp"]) {
+      expect(pkg.dependencies[d], d).toBeTruthy();
+      expect(read("next.config.ts"), d).toContain(`"${d}"`);
+    }
+  });
+  it("SQL migrations are copied next to the standalone server and applied at boot", () => {
+    expect(read("scripts/prepare-standalone.mjs")).toContain("migrations");
+    expect(read("instrumentation.ts")).toContain("getEngine");
+    expect(fs.readdirSync(path.join(ROOT, "migrations")).some((f) => f.startsWith("0001_"))).toBe(true);
+  });
+  it("the storefront is rendered per request, so a deploy never serves pre-rendered stale data", () => {
+    expect(read("app/(store)/layout.tsx")).toContain('export const dynamic = "force-dynamic"');
+  });
 });
 
 describe("environment documentation lists every variable the app reads", () => {
   const ref = new Set<string>();
   for (const f of code.filter((x) => /\.(ts|tsx|mjs)$/.test(x))) for (const m of read(f).matchAll(/process\.env\.([A-Z][A-Z0-9_]+)/g)) ref.add(m[1]);
   // set by Node, Next.js, Railway or the shell, not something an operator configures for this app
-  const platform = new Set(["NODE_ENV", "NEXT_RUNTIME", "NEXT_PHASE", "PORT", "HOSTNAME", "CI", "TZ", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT", "KEEP_ALIVE_TIMEOUT", "E2E_BROWSER_CHANNEL", "MOCK_PORT"]);
+  const platform = new Set(["NODE_ENV", "NEXT_RUNTIME", "NEXT_PHASE", "PORT", "HOSTNAME", "CI", "TZ", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT", "KEEP_ALIVE_TIMEOUT", "E2E_BROWSER_CHANNEL", "MAIL_OUTBOX"]);
   const ops = read("docs/OPERATIONS.md");
   it("OPERATIONS.md and .env.example mention each one", () => {
     const missing = [...ref].filter((v) => !platform.has(v) && (!ops.includes(v) || (!read(".env.example").includes(v) && !/^(SKIP_ENV_CHECK)$/.test(v))));

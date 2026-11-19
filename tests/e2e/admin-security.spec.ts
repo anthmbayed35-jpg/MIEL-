@@ -29,7 +29,7 @@ function adminRoutes() {
   walk(path.join(ROOT, "app/admin"));
   return { pages, apis };
 }
-const PUBLIC = new Set(["/admin/login", "/admin/forgot", "/admin/auth/confirm"]);
+const PUBLIC = new Set(["/admin/login", "/admin/forgot", "/admin/set-password"]);
 const { pages, apis } = adminRoutes();
 
 test.describe("unauthenticated requests to the admin", () => {
@@ -90,11 +90,14 @@ test.describe("unauthenticated requests to the admin", () => {
     await expect(page.locator("body")).not.toContainText(/does not exist|no account|not found|unknown user/i);
   });
 
-  test("an invalid invite/reset link is refused", async ({ page }) => {
-    await page.goto("/admin/auth/confirm?token_hash=forged&type=invite&next=https://evil.example");
-    await page.click('button:has-text("Continue")');
-    await expect(page).toHaveURL(/\/admin\/login\?error=link/, { timeout: 15000 });
-    await expect(page.getByText(/invalid or has expired/i)).toBeVisible();
+  test("an invalid, forged or used-up invite/reset link is refused (and never offers a password form)", async ({ page }) => {
+    for (const kind of ["invite", "reset"]) {
+      await page.goto("/admin/set-password?type=" + kind + "&token=forged-token-value");
+      await expect(page.getByText(/invalid, was already used, or has expired/i)).toBeVisible();
+      await expect(page.locator('input[name="password"]')).toHaveCount(0);
+    }
+    await page.goto("/admin/set-password");
+    await expect(page.getByText(/invalid, was already used, or has expired/i)).toBeVisible();
   });
 });
 
