@@ -1,44 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db", async () => {
-  const { createLocalClient } = await import("../support/local-db");
-  return {
-    getDb: () => createLocalClient(),
-    hasSupabase: () => true,
-    dbMode: () => "supabase",
-    usesDb: () => true,
-    must: (r: any) => {
-      if (r.error) throw new Error(r.error.message);
-      return r.data;
-    },
-  };
-});
-vi.mock("@/lib/supabase-server", async () => {
-  const { fakeAuthClient, fakeAdminAuth } = await import("../support/state");
-  return { authClient: async () => fakeAuthClient(), adminAuthClient: () => fakeAdminAuth() };
-});
-vi.mock("next/navigation", () => ({
-  redirect: (u: string) => {
-    throw new Error(`NEXT_REDIRECT:${u}`);
-  },
-  forbidden: () => {
-    throw new Error("HTTP_403");
-  },
-  unauthorized: () => {
-    throw new Error("HTTP_401");
-  },
-  notFound: () => {
-    throw new Error("HTTP_404");
-  },
-  usePathname: () => "/admin",
-  useRouter: () => ({ push() {}, replace() {} }),
-}));
+vi.mock("next/navigation", async () => (await import("../support/mocks")).navigationMock);
+vi.mock("next/headers", async () => (await import("../support/mocks")).headersMock);
+
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers(),
-  cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {}, getAll: () => [] }),
-}));
 
 import { createLocalClient } from "../support/local-db";
 import { h, ID, resetState } from "../support/state";

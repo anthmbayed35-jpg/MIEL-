@@ -1,9 +1,9 @@
-import { createLocalClient } from "./local-db";
+import { getEngine } from "../../lib/db/core";
 import { ID } from "./state";
 
 /** Minimal store: a team (owner/manager/staff), two products with stock, zones, a discount. */
 export async function seedStore() {
-  const db = createLocalClient() as any;
+  const db = getEngine() as any;
   await db.from("admin_users").insert([
     { id: ID.owner, email: "owner@t.test", name: "Owner", role: "owner", active: true },
     { id: ID.manager, email: "manager@t.test", name: "Manager", role: "manager", active: true },

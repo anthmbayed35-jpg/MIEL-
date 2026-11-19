@@ -226,7 +226,8 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
     }
     addEventSync(order.id, "created", input.draft ? "Draft created" : `Order placed (${input.source}), cash on delivery`, input.actor, undefined, status, input.createdAt);
     if (key) e.sqlite.prepare("INSERT INTO idempotency_keys (key, order_id) VALUES (?, ?)").run(key, order.id);
-    return { order: { ...order, stock_deducted: !input.draft }, customer, quote: q };
+    const fresh = one(q1("orders").select("*").eq("id", order.id).single().execute()) as Row; // with its current version
+    return { order: fresh, customer, quote: q };
   });
   if (!out.replayed && !input.draft) publish({ type: "order.created", orderId: out.order.id, number: out.order.order_number, total: out.order.total });
   return out;

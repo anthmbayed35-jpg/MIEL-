@@ -2,42 +2,10 @@ import path from "node:path";
 import fs from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db", async () => {
-  const { createLocalClient } = await import("../support/local-db");
-  return {
-    getDb: () => createLocalClient(),
-    hasSupabase: () => true,
-    dbMode: () => "supabase",
-    usesDb: () => true,
-    must: (r: any) => {
-      if (r.error) throw new Error(r.error.message);
-      return r.data;
-    },
-  };
-});
-vi.mock("@/lib/supabase-server", async () => {
-  const { fakeAuthClient, fakeAdminAuth } = await import("../support/state");
-  return { authClient: async () => fakeAuthClient(), adminAuthClient: () => fakeAdminAuth() };
-});
-vi.mock("next/navigation", () => ({
-  redirect: (u: string) => {
-    throw new Error(`NEXT_REDIRECT:${u}`);
-  },
-  forbidden: () => {
-    throw new Error("HTTP_403");
-  },
-  unauthorized: () => {
-    throw new Error("HTTP_401");
-  },
-  notFound: () => {
-    throw new Error("HTTP_404");
-  },
-}));
+vi.mock("next/navigation", async () => (await import("../support/mocks")).navigationMock);
+vi.mock("next/headers", async () => (await import("../support/mocks")).headersMock);
+
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ "x-forwarded-for": "9.9.9.9" }),
-  cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {}, getAll: () => [] }),
-}));
 
 import { h, ID, resetState } from "../support/state";
 import { seedStore } from "../support/seed";
@@ -67,12 +35,12 @@ const MATRIX: Record<string, Min> = {
   "settings/shipping/actions::saveZone": "manager", "settings/shipping/actions::savePartner": "manager", "settings/shipping/actions::settlePartner": "manager",
   // settings & team: owner only
   "settings/actions::seedStoreAction": "owner", "settings/actions::saveStore": "owner", "settings/actions::saveNotifications": "owner",
-  "settings/actions::savePolicies": "owner", "settings/actions::saveSecurity": "owner",
-  "settings/team/actions::inviteMember": "owner", "settings/team/actions::setRole": "owner", "settings/team/actions::setActive": "owner", "settings/team/actions::sendReset": "owner",
+  "settings/actions::savePolicies": "owner", "settings/actions::saveSecurity": "owner", "settings/actions::backupNow": "owner",
+  "settings/team/actions::inviteMember": "owner", "settings/team/actions::setRole": "owner", "settings/team/actions::setActive": "owner", "settings/team/actions::sendReset": "owner", "settings/team/actions::cancelInvite": "owner", "settings/team/actions::resetMfa": "owner",
   // any signed-in team member (their own account)
-  "account/actions::changePassword": "any",
+  "account/actions::changePassword": "any", "account/actions::revokeSession": "any",
 };
-const PUBLIC = new Set(["login/actions::login", "login/actions::requestReset", "auth/confirm/actions::confirmLink"]);
+const PUBLIC = new Set(["login/actions::login", "login/actions::requestReset"]);
 // Safe with or without a session (they only END a session)
 const SESSION = new Set(["login/actions::logout", "login/actions::logoutEverywhere"]);
 
@@ -135,14 +103,12 @@ describe("not signed in: every protected action answers 401 and does nothing", (
       expect((res as any).e, a.key).toBe("HTTP_401");
     }
   });
-  it("a valid Supabase account that is not on the team is also 401", async () => {
+  it("a cookie that matches no session (or someone not on the team) is also 401", async () => {
     h.user = { id: ID.stranger, email: "stranger@t.test" };
     const a = (await allActions()).find((x) => x.key === "orders/actions::changeStatus")!;
     expect((await call(a.fn, a.key)) as never).toMatchObject({ ok: false, e: "HTTP_401" });
   });
   it("a deactivated team member is 401", async () => {
-    const { db } = await seedStore().catch(() => ({ db: null as any }));
-    void db;
     const { createLocalClient } = await import("../support/local-db");
     await (createLocalClient() as any).from("admin_users").update({ active: false }).eq("id", ID.staff);
     h.user = { id: ID.staff, email: "staff@t.test" };

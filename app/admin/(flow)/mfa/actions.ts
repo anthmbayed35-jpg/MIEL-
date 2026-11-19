@@ -34,7 +34,7 @@ export async function finishEnroll(_factorId: string, code: string): Promise<Enr
   if (!row.totp_secret || row.totp_enabled) return { error: "Start the setup again." };
   const step = verifyTotp(decrypt(row.totp_secret), code);
   if (step === null) {
-    await recordAuthEvent("mfa_failed", { ip, actorId: st.admin.id, actorEmail: st.admin.email });
+    await recordAuthEvent("mfa_failed", { ip, email: st.admin.email, actorId: st.admin.id, actorEmail: st.admin.email });
     return { error: "That code didn't match. Check the time on your phone and try the next code." };
   }
   const rc = newRecoveryCodes();
@@ -72,7 +72,7 @@ export async function verifyLogin(_p: ActionState, fd: FormData): Promise<Action
     }
   }
   if (!ok) {
-    await recordAuthEvent("mfa_failed", { ip, actorId: st.admin.id, actorEmail: st.admin.email });
+    await recordAuthEvent("mfa_failed", { ip, email: st.admin.email, actorId: st.admin.id, actorEmail: st.admin.email });
     return { error: "That code didn't match. Try the next one, or use a recovery code." };
   }
   const token = await sessionToken();

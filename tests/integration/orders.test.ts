@@ -1,45 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db", async () => {
-  const { createLocalClient } = await import("../support/local-db");
-  return {
-    getDb: () => createLocalClient(),
-    hasSupabase: () => true,
-    dbMode: () => "supabase",
-    usesDb: () => true,
-    must: (r: any) => {
-      if (r.error) throw new Error(r.error.message);
-      return r.data;
-    },
-  };
-});
-vi.mock("@/lib/supabase-server", async () => {
-  const { fakeAuthClient, fakeAdminAuth } = await import("../support/state");
-  return { authClient: async () => fakeAuthClient(), adminAuthClient: () => fakeAdminAuth() };
-});
-vi.mock("next/navigation", () => ({
-  redirect: (u: string) => {
-    throw new Error(`NEXT_REDIRECT:${u}`);
-  },
-  forbidden: () => {
-    throw new Error("HTTP_403");
-  },
-  unauthorized: () => {
-    throw new Error("HTTP_401");
-  },
-  notFound: () => {
-    throw new Error("HTTP_404");
-  },
-}));
+vi.mock("next/navigation", async () => (await import("../support/mocks")).navigationMock);
+vi.mock("next/headers", async () => (await import("../support/mocks")).headersMock);
+
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-let ip = "1.1.1.1";
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ "x-forwarded-for": ip }),
-  cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {}, getAll: () => [] }),
-}));
 
 import { createLocalClient } from "../support/local-db";
-import { h, ID, resetState } from "../support/state";
+import { h, ID, reqHeaders, resetState } from "../support/state";
 import { seedStore } from "../support/seed";
 import { createOrder, quoteOrder, setOrderStatus } from "@/lib/orders";
 
@@ -51,7 +18,7 @@ const stock = async (productId: string) => (await db().from("inventory_items").s
 beforeEach(async () => {
   resetState();
   S = await seedStore();
-  ip = "1.1.1.1";
+  reqHeaders["x-forwarded-for"] = "1.1.1.1";
 });
 
 describe("order numbering", () => {
@@ -173,7 +140,7 @@ describe("storefront checkout (server action)", () => {
     expect((await db().from("orders").select("*")).data).toHaveLength(0);
   });
   it("rate-limits one connection to 5 orders per 10 minutes", async () => {
-    ip = "7.7.7.7";
+    reqHeaders["x-forwarded-for"] = "7.7.7.7";
     const results = [];
     for (let n = 1; n <= 6; n++) results.push(await placeOrder(input(n)) as any);
     expect(results.slice(0, 5).every((r) => r.ok)).toBe(true);

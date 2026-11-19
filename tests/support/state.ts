@@ -1,32 +1,16 @@
-import { resetLocalDb } from "./local-db";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { closeEngine, getEngine } from "../../lib/db/core";
+import { createSession, SESSION_COOKIE } from "../../lib/session";
 
-/** Shared, mutable state behind the mocked Supabase Auth. Tests set `user` / `aal` to act as someone. */
-export const h = {
-  user: null as null | { id: string; email: string },
-  aal: { currentLevel: "aal1", nextLevel: "aal1" },
-  factors: { totp: [] as { id: string }[], all: [] as { id: string; factor_type: string; status: string }[] },
-  /** email -> password, for signInWithPassword */
-  accounts: {} as Record<string, { id: string; password: string }>,
-  validTokens: new Set<string>(),
-  calls: {
-    signIn: [] as unknown[],
-    signOut: [] as unknown[],
-    resets: [] as { email: string; opts: any }[],
-    invites: [] as { email: string; opts: any }[],
-    verifyOtp: [] as unknown[],
-    updateUser: [] as { password?: string }[],
-  },
-};
-
-export function resetState() {
-  h.user = null;
-  h.aal = { currentLevel: "aal1", nextLevel: "aal1" };
-  h.factors = { totp: [], all: [] };
-  h.accounts = {};
-  h.validTokens = new Set();
-  for (const k of Object.keys(h.calls) as (keyof typeof h.calls)[]) h.calls[k].length = 0;
-  resetLocalDb();
-}
+/**
+ * Test harness around the REAL stack: every test run gets a fresh temporary SQLite file (migrations applied), and
+ * `h.user = {...}` signs that person in with a REAL database session, which the mocked `next/headers` cookie jar presents
+ * to the app exactly like a browser would. Nothing about auth or the database is mocked.
+ */
+export const jar = new Map<string, string>();
+export const reqHeaders: Record<string, string> = { "x-forwarded-for": "9.9.9.9" };
 
 export const ID = {
   owner: "00000000-0000-0000-0000-0000000000a1",
@@ -35,53 +19,70 @@ export const ID = {
   stranger: "00000000-0000-0000-0000-0000000000ff",
 };
 
-/** Mock of the Supabase auth client used by lib/auth.ts, login actions, proxy, etc. */
-export function fakeAuthClient() {
-  return {
-    auth: {
-      getUser: async () => (h.user ? { data: { user: h.user }, error: null } : { data: { user: null }, error: { message: "no session" } }),
-      signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
-        h.calls.signIn.push(email);
-        const a = h.accounts[email];
-        if (!a || a.password !== password) return { data: { user: null }, error: { message: "Invalid login credentials" } };
-        h.user = { id: a.id, email };
-        return { data: { user: { id: a.id, email } }, error: null };
-      },
-      signOut: async (o?: unknown) => {
-        h.calls.signOut.push(o ?? null);
-        h.user = null;
-        return { error: null };
-      },
-      resetPasswordForEmail: async (email: string, opts: unknown) => {
-        h.calls.resets.push({ email, opts });
-        return { error: null };
-      },
-      verifyOtp: async (p: { token_hash: string; type: string }) => {
-        h.calls.verifyOtp.push(p);
-        if (!h.validTokens.has(p.token_hash)) return { data: { user: null }, error: { message: "Token has expired or is invalid" } };
-        return { data: { user: { id: ID.staff, email: "staff@t.test" } }, error: null };
-      },
-      updateUser: async (p: { password?: string }) => {
-        h.calls.updateUser.push(p);
-        return { error: null };
-      },
-      mfa: {
-        getAuthenticatorAssuranceLevel: async () => ({ data: h.aal, error: null }),
-        listFactors: async () => ({ data: h.factors, error: null }),
-      },
-    },
-  };
+/** Test-only password (the accounts live in a throwaway database that is deleted after the run). */
+export const TEST_PASSWORD = "test-only-passphrase-2025";
+
+let dir = "";
+export const testDir = () => dir;
+export const outboxFile = () => path.join(dir, "outbox.jsonl");
+export const outbox = (): { to: string; subject: string; text: string }[] =>
+  fs.existsSync(outboxFile()) ? fs.readFileSync(outboxFile(), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+/** The link inside the newest email to `to`. */
+export const lastLink = (to: string) => {
+  const m = [...outbox()].reverse().find((x) => x.to === to);
+  return m?.text.match(/https?:\/\/\S+/)?.[0] ?? null;
+};
+
+let token: string | undefined;
+
+export const h = {
+  /** Sign in as this person (a real session row + cookie). A person that is not on the team gets a cookie that matches no session. */
+  set user(u: { id: string; email: string } | null) {
+    token = undefined;
+    jar.delete(SESSION_COOKIE);
+    if (!u) return;
+    const exists = getEngine().sqlite.prepare("SELECT 1 FROM admin_users WHERE id = ?").get(u.id);
+    token = exists ? createSession(u.id, { ip: "9.9.9.9" }).token : "x".repeat(43);
+    jar.set(SESSION_COOKIE, token);
+  },
+  get user() {
+    return token ? { id: "", email: "" } : null;
+  },
+  /** Emulates the old two-factor levels: nextLevel aal2 = 2FA enrolled; currentLevel aal2 = verified in this session. */
+  set aal(v: { currentLevel: string; nextLevel: string }) {
+    if (!token) return;
+    const db = getEngine().sqlite;
+    const row = db.prepare("SELECT user_id FROM sessions WHERE id = ?").get(sha(token)) as { user_id: string } | undefined;
+    if (!row) return;
+    db.prepare("UPDATE admin_users SET totp_enabled = ? WHERE id = ?").run(v.nextLevel === "aal2" ? 1 : 0, row.user_id);
+    db.prepare("UPDATE sessions SET mfa_ok = ? WHERE id = ?").run(v.currentLevel === "aal2" ? 1 : 0, sha(token));
+  },
+  get token() {
+    return token;
+  },
+};
+
+import crypto from "node:crypto";
+const sha = (t: string) => crypto.createHash("sha256").update(t).digest("hex");
+
+/** Fresh empty database + clean cookie jar. Call in beforeEach. */
+export function resetState() {
+  closeEngine();
+  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "miel-test-"));
+  process.env.DATABASE_PATH = path.join(dir, "miel.db");
+  process.env.AUTH_SECRET = "test-only-auth-secret-at-least-32-characters-long";
+  process.env.MAIL_PROVIDER = "file";
+  process.env.MAIL_OUTBOX = outboxFile();
+  process.env.NEXT_PUBLIC_SITE_URL = "https://miel.example";
+  delete process.env.MIEL_ENV;
+  jar.clear();
+  token = undefined;
+  getEngine(); // open + migrate
 }
 
-export function fakeAdminAuth() {
-  return {
-    auth: {
-      admin: {
-        inviteUserByEmail: async (email: string, opts: unknown) => {
-          h.calls.invites.push({ email, opts });
-          return { data: { user: { id: `00000000-0000-0000-0000-${String(h.calls.invites.length).padStart(12, "0")}` } }, error: null };
-        },
-      },
-    },
-  };
+export function cleanupState() {
+  closeEngine();
+  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  dir = "";
 }
