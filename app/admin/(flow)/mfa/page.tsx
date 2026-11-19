@@ -10,6 +10,7 @@ export const metadata = { title: "Two-factor authentication" };
 export default async function MfaPage() {
   const st = await getAdminState();
   if (!st) redirect("/admin/login");
+  if (st.mustChangePassword) redirect("/admin/change-password"); // password first, then two-factor
   if (st.mfa === "ok") redirect("/admin");
   return (
     <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden px-5 py-10">

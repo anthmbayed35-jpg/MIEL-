@@ -44,7 +44,7 @@ export async function finishEnroll(_factorId: string, code: string): Promise<Enr
     return { error: "That code didn't match. Check the time on your phone and try the next code." };
   }
   const rc = newRecoveryCodes();
-  sql().prepare("UPDATE admin_users SET totp_enabled = 1, totp_last_step = ?, recovery_codes = ?, version = version + 1 WHERE id = ?").run(step, JSON.stringify(rc.hashes), st.admin.id);
+  sql().prepare("UPDATE admin_users SET totp_enabled = 1, must_enroll_mfa = 0, totp_last_step = ?, recovery_codes = ?, version = version + 1 WHERE id = ?").run(step, JSON.stringify(rc.hashes), st.admin.id);
   const token = await sessionToken();
   if (token) markMfaOk(token); // they just proved the code, no second prompt
   await recordAuthEvent("mfa_enabled", { ip, actorId: st.admin.id, actorEmail: st.admin.email });

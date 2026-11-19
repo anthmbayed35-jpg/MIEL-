@@ -5,9 +5,9 @@ import { useFormStatus } from "react-dom";
 import { Flash } from "./ui";
 
 /** `copy`: a one-time link the owner must hand over by hand (shown while email is not configured). */
-export type ActionState = { ok?: string; error?: string; copy?: { label: string; value: string } } | null;
+export type ActionState = { ok?: string; error?: string; copy?: { label: string; value: string; note?: string; button?: string } } | null;
 
-function CopyBox({ label, value }: { label: string; value: string }) {
+function CopyBox({ label, value, note, button }: { label: string; value: string; note?: string; button?: string }) {
   const [done, setDone] = useState(false);
   return (
     <div className="mb-4 rounded-2xl border border-acid/40 bg-acid/5 p-3" role="group" aria-label={label}>
@@ -26,10 +26,10 @@ function CopyBox({ label, value }: { label: string; value: string }) {
             }
           }}
         >
-          {done ? "Copied" : "Copy link"}
+          {done ? "Copied" : button ?? "Copy link"}
         </button>
       </div>
-      <p className="mt-2 text-[13px] text-body">Shown once. Send it to them yourself (WhatsApp, in person). It works one time only.</p>
+      <p className="mt-2 text-[13px] text-body">{note ?? "Shown once. Send it to them yourself (WhatsApp, in person). It works one time only."}</p>
     </div>
   );
 }
@@ -59,7 +59,7 @@ export function ActionForm({
       }}
     >
       <Flash msg={state?.ok} error={state?.error} />
-      {state?.copy && <CopyBox label={state.copy.label} value={state.copy.value} />}
+      {state?.copy && <CopyBox label={state.copy.label} value={state.copy.value} note={state.copy.note} button={state.copy.button} />}
       {children}
     </form>
   );

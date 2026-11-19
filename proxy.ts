@@ -22,7 +22,8 @@ const PUBLIC_ADMIN = ["/admin/login", "/admin/forgot", "/admin/set-password"];
 function isPreviewAdmin(req: NextRequest): boolean {
   try {
     const f = lookupSession(req.cookies.get(SESSION_COOKIE)?.value);
-    return f.ok && (f.session.mfaOk || !f.session.user.totpEnabled);
+    const u = f.ok ? f.session.user : null;
+    return !!u && !u.mustChangePassword && !u.mustEnrollMfa && (f.ok && (f.session.mfaOk || !u.totpEnabled));
   } catch {
     return false; // an unreadable database never opens the door
   }

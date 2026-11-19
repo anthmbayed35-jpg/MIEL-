@@ -21,7 +21,7 @@ const parse = (pk: string, spec: string): Table => {
 };
 
 export const TABLES: Record<string, Table> = {
-  admin_users: parse("id", "id email name role active? password_hash totp_secret totp_enabled? totp_last_step recovery_codes[] version created_at updated_at"),
+  admin_users: parse("id", "id email name role active? password_hash totp_secret totp_enabled? totp_last_step recovery_codes[] must_change_password? must_enroll_mfa? temp_password_expires_at version created_at updated_at"),
   sessions: parse("id", "id user_id mfa_ok? ip user_agent created_at last_seen_at expires_at"),
   invites: parse("id", "id email name role token_hash invited_by expires_at used_at created_at"),
   password_resets: parse("id", "id user_id token_hash expires_at used_at created_at"),

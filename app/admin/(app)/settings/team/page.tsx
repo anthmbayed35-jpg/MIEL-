@@ -4,7 +4,9 @@ import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, Field, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { SETTINGS_TABS, SubNav } from "@/components/admin/SubNav";
 import { pendingInvites } from "@/lib/invites";
-import { cancelInvite, inviteMember, resetMfa, sendReset, setActive, setRole } from "./actions";
+import { pendingMembers } from "@/lib/members";
+import { AddMemberPanel } from "@/components/admin/AddMemberPanel";
+import { cancelInvite, inviteMember, regenerateTemporaryPasswordAction, resetMfa, sendReset, setActive, setRole } from "./actions";
 
 export const metadata = { title: "Team" };
 
@@ -18,10 +20,12 @@ export default async function TeamPage() {
   const admin = await requirePerm("team.manage");
   const members = (must(await getDb().from("admin_users").select("*")) as Row[]).sort((a, b) => a.email.localeCompare(b.email));
   const invites = pendingInvites();
+  const pending = new Map(pendingMembers().map((p) => [p.id, p]));
   return (
     <>
       <PageHeader eyebrow="Who can sign in" title="Team" />
       <SubNav items={SETTINGS_TABS} role={admin.role} />
+      {admin.role === "owner" && <AddMemberPanel />}
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card>
           <SectionTitle>Members</SectionTitle>
@@ -29,7 +33,7 @@ export default async function TeamPage() {
             {members.map((m) => (
               <li key={m.id} className="admin-card-flat flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
-                  <p className="text-[16px] font-semibold text-fg">{m.name || m.email}{m.id === admin.id && <span className="mono !text-body ml-2">YOU</span>}{!m.active && <span className="status st-cancelled ml-2">Inactive</span>}</p>
+                  <p className="text-[16px] font-semibold text-fg">{m.name || m.email}{m.id === admin.id && <span className="mono !text-body ml-2">YOU</span>}{!m.active && <span className="status st-cancelled ml-2">Inactive</span>}{pending.has(m.id) && <span className="status st-new ml-2">Temporary password pending{pending.get(m.id)?.expiresAt ? ` · ${pending.get(m.id)!.expired ? "expired" : "expires " + new Date(pending.get(m.id)!.expiresAt!).toLocaleString("en-GB", { timeZone: "Asia/Beirut" })}` : ""}</span>}</p>
                   <p className="text-[13px] text-body">{m.email}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -39,6 +43,9 @@ export default async function TeamPage() {
                     <SubmitButton variant="glass" className="!min-h-10">Set</SubmitButton>
                   </ActionForm>
                   {m.active && <ActionForm action={resetMfa}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" confirm={`Remove two-factor for ${m.email}? They set it up again at next sign-in.`} className="!min-h-10">Reset 2FA</SubmitButton></ActionForm>}
+                  {m.active && pending.has(m.id) && m.id !== admin.id && (
+                    <ActionForm action={regenerateTemporaryPasswordAction}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" confirm={`Make a new temporary password for ${m.email}? The old one stops working.`} className="!min-h-10">Regenerate temporary password</SubmitButton></ActionForm>
+                  )}
                   {m.active && <ActionForm action={sendReset}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" className="!min-h-10">Send reset link</SubmitButton></ActionForm>}
                   <ActionForm action={setActive}>
                     <input type="hidden" name="id" value={m.id} /><input type="hidden" name="active" value={m.active ? "0" : "1"} />

@@ -8,7 +8,7 @@ export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ expired?: string; error?: string }> }) {
   const st = await getAdminState();
-  if (st) redirect(st.mfa === "ok" ? "/admin" : "/admin/mfa");
+  if (st) redirect(st.mustChangePassword ? "/admin/change-password" : st.mfa === "ok" ? "/admin" : "/admin/mfa");
   const sp = await searchParams;
   return (
     <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden px-5 py-10">

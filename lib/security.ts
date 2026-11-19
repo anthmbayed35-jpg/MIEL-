@@ -16,13 +16,14 @@ export async function clientIp(): Promise<string> {
   return ipFromHeaders(h);
 }
 
-type Kind = "login_failed" | "reset_requested" | "mfa_failed" | "invite_sent";
+type Kind = "login_failed" | "reset_requested" | "mfa_failed" | "invite_sent" | "member_created";
 const MIN = 60_000;
 const LIMITS: Record<Kind, { ip: number; email: number; windowMs: number }> = {
   login_failed: { ip: 12, email: 5, windowMs: 15 * MIN },
   reset_requested: { ip: 6, email: 3, windowMs: 60 * MIN },
   mfa_failed: { ip: 12, email: 6, windowMs: 15 * MIN },
   invite_sent: { ip: 30, email: 10, windowMs: 60 * MIN },
+  member_created: { ip: 30, email: 10, windowMs: 60 * MIN }, // also counts regenerated temporary passwords, per owner
 };
 const keyIp = (kind: string, ip: string) => `${kind}:ip:${hmac(ip)}`;
 const keyEmail = (kind: string, email: string) => `${kind}:email:${hmac(email)}`;

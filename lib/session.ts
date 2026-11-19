@@ -12,7 +12,7 @@ export const IDLE_MS = 12 * 60 * 60 * 1000;
 export const ABSOLUTE_MS = 7 * 24 * 60 * 60 * 1000;
 const TOUCH_EVERY_MS = 60_000; // don't write on every request
 
-export type SessionUser = { id: string; email: string; name: string; role: "owner" | "manager" | "staff"; active: boolean; totpEnabled: boolean };
+export type SessionUser = { id: string; email: string; name: string; role: "owner" | "manager" | "staff"; active: boolean; totpEnabled: boolean; mustChangePassword: boolean; mustEnrollMfa: boolean };
 export type SessionInfo = { id: string; userId: string; mfaOk: boolean; createdAt: string; lastSeenAt: string; user: SessionUser };
 export type Lookup = { ok: true; session: SessionInfo } | { ok: false; reason: "none" | "expired" };
 
@@ -35,13 +35,18 @@ export function lookupSession(token: string | undefined | null, now = Date.now()
   const id = sha256(token);
   const r = db
     .prepare(
-      `SELECT s.id, s.user_id, s.mfa_ok, s.created_at, s.last_seen_at, s.expires_at, u.email, u.name, u.role, u.active, u.totp_enabled
+      `SELECT s.id, s.user_id, s.mfa_ok, s.created_at, s.last_seen_at, s.expires_at, u.email, u.name, u.role, u.active, u.totp_enabled, u.must_change_password, u.must_enroll_mfa, u.temp_password_expires_at
        FROM sessions s JOIN admin_users u ON u.id = s.user_id WHERE s.id = ?`,
     )
     .get(id) as Record<string, any> | undefined;
   if (!r) return { ok: false, reason: "none" };
   const idle = now - Date.parse(r.last_seen_at) > IDLE_MS;
   if (idle || Date.parse(r.expires_at) < now) {
+    db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+    return { ok: false, reason: "expired" };
+  }
+  // A temporary password that was never replaced stops working after 48 h, sessions made with it included.
+  if (r.must_change_password && r.temp_password_expires_at && Date.parse(r.temp_password_expires_at) < now) {
     db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
     return { ok: false, reason: "expired" };
   }
@@ -54,7 +59,7 @@ export function lookupSession(token: string | undefined | null, now = Date.now()
     ok: true,
     session: {
       id, userId: r.user_id, mfaOk: !!r.mfa_ok, createdAt: r.created_at, lastSeenAt: r.last_seen_at,
-      user: { id: r.user_id, email: r.email, name: r.name, role: r.role, active: true, totpEnabled: !!r.totp_enabled },
+      user: { id: r.user_id, email: r.email, name: r.name, role: r.role, active: true, totpEnabled: !!r.totp_enabled, mustChangePassword: !!r.must_change_password, mustEnrollMfa: !!r.must_enroll_mfa },
     },
   };
 }

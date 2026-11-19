@@ -22,11 +22,13 @@ export async function login(_prev: ActionState, fd: FormData): Promise<ActionSta
   if (!email || !password) return { error: GENERIC };
   if (await isThrottled("login_failed", ip, email)) return { error: "Too many attempts. Wait 15 minutes and try again." };
 
-  const user = getEngine().sqlite.prepare("SELECT id, email, password_hash, active FROM admin_users WHERE email = ?").get(email) as { id: string; email: string; password_hash: string | null; active: number } | undefined;
+  const user = getEngine().sqlite.prepare("SELECT id, email, password_hash, active, must_change_password, temp_password_expires_at FROM admin_users WHERE email = ?").get(email) as { id: string; email: string; password_hash: string | null; active: number; must_change_password: number; temp_password_expires_at: string | null } | undefined;
   // Always verify something, so the response time never reveals whether the account exists. Same message for every failure.
   const ok = await verifyPassword(user?.password_hash, password);
-  if (!user || !ok || !user.active) {
-    await recordAuthEvent("login_failed", { ip, email, details: { reason: !user ? "unknown_email" : !ok ? "bad_password" : "inactive" } });
+  // A temporary password nobody replaced within 48 h no longer works (the owner regenerates it). Same message as any failure.
+  const tempExpired = !!user?.must_change_password && !!user.temp_password_expires_at && Date.parse(user.temp_password_expires_at) < Date.now();
+  if (!user || !ok || !user.active || tempExpired) {
+    await recordAuthEvent("login_failed", { ip, email, details: { reason: !user ? "unknown_email" : !ok ? "bad_password" : tempExpired ? "temporary_password_expired" : "inactive" } });
     return { error: GENERIC };
   }
   const ua = (await headers()).get("user-agent") ?? "";

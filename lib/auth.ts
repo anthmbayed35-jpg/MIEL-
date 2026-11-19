@@ -18,7 +18,7 @@ export async function sessionToken(): Promise<string | undefined> {
 }
 
 /** Signed in (valid, unexpired database session) AND still an active team member. Includes the 2FA state so the MFA pages can use it. */
-export const getAdminState = cache(async (): Promise<{ admin: Admin; mfa: MfaState; totpEnabled: boolean } | null> => {
+export const getAdminState = cache(async (): Promise<{ admin: Admin; mfa: MfaState; totpEnabled: boolean; mustChangePassword: boolean } | null> => {
   const token = await sessionToken();
   const found = lookupSession(token);
   if (!found.ok) return null;
@@ -27,20 +27,21 @@ export const getAdminState = cache(async (): Promise<{ admin: Admin; mfa: MfaSta
   const sec = (must(await getDb().from("settings").select("*").eq("key", "security")) as Row[])[0]?.value as { require_2fa?: boolean } | undefined;
   let mfa: MfaState = "ok";
   if (u.totpEnabled && !session.mfaOk) mfa = "verify";
-  else if (!u.totpEnabled && sec?.require_2fa) mfa = "enroll";
-  return { admin: { id: u.id, email: u.email, name: u.name || u.email.split("@")[0], role: u.role }, mfa, totpEnabled: u.totpEnabled };
+  else if (!u.totpEnabled && (sec?.require_2fa || u.mustEnrollMfa)) mfa = "enroll"; // owner-required, or a member added with a temporary password
+  return { admin: { id: u.id, email: u.email, name: u.name || u.email.split("@")[0], role: u.role }, mfa, totpEnabled: u.totpEnabled, mustChangePassword: u.mustChangePassword };
 });
 
 /** The current admin, or null. Null also when 2FA is still pending, so APIs treat a half-signed-in session as signed out. */
 export async function getAdmin(): Promise<Admin | null> {
   const st = await getAdminState();
-  return st && st.mfa === "ok" ? st.admin : null;
+  return st && st.mfa === "ok" && !st.mustChangePassword ? st.admin : null; // half-signed-in (new password / 2FA pending) counts as signed out for APIs
 }
 
 /** For pages, actions and routes: 401 when not signed in, redirect to the 2FA step when it is pending. */
 export async function requireAdmin(): Promise<Admin> {
   const st = await getAdminState();
   if (!st) unauthorized();
+  if (st.mustChangePassword) redirect("/admin/change-password"); // first login of an added member: choose your own password first
   if (st.mfa !== "ok") redirect("/admin/mfa");
   return st.admin;
 }

@@ -80,7 +80,19 @@ There is no database-level security: the database file is only reachable from se
 
 ## 5. Sign-in, sessions, 2FA
 
-* Email + password (argon2id). Accounts exist only by invitation: the owner enters an email and role, the person gets a single-use link (valid 48 h; only its hash is stored) and chooses their own password. No public sign-up exists anywhere.
+### Adding team members: two ways (owner only)
+
+**1. Add member (direct, works without email).** **Settings → Team → Add member**: name, email, role (staff or manager; owner needs you to type `CREATE OWNER` to confirm). The account is **active immediately** with a **generated temporary password** (20 random characters) shown **once** on screen with a Copy password button and a warning that it will not be shown again. You never type or choose it, and only its argon2id hash is stored. Hand it over in person or through a private channel. What the member must do:
+
+1. **First sign-in:** they enter their email and the temporary password, and are taken to **Choose your own password** (12+ characters, letters and numbers, different from the temporary one). Until they do, no admin page, action or API opens for them (and they cannot preview the hidden storefront). Their other sessions end when they save.
+2. **Then two-factor enrolment is forced** (authenticator app plus 10 recovery codes), even if you have not required 2FA for everyone. Again nothing else opens until it is done.
+3. After that they are a normal member: password, then authenticator code at every sign-in, 12-hour idle timeout, their role's permissions.
+
+The temporary password **expires after 48 hours if unused**: sign-in then fails with the usual "Wrong email or password." On **Settings → Team** a member who has not chosen a password yet shows "Temporary password pending" (or "expired") and a **Regenerate temporary password** button: it makes a new one, kills the old one and every session of that person, and is shown once again. Regenerating is not offered for members who already chose their own password (use **Send reset link** for those). Creating members and regenerating passwords share a limit of 10 per hour per owner. Every creation and regeneration is in **Settings → Activity** (who, whom, role, time; never the password). Nobody can give a role higher than their own, and only the owner can add members.
+
+**2. Invite (by email or link).** Unchanged: the person gets a single-use link (48 h), chooses their own password and signs in; with email not configured the owner copies the link from the screen. Use it when you would rather never see a password at all.
+
+* Email + password (argon2id). Accounts exist only when the owner creates them, in one of two ways (below): an invitation link, or Add member with a temporary password. No public sign-up exists anywhere.
 * Sessions live in the database; the cookie is `HttpOnly`, `Secure` in production, `SameSite=Lax`. They end after **12 hours without activity** (7 days at most). **My account** lists active sessions and has "Sign out everywhere"; changing your password signs your other devices out.
 * **Two-factor**: authenticator app (TOTP) with 10 one-time recovery codes. The owner can require it for everyone (**Settings → Security**). Lost phone: use a recovery code, or the owner removes the setup under **Settings → Team → Reset 2FA**.
 * Failed logins, resets, invites and wrong 2FA codes are rate limited (stored in the database, they survive restarts) and written to the audit log with hashed emails and IPs. **Settings → Activity** shows logins, role changes, invites, exports, backup downloads and every destructive action.

@@ -5,6 +5,8 @@ import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
 import { createInvite, createReset, InviteError, revokeInvite as revoke } from "@/lib/invites";
+import { createMember, MemberError, regenerateTemporaryPassword } from "@/lib/members";
+import { canGrantRole, type Role } from "@/lib/roles";
 import { clientIp, isThrottled, recordAuthEvent } from "@/lib/security";
 import { destroyUserSessions } from "@/lib/session";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -26,6 +28,7 @@ export async function inviteMember(_p: ActionState, fd: FormData): Promise<Actio
   const role = String(fd.get("role"));
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 200) return { error: "Enter a valid email." };
   if (!ROLES.includes(role)) return { error: "Pick a role." };
+  if (!canGrantRole(admin.role, role as Role)) return { error: "You can't give a role higher than your own." };
   const ip = await clientIp();
   if (await isThrottled("invite_sent", ip, admin.email)) return { error: "Too many invites. Try again in an hour." };
   let delivery;
@@ -56,6 +59,7 @@ export async function setRole(_p: ActionState, fd: FormData): Promise<ActionStat
   const id = String(fd.get("id"));
   const role = String(fd.get("role"));
   if (!ROLES.includes(role)) return { error: "Pick a role." };
+  if (!canGrantRole(admin.role, role as Role)) return { error: "You can't give a role higher than your own." };
   const db = getDb();
   const before = (must(await db.from("admin_users").select("*").eq("id", id).maybeSingle()) as Row | null);
   if (!before) return { error: "That person isn't on the team." };
@@ -108,3 +112,61 @@ export async function resetMfa(_p: ActionState, fd: FormData): Promise<ActionSta
   revalidatePath("/admin/settings/team");
   return { ok: "Two-factor setup removed. They sign in with their password and set it up again." };
 }
+
+/**
+ * Add a member directly: an ACTIVE account at once with a generated temporary password, shown to the owner once (the owner
+ * never types or chooses it; only its hash is stored). The member must choose their own password and enrol two-factor at
+ * first login. Another owner needs a typed confirmation. The audit log records who created whom, the role and the time,
+ * never the password.
+ */
+export async function addMember(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("team.manage");
+  const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  const name = String(fd.get("name") ?? "").trim().slice(0, 80);
+  const role = String(fd.get("role"));
+  if (name.length < 2) return { error: "Enter their name." };
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 200) return { error: "Enter a valid email." };
+  if (!ROLES.includes(role)) return { error: "Pick a role." };
+  if (!canGrantRole(admin.role, role as Role)) return { error: "You can't give a role higher than your own." };
+  if (role === "owner" && String(fd.get("confirm_owner") ?? "").trim() !== OWNER_CONFIRMATION) return { error: `An owner can do everything, including delete the team. Type ${OWNER_CONFIRMATION} to confirm.` };
+  const ip = await clientIp();
+  if (await isThrottled("member_created", ip, admin.email)) return { error: "Too many new members or password resets. Try again in an hour." };
+  let created;
+  try {
+    created = await createMember({ actorRole: admin.role, email, name, role: role as Role });
+  } catch (e) {
+    if (e instanceof MemberError) return { error: e.message };
+    return { error: "Couldn't create the member. Try again." };
+  }
+  await recordAuthEvent("member_created", { ip, email: admin.email, actorId: admin.id, actorEmail: admin.email });
+  await audit(admin, "member_created", "admin_user", created.id, { email: created.email, role: created.role, created_by: admin.email, expires_at: created.expiresAt });
+  revalidatePath("/admin/settings/team");
+  return { ok: `${created.email} was added as ${created.role}. Give them the temporary password below.`, copy: tempPasswordCopy(created.temporaryPassword) };
+}
+
+/** A new temporary password for a member who has not chosen their own yet (the old one and their sessions stop working). */
+export async function regenerateTemporaryPasswordAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("team.manage");
+  const id = String(fd.get("id"));
+  if (id === admin.id) return { error: "Use My account to change your own password." };
+  const ip = await clientIp();
+  if (await isThrottled("member_created", ip, admin.email)) return { error: "Too many new members or password resets. Try again in an hour." };
+  let r;
+  try {
+    r = await regenerateTemporaryPassword(id);
+  } catch (e) {
+    return { error: e instanceof MemberError ? e.message : "Couldn't regenerate the password. Try again." };
+  }
+  await recordAuthEvent("member_created", { ip, email: admin.email, actorId: admin.id, actorEmail: admin.email, details: { regenerated: true } });
+  await audit(admin, "member_password_regenerated", "admin_user", id, { email: r.email, expires_at: r.expiresAt });
+  revalidatePath("/admin/settings/team");
+  return { ok: `New temporary password for ${r.email}. The old one no longer works.`, copy: tempPasswordCopy(r.temporaryPassword) };
+}
+
+const OWNER_CONFIRMATION = "CREATE OWNER";
+const tempPasswordCopy = (value: string) => ({
+  label: "Temporary password (shown once)",
+  value,
+  button: "Copy password",
+  note: "WARNING: this password will NOT be shown again. Give it to them in person or over a private channel. It expires in 48 hours if unused. At first login they must choose their own password and set up two-factor authentication.",
+});

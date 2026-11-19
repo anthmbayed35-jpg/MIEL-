@@ -36,7 +36,7 @@ const MATRIX: Record<string, Min> = {
   // settings & team: owner only
   "settings/actions::seedStoreAction": "owner", "settings/actions::saveStore": "owner", "settings/actions::saveNotifications": "owner",
   "settings/actions::savePolicies": "owner", "settings/actions::saveSecurity": "owner", "settings/actions::backupNow": "owner",
-  "settings/team/actions::inviteMember": "owner", "settings/team/actions::setRole": "owner", "settings/team/actions::setActive": "owner", "settings/team/actions::sendReset": "owner", "settings/team/actions::cancelInvite": "owner", "settings/team/actions::resetMfa": "owner",
+  "settings/team/actions::inviteMember": "owner", "settings/team/actions::setRole": "owner", "settings/team/actions::setActive": "owner", "settings/team/actions::sendReset": "owner", "settings/team/actions::cancelInvite": "owner", "settings/team/actions::addMember": "owner", "settings/team/actions::regenerateTemporaryPasswordAction": "owner", "settings/team/actions::resetMfa": "owner",
   // any signed-in team member (their own account)
   "account/actions::changePassword": "any", "account/actions::revokeSession": "any",
 };

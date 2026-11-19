@@ -85,7 +85,7 @@ export async function consumeToken(kind: TokenKind, token: string, password: str
       if (!inv) throw new InviteError("This link has expired or was already used. Ask for a new invite.");
       const existing = db.prepare("SELECT id FROM admin_users WHERE email = ?").get(inv.email) as { id: string } | undefined;
       if (existing) {
-        db.prepare("UPDATE admin_users SET password_hash = ?, active = 1, role = ?, name = COALESCE(NULLIF(name, ''), ?), version = version + 1, updated_at = ? WHERE id = ?").run(hash, inv.role, inv.name, iso(now), existing.id);
+        db.prepare("UPDATE admin_users SET password_hash = ?, active = 1, role = ?, name = COALESCE(NULLIF(name, ''), ?), must_change_password = 0, temp_password_expires_at = NULL, version = version + 1, updated_at = ? WHERE id = ?").run(hash, inv.role, inv.name, iso(now), existing.id);
         return existing.id;
       }
       const id = crypto.randomUUID();
@@ -94,7 +94,7 @@ export async function consumeToken(kind: TokenKind, token: string, password: str
     }
     const r = db.prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ? RETURNING user_id").get(iso(now), h, iso(now)) as { user_id: string } | undefined;
     if (!r) throw new InviteError("This link has expired or was already used. Ask for a new reset.");
-    db.prepare("UPDATE admin_users SET password_hash = ?, version = version + 1, updated_at = ? WHERE id = ? AND active = 1").run(hash, iso(now), r.user_id);
+    db.prepare("UPDATE admin_users SET password_hash = ?, must_change_password = 0, temp_password_expires_at = NULL, version = version + 1, updated_at = ? WHERE id = ? AND active = 1").run(hash, iso(now), r.user_id);
     db.prepare("DELETE FROM sessions WHERE user_id = ?").run(r.user_id); // a reset ends every old session
     return r.user_id;
   });

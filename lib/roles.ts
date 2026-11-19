@@ -38,3 +38,11 @@ export type Perm = keyof typeof PERMS;
 export const can = (role: Role | undefined, perm: Perm) => !!role && (PERMS[perm] as readonly Role[]).includes(role);
 
 export type Admin = { id: string; email: string; name: string; role: Role };
+
+const RANK = { staff: 0, manager: 1, owner: 2 } as const;
+/**
+ * Nobody can hand out a role higher than their own. (Creating members and invites is owner-only today, so this is the
+ * second lock: it keeps holding if the permission is ever widened to managers.)
+ */
+export const canGrantRole = (actor: Role | undefined, target: Role): boolean => !!actor && actor in RANK && target in RANK && RANK[actor] >= RANK[target];
+export const ROLE_NAMES: readonly Role[] = ["owner", "manager", "staff"];

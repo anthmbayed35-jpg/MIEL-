@@ -55,10 +55,13 @@ describe("every admin entry point checks who is calling (not just the proxy)", (
 });
 
 describe("sign-up is impossible", () => {
-  it("no code can create an account except by accepting an invite", () => {
-    // the only INSERT into admin_users is in lib/invites.ts (consumeToken, after a valid single-use invite token)
+  it("no code can create an account except accepting an invite or the owner adding a member", () => {
+    // the only INSERTs into admin_users: lib/invites.ts (consumeToken, after a valid single-use invite token) and lib/members.ts (createMember, called only by the owner-only addMember action)
     const inserts = sourceFiles.filter((f) => /INSERT INTO admin_users|from\("admin_users"\)\.insert/.test(read(f)));
-    expect(inserts).toEqual(["lib/invites.ts"]);
+    expect(inserts).toEqual(["lib/invites.ts", "lib/members.ts"]);
+    const callers = sourceFiles.filter((f) => /createMember\(/.test(read(f)) && f !== "lib/members.ts");
+    expect(callers).toEqual(["app/admin/(app)/settings/team/actions.ts"]);
+    expect(read("app/admin/(app)/settings/team/actions.ts")).toMatch(/export async function addMember[\s\S]{0,200}requirePerm\("team\.manage"\)/);
   });
   it("there is no sign-up route", () => {
     const routes = walk("app").filter((f) => /(sign-?up|register|join)/i.test(f));
@@ -109,7 +112,7 @@ describe("no demo / preview / bypass code remains in the application", () => {
   });
   it("no script creates a user with a password", () => {
     for (const f of walk("scripts").filter((x) => /\.(ts|mjs)$/.test(x))) expect(read(f), f).not.toMatch(/createUser\(|randomBytes\(.*password|password\s*[:=]\s*["'`]/);
-    expect(read("app/admin/(app)/settings/team/actions.ts")).not.toMatch(/createUser|randomBytes|temporary password/i);
+    expect(read("app/admin/(app)/settings/team/actions.ts")).not.toMatch(/createUser|randomBytes/i); // passwords are generated only in lib/temp-password.ts
   });
 });
 
