@@ -122,7 +122,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <SectionTitle>Customer</SectionTitle>
             {customer ? (
               <>
-                <Link href={`/admin/customers/${customer.id}`} className="display text-[18px] underline-offset-4 hover:underline">{customer.name}</Link>
+                <Link href={`/admin/customers/${customer.id}`} className="display inline-flex min-h-12 items-center text-[18px] underline-offset-4 hover:underline">{customer.name}</Link>
                 <p className="mt-1 text-[15px] text-body">{customer.phone}</p>
                 <p className="mt-1 text-[13px] text-muted">{orderCount} order{orderCount === 1 ? "" : "s"}{customer.blocked ? " · BLOCKED" : ""}</p>
                 {Array.isArray(customer.tags) && customer.tags.length > 0 && <p className="mt-2 flex flex-wrap gap-1.5">{customer.tags.map((t: string) => <span key={t} className="status st-draft">{t}</span>)}</p>}
@@ -134,7 +134,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <SectionTitle>Delivery</SectionTitle>
             <p className="text-[16px] text-fg">{o.address}</p>
             <p className="mt-1 text-[14px] text-body">{o.region}</p>
-            <a href={mapUrl(o.address, o.region)} target="_blank" rel="noopener noreferrer" className="link text-[15px]">Open in Google Maps ↗</a>
+            <a href={mapUrl(o.address, o.region)} target="_blank" rel="noopener noreferrer" className="link inline-flex min-h-12 items-center text-[15px]">Open in Google Maps ↗</a>
             {o.customer_notes && <p className="mt-3 rounded-2xl bg-white/6 p-3 text-[15px]"><span className="mono block !text-[11px]">CUSTOMER NOTE</span>{o.customer_notes}</p>}
             <ActionForm action={saveDelivery} className="mt-4 space-y-3">
               <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />

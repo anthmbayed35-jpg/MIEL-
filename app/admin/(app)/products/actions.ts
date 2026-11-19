@@ -7,6 +7,7 @@ import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
 import { deleteUpload, saveProductImage } from "@/lib/storage";
 import type { ActionState } from "@/components/admin/ActionForm";
+import { orFail } from "@/lib/version";
 
 const refresh = (id?: string) => {
   revalidatePath("/", "layout"); // storefront (home, product pages, sitemap) picks up the change
@@ -118,6 +119,10 @@ export async function uploadImage(_p: ActionState, fd: FormData): Promise<Action
 }
 
 export async function updateImage(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => updateImageImpl(_p, fd));
+}
+
+async function updateImageImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("products.write");
   const imgId = String(fd.get("image_id"));
   const kinds = ["pouch-hero", "flat-lay", "sachet-open", "ingredients", "extra"];
@@ -129,6 +134,10 @@ export async function updateImage(_p: ActionState, fd: FormData): Promise<Action
 }
 
 export async function moveImage(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => moveImageImpl(_p, fd));
+}
+
+async function moveImageImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("products.write");
   const db = getDb();
   const imgId = String(fd.get("image_id"));
@@ -147,6 +156,10 @@ export async function moveImage(_p: ActionState, fd: FormData): Promise<ActionSt
 }
 
 export async function deleteImage(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => deleteImageImpl(_p, fd));
+}
+
+async function deleteImageImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("data.delete");
   const db = getDb();
   const imgId = String(fd.get("image_id"));

@@ -35,7 +35,7 @@ export function inventoryList(f: InventoryFilters) {
          FROM inventory_items i JOIN products p ON p.id = i.product_id ${w}
          ORDER BY (i.on_hand <= i.low_stock_threshold) DESC, i.on_hand ASC, p.name ASC LIMIT ${LIST_PAGE_SIZE} OFFSET ${(page - 1) * LIST_PAGE_SIZE}`,
       )
-      .all(...params) as Record<string, any>[]
+      .all(...params) as Record<string, unknown>[]
   ).map((r) => ({ id: r.id as string, i: { id: r.id, product_id: r.product_id, sku: r.sku, on_hand: r.on_hand as number, low_stock_threshold: r.low_stock_threshold as number } as Row, product: { id: r.product_id, name: r.product_name, kind: r.kind, status: r.status } as Row }));
   return { rows, total, page, pages: Math.max(1, Math.ceil(total / LIST_PAGE_SIZE)) };
 }

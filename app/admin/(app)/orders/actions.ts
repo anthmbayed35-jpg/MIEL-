@@ -84,6 +84,10 @@ async function saveDeliveryImpl(_p: ActionState, fd: FormData): Promise<ActionSt
 }
 
 export async function addComment(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => addCommentImpl(_p, fd));
+}
+
+async function addCommentImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("orders.write");
   const id = String(fd.get("id"));
   const text = String(fd.get("text") ?? "").trim();

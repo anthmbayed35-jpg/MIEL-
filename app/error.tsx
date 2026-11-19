@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /** Storefront crash page: a plain apology. Never the error text, stack or digest-less internals. */
 export default function StoreError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
@@ -13,9 +15,9 @@ export default function StoreError({ reset }: { error: Error & { digest?: string
         <button type="button" onClick={reset} className="btn">
           TRY AGAIN
         </button>
-        <a href="/" className="btn btn-ghost">
+        <Link href="/" className="btn btn-ghost">
           BACK HOME
-        </a>
+        </Link>
       </div>
     </main>
   );

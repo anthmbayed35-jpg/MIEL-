@@ -9,9 +9,6 @@ import { useCart } from "./CartProvider";
 import { ProductImage } from "./ProductImage";
 import { Reveal } from "./Reveal";
 
-/** The home page shows the first HOME_LINEUP_LIMIT products; a catalogue with many more links to the paginated /products page. */
-export const HOME_LINEUP_LIMIT = 12;
-
 export function Lineup({ products, total, title = true, heading, children }: { products: Product[]; total?: number; title?: boolean; heading?: React.ReactNode; children?: React.ReactNode }) {
   const { add } = useCart();
   return (

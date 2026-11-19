@@ -40,9 +40,9 @@ const SELECT = `
          MAX(o.created_at) AS last
   FROM customers c LEFT JOIN orders o ON o.customer_id = c.id AND o.status <> 'draft'`;
 
-function shape(r: Record<string, any>): CustomerRow {
+function shape(r: Record<string, unknown>): CustomerRow {
   const { spent_cents, tags, blocked, is_demo, ...rest } = r;
-  return { ...rest, tags: JSON.parse(tags ?? "[]"), blocked: !!blocked, is_demo: !!is_demo, orders: r.orders, spent: Number(spent_cents) / 100, last: r.last ?? null } as CustomerRow;
+  return { ...rest, tags: JSON.parse(String(tags ?? "[]")), blocked: !!blocked, is_demo: !!is_demo, orders: r.orders, spent: Number(spent_cents) / 100, last: r.last ?? null } as CustomerRow;
 }
 
 export function listCustomers(f: CustomerFilters, paginate = true) {
@@ -53,7 +53,7 @@ export function listCustomers(f: CustomerFilters, paginate = true) {
   const pages = Math.max(1, Math.ceil(total / CUSTOMER_PAGE_SIZE));
   const page = Math.min(Math.max(1, f.page ?? 1), pages);
   const limit = paginate ? ` LIMIT ${CUSTOMER_PAGE_SIZE} OFFSET ${(page - 1) * CUSTOMER_PAGE_SIZE}` : "";
-  const rows = (db.prepare(`${SELECT} ${where} GROUP BY c.id ORDER BY ${order}${limit}`).all(...params) as Record<string, any>[]).map(shape);
+  const rows = (db.prepare(`${SELECT} ${where} GROUP BY c.id ORDER BY ${order}${limit}`).all(...params) as Record<string, unknown>[]).map(shape);
   const tags = (db.prepare("SELECT DISTINCT json_each.value AS t FROM customers, json_each(customers.tags) ORDER BY t").all() as { t: string }[]).map((r) => r.t);
   return { rows, total, page, pages, tags };
 }

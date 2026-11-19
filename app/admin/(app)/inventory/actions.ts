@@ -6,6 +6,7 @@ import { requirePerm } from "@/lib/auth";
 import { publish } from "@/lib/events";
 import { getDb, must, type Row } from "@/lib/db";
 import type { ActionState } from "@/components/admin/ActionForm";
+import { orFail } from "@/lib/version";
 
 const done = () => {
   publish({ type: "stock.changed" });
@@ -50,6 +51,10 @@ export async function addBatch(_p: ActionState, fd: FormData): Promise<ActionSta
 }
 
 export async function receiveBatch(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => receiveBatchImpl(_p, fd));
+}
+
+async function receiveBatchImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("inventory.write");
   const db = getDb();
   const id = String(fd.get("batch"));
