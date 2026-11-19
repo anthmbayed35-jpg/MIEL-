@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { getDb } from "./db";
+import { ipFromHeaders } from "./client-ip";
 import { hmac } from "./crypto";
 import { rateCount, rateHit } from "./rate-limit";
 
@@ -12,7 +13,7 @@ export { PASSWORD_MIN, passwordProblem } from "./passwords";
  */
 export async function clientIp(): Promise<string> {
   const h = await headers();
-  return (h.get("x-forwarded-for") ?? h.get("x-real-ip") ?? "unknown").split(",")[0].trim().slice(0, 64);
+  return ipFromHeaders(h);
 }
 
 type Kind = "login_failed" | "reset_requested" | "mfa_failed" | "invite_sent";

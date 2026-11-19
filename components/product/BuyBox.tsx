@@ -44,7 +44,7 @@ export function BuyBox({ product }: { product: Product }) {
     return (
       <div role="status" className="glass p-5">
         <p className="display text-[22px]">SOLD OUT</p>
-        <p className="mt-1 text-[16px]">This one is out of stock right now. Message us on WhatsApp and we'll tell you when it's back.</p>
+        <p className="mt-1 text-[16px]">This one is out of stock right now. Message us on WhatsApp and we&apos;ll tell you when it&apos;s back.</p>
         <button disabled className="btn btn-block mt-4 !w-full opacity-50" aria-disabled="true">SOLD OUT</button>
       </div>
     );

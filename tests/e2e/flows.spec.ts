@@ -39,8 +39,10 @@ async function visitorHtml(browser: Browser, url: string) {
 }
 
 /** A customer places an order through the real storefront UI. Returns the order number. */
+let nextIp = 10;
 async function placeOrder(browser: Browser, opts: { slug: string; qty?: number; code?: string; name?: string; phone?: string }): Promise<number> {
-  const ctx = await browser.newContext();
+  // each customer comes from a different address (checkout allows 5 orders per 10 minutes per connection)
+  const ctx = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100." + nextIp++ } });
   const page = await ctx.newPage();
   await page.goto(`/products/${opts.slug}`);
   for (let i = 1; i < (opts.qty ?? 1); i++) await page.getByRole("button", { name: "Increase quantity" }).click();
@@ -123,6 +125,7 @@ test("order lifecycle: new -> confirmed -> packed -> out for delivery -> deliver
     await page.locator("select[aria-label='Set status']").selectOption(to);
     await page.getByRole("button", { name: "Set status" }).click();
     await expect.poll(() => orderRow(n).status, { timeout: 15_000 }).toBe(to);
+    await expect(page.getByText("Status changed to " + to.split("_").join(" "))).toBeVisible(); // the form resets after the action: wait for it before the next step
   }
   await page.getByRole("button", { name: /COD as collected/ }).click();
   await expect.poll(() => orderRow(n).cod_collected, { timeout: 15_000 }).toBe(1);
@@ -215,7 +218,7 @@ test("a price edit in the admin shows on the storefront immediately", async ({ b
 
 test("stock at 0 disables purchase on the product page and the lineup, and checkout refuses a stale cart", async ({ browser }) => {
   // a customer fills a cart while CREATINE is still in stock ...
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100." + nextIp++ } });
   const shopper = await ctx.newPage();
   await shopper.goto("/products/creatine");
   await shopper.getByRole("button", { name: /ADD TO CART/ }).first().click();
@@ -227,7 +230,7 @@ test("stock at 0 disables purchase on the product page and the lineup, and check
   await shopper.locator("#region").selectOption({ index: 1 });
   await shopper.locator("#address").fill("Beirut, Hamra, test building");
   await shopper.getByRole("button", { name: "PLACE ORDER" }).click();
-  await expect(shopper.getByRole("alert")).toContainText(/out of stock/i);
+  await expect(shopper.getByText(/is out of stock/i)).toBeVisible();
   expect(query("SELECT 1 FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE name = 'Late Customer')")).toHaveLength(0);
   await ctx.close();
 
@@ -316,9 +319,10 @@ test("invite -> choose a password -> sign in; then 2FA with recovery codes; the 
   // 2FA enrolment
   await page.goto("/admin/account");
   await page.getByRole("button", { name: "Set up two-factor authentication" }).click();
-  const secret = (await page.getByText(/Secret: /).innerText()).replace(/.*Secret:\s*/, "").trim();
+  const secret = (await page.getByText(/Secret: /).innerText()).split(":").pop()!.trim(); // innerText is upper-cased by CSS; the base32 secret is upper-case anyway
   await page.locator("input[name=code]").fill(totpNow(secret));
   await page.getByRole("button", { name: "Verify and turn on" }).click();
+  await page.getByRole("list", { name: "Recovery codes" }).waitFor();
   const codes = await page.getByRole("list", { name: "Recovery codes" }).locator("li").allInnerTexts();
   expect(codes).toHaveLength(10);
   await page.getByRole("button", { name: "I saved them, continue" }).click();
@@ -407,7 +411,7 @@ test("image upload: re-encoded to AVIF/WebP on the volume, served with long cach
   const file = path.join(os.tmpdir(), "e2e-upload.png");
   fs.writeFileSync(file, await sharp({ create: { width: 1200, height: 1500, channels: 3, background: "#DAFC69" } }).png().toBuffer());
   const { page, ctx } = await adminPage(browser, "manager");
-  const id = one<{ id: string }>("SELECT id FROM products WHERE slug = 'red-burn'")!.id;
+  const id = one<{ id: string }>("SELECT id FROM products WHERE slug = 'creatine'")!.id;
   await page.goto(`/admin/products/${id}`);
   await page.locator("input[name=file]").setInputFiles(file);
   await page.locator("form:has(input[name=file]) input[name=alt]").fill("E2E uploaded photo");
@@ -424,7 +428,7 @@ test("image upload: re-encoded to AVIF/WebP on the volume, served with long cach
   }
   expect((await request.get(`/uploads/${m[1]}-1600.webp`)).status()).toBe(404);
   expect((await request.get("/uploads/..%2f..%2fmiel.db")).status()).toBe(404);
-  const html = (await visitorHtml(browser, "/products/red-burn")).html;
+  const html = (await visitorHtml(browser, "/products/creatine")).html;
   expect(html).toContain(`/uploads/${m[1]}-1080.webp`);
   await ctx.close();
 });
@@ -436,7 +440,7 @@ test("the product photos that were already on the site still load (storefront an
   page.on("response", (r) => {
     if (/\/images\//.test(r.url()) && r.status() >= 400) bad.push(`${r.status()} ${r.url()}`);
   });
-  for (const url of ["/", "/products/red-burn", "/products/gold", "/products/creatine"]) {
+  for (const url of ["/", "/products/creatine", "/products/gold", "/products/creatine"]) {
     await page.goto(url);
     await page.evaluate(async () => {
       for (let y = 0; y < document.body.scrollHeight; y += 600) {

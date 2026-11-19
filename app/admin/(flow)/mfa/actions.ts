@@ -19,8 +19,14 @@ export async function startEnroll(): Promise<EnrollStart> {
   const st = await getAdminState();
   if (!st) return { ok: false, error: "Sign in first." };
   if (st.totpEnabled) return { ok: false, error: "Two-factor authentication is already on." };
-  const secret = newSecret();
-  sql().prepare("UPDATE admin_users SET totp_secret = ?, totp_enabled = 0, totp_last_step = 0 WHERE id = ?").run(encrypt(secret), st.admin.id);
+  // Idempotent: a half-finished setup keeps ITS secret, so a repeated call (double click, two tabs, a retry) can never leave
+  // the screen showing a different secret than the one the server will check.
+  const pending = sql().prepare("SELECT totp_secret FROM admin_users WHERE id = ? AND totp_enabled = 0").get(st.admin.id) as { totp_secret: string | null } | undefined;
+  let secret = pending?.totp_secret ? decrypt(pending.totp_secret) : "";
+  if (!secret) {
+    secret = newSecret();
+    sql().prepare("UPDATE admin_users SET totp_secret = ?, totp_enabled = 0, totp_last_step = 0 WHERE id = ?").run(encrypt(secret), st.admin.id);
+  }
   return { ok: true, factorId: "totp", qr: await qrSvgDataUrl(otpauthUri(secret, st.admin.email)), secret };
 }
 

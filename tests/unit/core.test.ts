@@ -49,7 +49,7 @@ describe("environment rules", () => {
     for (const k of ["NEXT_PUBLIC_SITE_URL", "DATABASE_PATH", "AUTH_SECRET", "MAIL_FROM", "BREVO_API_KEY"]) expect(e).toMatch(new RegExp(k));
   });
   it("missing mail configuration fails loudly in production, but not in staging", () => {
-    const { MAIL_FROM: _f, BREVO_API_KEY: _k, ...noMail } = prod;
+    const noMail = { ...prod, MAIL_FROM: undefined, BREVO_API_KEY: undefined };
     expect(validateEnv(noMail).join(" ")).toMatch(/MAIL_FROM/);
     expect(validateEnv({ ...prod, BREVO_API_KEY: undefined }).join(" ")).toMatch(/BREVO_API_KEY/);
     expect(validateEnv({ ...prod, BREVO_API_KEY: undefined, MAIL_PROVIDER: "smtp" }).join(" ")).toMatch(/SMTP_URL/);
@@ -131,5 +131,17 @@ describe("store timezone (Asia/Beirut)", () => {
     const last = series.week[series.week.length - 1];
     expect(last.tip).toMatch(/18 November 2026/);
     expect(last.value).toBe(50); // the 22:10Z order falls in Beirut's 18 Nov, the same bucket as "now"
+  });
+});
+
+describe("client IP behind the one trusted proxy", () => {
+  const h = (v: string | null, real: string | null = null) => ({ get: (n: string) => (n === "x-forwarded-for" ? v : n === "x-real-ip" ? real : null) });
+  it("uses the rightmost X-Forwarded-For entry (the one the proxy appended), so a forged header can't dodge rate limits", async () => {
+    const { ipFromHeaders } = await import("../../lib/client-ip");
+    expect(ipFromHeaders(h("6.6.6.6, 7.7.7.7, 203.0.113.9"))).toBe("203.0.113.9");
+    expect(ipFromHeaders(h("203.0.113.9"))).toBe("203.0.113.9");
+    expect(ipFromHeaders(h(null, "10.0.0.1"))).toBe("10.0.0.1");
+    expect(ipFromHeaders(h(null))).toBe("unknown");
+    expect(ipFromHeaders(h("x".repeat(200))).length).toBe(64);
   });
 });

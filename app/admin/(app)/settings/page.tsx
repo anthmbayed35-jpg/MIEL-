@@ -73,7 +73,7 @@ export default async function SettingsPage() {
             {lock(
               <ActionForm action={saveNotifications} className="space-y-4">
                 <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="email_on_new_order" defaultChecked={notif.email_on_new_order} className="h-6 w-6 accent-[#DAFC69]" />Email me when an order arrives</label>
-                <Field label="Email address" hint="Email needs RESEND_API_KEY set on the server (see .env.example)."><input name="email" type="email" defaultValue={notif.email} className="a-input" /></Field>
+                <Field label="Email address" hint="Sent through the server mail settings (MAIL_FROM and Brevo or SMTP, see docs/OPERATIONS.md)."><input name="email" type="email" defaultValue={notif.email} className="a-input" /></Field>
                 <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="whatsapp_on_new_order" defaultChecked={notif.whatsapp_on_new_order} className="h-6 w-6 accent-[#DAFC69]" />Show a &ldquo;Send to team on WhatsApp&rdquo; button on new orders</label>
                 <Field label="Team WhatsApp number"><input name="whatsapp_number" defaultValue={notif.whatsapp_number} inputMode="numeric" className="a-input" /></Field>
                 <p className="text-[13px] text-muted">The bell and sound in the admin always work in real time while the admin is open.</p>

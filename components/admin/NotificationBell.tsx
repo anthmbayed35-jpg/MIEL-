@@ -34,7 +34,9 @@ export function NotificationBell() {
   const router = useRouter();
   const pathname = usePathname();
   const pathRef = useRef(pathname);
-  pathRef.current = pathname;
+  useEffect(() => {
+    pathRef.current = pathname;
+  }, [pathname]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -86,7 +88,7 @@ export function NotificationBell() {
           // live dashboard / order list / stock page: re-render their server data (never on edit pages, so nobody loses typing)
           if (/^\/admin(\/orders|\/inventory)?$/.test(pathRef.current) && !refreshTimer) refreshTimer = setTimeout(() => { refreshTimer = null; router.refresh(); }, 800);
         });
-      es.addEventListener("auth", () => { es?.close(); window.location.assign("/admin/login?expired=1"); });
+      es.addEventListener("auth", () => { es?.close(); router.replace("/admin/login?expired=1"); });
       es.onerror = () => startPoll(); // the browser retries the stream by itself
     }
     return () => { es?.close(); stopPoll(); };

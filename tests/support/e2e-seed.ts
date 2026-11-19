@@ -14,6 +14,8 @@ async function main() {
   const e = getEngine();
   await seedBase();
   e.sqlite.prepare("UPDATE inventory_items SET on_hand = 25").run();
+  // a policy page exists only when the owner wrote its text (nothing is invented): give "shipping" some, leave the rest empty
+  e.sqlite.prepare("UPDATE settings SET value = json_set(value, '$.shipping', ?) WHERE key = 'policies'").run("We deliver across Lebanon, cash on delivery. Delivery takes 1 to 3 days.");
   const hash = await hashPassword(E2E_PASSWORD);
   for (const u of Object.values(USERS))
     e.sqlite.prepare("INSERT INTO admin_users (id, email, name, role, active, password_hash) VALUES (?,?,?,?,1,?)").run(u.id, u.email, u.name, u.role, hash);

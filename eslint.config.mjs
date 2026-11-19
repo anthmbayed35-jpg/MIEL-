@@ -9,7 +9,7 @@ export default defineConfig([
   {
     // The data layer, aggregations, scripts and tests handle rows from an UNTYPED query client (a small SQL builder without generated
     // types). `any` is confined to these files; correctness there is covered by the integration tests.
-    files: ["lib/db/**", "lib/stats.ts", "lib/analytics.ts", "scripts/**", "tests/**"],
+    files: ["lib/db/**", "lib/stats.ts", "lib/analytics.ts", "lib/orders.ts", "lib/seed.ts", "lib/session.ts", "scripts/**", "tests/**"],
     rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
   {

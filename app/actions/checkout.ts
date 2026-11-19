@@ -7,6 +7,7 @@ import { getCatalog } from "@/lib/catalog";
 import { createOrder, quoteOrder } from "@/lib/orders";
 import { orderMessage } from "@/lib/messages";
 import { normalizeLebanesePhone, waLink } from "@/lib/phone";
+import { ipFromHeaders } from "@/lib/client-ip";
 import { rateLimit } from "@/lib/rate-limit";
 import { notifyNewOrder } from "@/lib/notify";
 
@@ -27,7 +28,7 @@ export type QuoteView = {
 export async function quoteAction(items: CartInput, region: string, code: string): Promise<QuoteView> {
   if (code.trim()) {
     // discount-code guessing is rate limited per connection (stored in the database, survives restarts)
-    const ip = ((await headers()).get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+    const ip = ipFromHeaders(await headers());
     if (!rateLimit(`discount:${ip}`, 30, 60_000)) return { ok: false, error: "Too many code attempts. Wait a minute.", subtotal: 0, discount: 0, shipping: 0, total: 0, freeDelivery: false };
   }
   if (!usesDb()) return fallbackQuote(items);
@@ -57,7 +58,7 @@ export async function placeOrder(input: {
   try {
     if (input.website) return { ok: false, error: "Something went wrong. Try again." }; // bots fill the hidden field
     const h = await headers();
-    const ip = (h.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+    const ip = ipFromHeaders(h);
     if (!rateLimit(`order:${ip}`, 5, 10 * 60_000)) return { ok: false, error: "Too many orders from this connection. Please wait a few minutes or message us on WhatsApp." };
 
     const phone = normalizeLebanesePhone(input.customer.phone);
@@ -122,7 +123,7 @@ export async function captureCheckout(input: { name: string; phone: string; item
     const phone = normalizeLebanesePhone(input.phone);
     if (!phone || !input.items.length) return;
     const h = await headers();
-    if (!rateLimit(`cap:${(h.get("x-forwarded-for") ?? "u").split(",")[0]}`, 20, 10 * 60_000)) return;
+    if (!rateLimit(`cap:${ipFromHeaders(h)}`, 20, 10 * 60_000)) return;
     const cat = await getCatalog();
     const items = input.items
       .map((i) => ({ qty: i.qty, p: cat.products.find((p) => p.id === i.productId) }))

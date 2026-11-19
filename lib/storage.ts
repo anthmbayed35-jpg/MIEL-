@@ -39,13 +39,13 @@ export async function saveProductImage(file: File): Promise<string> {
 
   const id = crypto.randomUUID();
   const dir = uploadsDir();
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(/* turbopackIgnore: true */ dir, { recursive: true });
   const used = UPLOAD_WIDTHS.filter((w) => w <= w0); // never upscaled; w0 >= 600 so there is always at least 480
   try {
     for (const w of used) {
       const base = sharp(input, { limitInputPixels: 64_000_000 }).rotate().resize({ width: w, withoutEnlargement: true }); // no .withMetadata(): all EXIF/GPS is dropped
-      await base.clone().avif({ quality: 55, effort: 4 }).toFile(path.join(dir, `${id}-${w}.avif`));
-      await base.clone().webp({ quality: 80 }).toFile(path.join(dir, `${id}-${w}.webp`));
+      await base.clone().avif({ quality: 55, effort: 4 }).toFile(path.join(/* turbopackIgnore: true */ dir, `${id}-${w}.avif`));
+      await base.clone().webp({ quality: 80 }).toFile(path.join(/* turbopackIgnore: true */ dir, `${id}-${w}.webp`));
     }
   } catch {
     deleteUpload(`/uploads/${id}@${used.join("-")}@${w0}x${h0}`);
@@ -65,5 +65,5 @@ export function parseUpload(src: string): { id: string; widths: number[]; width:
 export function deleteUpload(src: string) {
   const u = parseUpload(src);
   if (!u) return;
-  for (const w of UPLOAD_WIDTHS) for (const ext of ["avif", "webp"]) fs.rmSync(path.join(uploadsDir(), `${u.id}-${w}.${ext}`), { force: true });
+  for (const w of UPLOAD_WIDTHS) for (const ext of ["avif", "webp"]) fs.rmSync(path.join(/* turbopackIgnore: true */ uploadsDir(), `${u.id}-${w}.${ext}`), { force: true });
 }

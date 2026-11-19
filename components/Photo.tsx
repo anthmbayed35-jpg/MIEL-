@@ -31,8 +31,35 @@ export function Photo({
   className?: string;
 }) {
   const m = photoMeta[src];
+  const up = !m ? parseUpload(src) : null;
+  if (up) {
+    // Image uploaded in the admin: AVIF + WebP at several widths on the volume, same <picture> markup as the built-in photos.
+    const base = `/uploads/${up.id}`;
+    const set = (ext: string) => up.widths.map((w) => `${base}-${w}.${ext} ${w}w`).join(", ");
+    const mid = up.widths.includes(1080) ? 1080 : up.widths[up.widths.length - 1];
+    return (
+      <span className={`relative block overflow-hidden ${className}`}>
+        <picture>
+          <source type="image/avif" srcSet={set("avif")} sizes={sizes} />
+          <source type="image/webp" srcSet={set("webp")} sizes={sizes} />
+          <img
+            src={`${base}-${mid}.webp`}
+            alt={alt}
+            width={up.width}
+            height={up.height}
+            sizes={sizes}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : "auto"}
+            className={`absolute inset-0 h-full w-full ${fit === "cover" ? "object-cover" : "object-contain"}`}
+            style={{ objectPosition: position }}
+          />
+        </picture>
+      </span>
+    );
+  }
   if (!m) {
-    // Image uploaded from the admin (single file, no pre-generated sizes): plain responsive <img>.
+    // Any other single-file image (an https URL): plain <img>.
     if (!/^https:\/\//.test(src)) return null;
     return (
       <span className={`relative block overflow-hidden ${className}`}>

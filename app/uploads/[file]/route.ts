@@ -16,7 +16,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ file: string }
   if (path.dirname(full) !== uploadsDir()) return new Response("Not found", { status: 404 }); // belt and braces
   let data: Buffer;
   try {
-    data = fs.readFileSync(full);
+    data = fs.readFileSync(/* turbopackIgnore: true */ full);
   } catch {
     return new Response("Not found", { status: 404 });
   }

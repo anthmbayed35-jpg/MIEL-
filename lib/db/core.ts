@@ -9,19 +9,21 @@ import { Query, type Result, type Row } from "./query";
  * (the sign-in gate) uses it too. Nothing here is ever imported by browser code, and the database file lives on the
  * volume (DATABASE_PATH), never under public/.
  */
-export const databasePath = () => process.env.DATABASE_PATH || path.join(process.cwd(), ".data", "miel.db");
+export const databasePath = () => process.env.DATABASE_PATH || path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "miel.db");
 /** Folder for everything that must survive a redeploy (database, uploads, backups). */
-export const dataDir = () => (process.env.DATABASE_PATH && process.env.DATABASE_PATH !== ":memory:" ? path.dirname(process.env.DATABASE_PATH) : path.join(process.cwd(), ".data"));
+export const dataDir = () => (process.env.DATABASE_PATH && process.env.DATABASE_PATH !== ":memory:" ? path.dirname(process.env.DATABASE_PATH) : path.join(/* turbopackIgnore: true */ process.cwd(), ".data"));
 
 export type Migration = { version: number; name: string; sql: string };
 
-export function loadMigrations(dir = process.env.MIGRATIONS_DIR || path.join(process.cwd(), "migrations")): Migration[] {
-  if (!fs.existsSync(dir)) throw new Error(`Migrations folder not found: ${dir}`);
+export function loadMigrations(dir = process.env.MIGRATIONS_DIR || path.join(/* turbopackIgnore: true */ process.cwd(), "migrations")): Migration[] {
+  // turbopackIgnore: this is a runtime path (./migrations next to the server). Without it the bundler traces the WHOLE project
+  // into the standalone output (assets-src, tests, docs ...).
+  if (!fs.existsSync(/* turbopackIgnore: true */ dir)) throw new Error(`Migrations folder not found: ${dir}`);
   return fs
-    .readdirSync(dir)
+    .readdirSync(/* turbopackIgnore: true */ dir)
     .filter((f) => /^\d{4}_.+\.sql$/.test(f))
     .sort()
-    .map((f) => ({ version: Number(f.slice(0, 4)), name: f.replace(/\.sql$/, ""), sql: fs.readFileSync(path.join(dir, f), "utf8") }));
+    .map((f) => ({ version: Number(f.slice(0, 4)), name: f.replace(/\.sql$/, ""), sql: fs.readFileSync(path.join(/* turbopackIgnore: true */ dir, f), "utf8") }));
 }
 
 /**

@@ -8,7 +8,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 import { getEngine } from "../../lib/db/core";
 import { hashPassword } from "@/lib/passwords";
 import { createSession, destroyUserSessions, listSessions, lookupSession, IDLE_MS, ABSOLUTE_MS, SESSION_COOKIE } from "@/lib/session";
-import { consumeToken, createInvite, createReset, peekToken, INVITE_TTL_MS, RESET_TTL_MS } from "@/lib/invites";
+import { consumeToken, createReset, peekToken, INVITE_TTL_MS, RESET_TTL_MS } from "@/lib/invites";
 import { newSecret, totpNow, verifyTotp, stepOf } from "@/lib/totp";
 import { decrypt } from "@/lib/crypto";
 import { jar, h, ID, lastLink, outbox, reqHeaders, resetState, TEST_PASSWORD } from "../support/state";
