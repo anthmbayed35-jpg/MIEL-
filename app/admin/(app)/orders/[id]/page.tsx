@@ -39,6 +39,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       >
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <StatusBadge status={status} />
+          {o.is_test && <span className="status st-cancelled">TEST ORDER: not counted in sales</span>}
           {!["draft", "cancelled"].includes(status) && <PayBadge collected={o.cod_collected} refunded={status === "returned" && o.cod_collected} />}
           {o.discount_code && <span className="status st-new">Code {o.discount_code}</span>}
         </div>

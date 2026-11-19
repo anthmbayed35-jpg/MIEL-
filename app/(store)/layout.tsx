@@ -3,6 +3,8 @@ import { getCatalog } from "@/lib/catalog";
 import { CartProvider } from "@/components/CartProvider";
 import { CartDrawer } from "@/components/CartDrawer";
 import { Tracker } from "@/components/Tracker";
+import { PreviewBar } from "@/components/PreviewBar";
+import { previewAdmin } from "@/lib/preview";
 
 // The storefront reads the database on every request (SQLite on the volume answers in well under a millisecond), so a
 // price or stock change made in the admin is live immediately and a fresh deploy never shows stale pre-rendered data.
@@ -10,12 +12,15 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const cat = await getCatalog();
+  const preview = !!(await previewAdmin()); // SITE_MODE=maintenance and a signed-in admin: the real storefront, for them only
   const { announcement, tracking } = cat;
   return (
     <CartProvider
       products={cat.products.map((p) => ({ id: p.id, name: p.name, price: p.price, slug: p.slug }))}
       zones={cat.zones.map((z) => ({ name: z.name, fee: z.fee, free_over: z.free_over, eta: z.eta }))}
+      preview={preview}
     >
+      {preview && <PreviewBar />}
       {announcement.enabled && announcement.text && (
         <div className="bg-acid px-4 py-2.5 text-center text-[14px] font-semibold text-black">
           {announcement.link ? (
@@ -27,9 +32,9 @@ export default async function StoreLayout({ children }: { children: React.ReactN
           )}
         </div>
       )}
-      {children}
+      <div data-preview={preview ? "1" : undefined}>{children}</div>
       <CartDrawer />
-      <Tracker />
+      {!preview && <Tracker />}
       {tracking.ga4_id && (
         <>
           <Script src={`https://www.googletagmanager.com/gtag/js?id=${tracking.ga4_id}`} strategy="afterInteractive" />

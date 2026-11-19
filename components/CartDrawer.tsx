@@ -6,6 +6,7 @@ import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
 import { getUtm, trackEvent } from "@/lib/track-client";
 import { captureCheckout, placeOrder, quoteAction, type QuoteView } from "@/app/actions/checkout";
+import { TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
 import { useCart } from "./CartProvider";
 
 type View = "cart" | "checkout" | "done";
@@ -15,7 +16,9 @@ const field =
 const label = "mono block mb-2";
 
 export function CartDrawer() {
-  const { open, setOpen, lines, total, count, setQty, clear, products, zones } = useCart();
+  const { open, setOpen, lines, total, count, setQty, clear, products, zones, preview } = useCart();
+  const [wasTest, setWasTest] = useState(false);
+  const [testOk, setTestOk] = useState(false); // preview only: the explicit "this is a test order" confirmation
   const [view, setView] = useState<View>("cart");
   const [waLink, setWaLink] = useState("");
   const [orderId, setOrderId] = useState("");
@@ -112,6 +115,7 @@ export function CartDrawer() {
       code,
       utm: getUtm(),
       website: String(fd.get("website") ?? ""),
+      confirmation: preview && testOk ? TEST_ORDER_CONFIRMATION : undefined,
     });
     setBusy(false);
     if (!res.ok) {
@@ -120,7 +124,8 @@ export function CartDrawer() {
     }
     setWaLink(res.whatsappUrl);
     setOrderId(res.orderNumber);
-    window.open(res.whatsappUrl, "_blank", "noopener");
+    setWasTest(!!res.test);
+    if (!res.test) window.open(res.whatsappUrl, "_blank", "noopener");
     clear();
     setView("done");
   }
@@ -243,16 +248,22 @@ export function CartDrawer() {
 
           {view === "done" && (
             <div>
-              <p className="mono">ORDER #{orderId}</p>
+              <p className="mono">{wasTest ? "TEST ORDER" : "ORDER"} #{orderId}</p>
               <p className="display mt-2 text-[26px]">
                 Order placed<span className="accent">.</span>
               </p>
-              <p className="body-lg mt-4 mb-6">
-                Your order is in. WhatsApp should have opened with your order. Hit send there and we&apos;ll confirm delivery. Didn&apos;t open?
-              </p>
-              <a href={waLink} target="_blank" rel="noopener noreferrer" className="btn btn-block">
-                OPEN WHATSAPP
-              </a>
+              {wasTest ? (
+                <p className="body-lg mt-4 mb-6">This was a TEST order. It is marked TEST in the admin, stock was taken as for a real order, and it is not counted in your sales. Cancel it there to put the stock back. Nothing was sent to WhatsApp.</p>
+              ) : (
+                <>
+                  <p className="body-lg mt-4 mb-6">
+                    Your order is in. WhatsApp should have opened with your order. Hit send there and we&apos;ll confirm delivery. Didn&apos;t open?
+                  </p>
+                  <a href={waLink} target="_blank" rel="noopener noreferrer" className="btn btn-block">
+                    OPEN WHATSAPP
+                  </a>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -276,8 +287,16 @@ export function CartDrawer() {
               {region && <div className="flex justify-between"><dt>Delivery</dt><dd>{shown ? (shown.shipping ? money(shown.shipping) : "Free") : "…"}</dd></div>}
               <div className="flex items-baseline justify-between pt-1"><dt className="mono">TOTAL</dt><dd className="display accent text-[28px]">{money(shown?.total ?? total)}</dd></div>
             </dl>
-            <button type="submit" form="checkout" disabled={busy} className="btn btn-block disabled:opacity-60">
-              {busy ? "PLACING ORDER…" : "PLACE ORDER"}
+            {preview && (
+              <label className="mb-3 flex items-start gap-3 rounded-2xl border border-acid/40 bg-acid/10 p-3 text-[15px] text-fg">
+                <input type="checkbox" checked={testOk} onChange={(e) => setTestOk(e.target.checked)} className="mt-1 h-6 w-6 shrink-0 accent-[#DAFC69]" />
+                <span>
+                  <b>This is a test order.</b> The storefront is hidden, so only a clearly marked TEST order can be placed. It takes real stock (cancel it in the admin to restore it) and is not counted in sales.
+                </span>
+              </label>
+            )}
+            <button type="submit" form="checkout" disabled={busy || (preview && !testOk)} className="btn btn-block disabled:opacity-60">
+              {busy ? "PLACING ORDER…" : preview ? "PLACE TEST ORDER" : "PLACE ORDER"}
             </button>
             <button type="button" onClick={() => setView("cart")} className="link mt-2 w-full text-center text-[16px]">
               Back to cart

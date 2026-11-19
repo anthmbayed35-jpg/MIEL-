@@ -138,6 +138,8 @@ When you are ready to launch, in this order:
 - [ ] **Set `SITE_MODE=live`** (or delete the variable) in Railway and restart. The storefront opens; the admin banner disappears.
 - [ ] **Go-live test** on the public site (next section), then cancel the test order.
 
+**Previewing the hidden storefront:** while `SITE_MODE=maintenance`, sign in at `/admin/login` (any role) and open the site address in the same browser: you see the real storefront, cart and checkout, with a bar "Preview mode: only you can see this." on every page. Visitors and anyone signed out still get the under-development page. No real order can be placed by anyone. As an admin you can place a clearly marked **TEST order** only: the checkout button says PLACE TEST ORDER and stays disabled until you tick "This is a test order". A test order takes real stock (cancel it in **Admin → Orders** to put it back), shows a TEST badge, is not counted in sales or statistics, and sends nothing to WhatsApp or email. The site tracking and abandoned-checkout capture stay off in preview.
+
 To take the shop offline again at any time: set `SITE_MODE=maintenance` and restart. Orders already placed are untouched.
 
 ## 9. Go-live test (do this once, on production)

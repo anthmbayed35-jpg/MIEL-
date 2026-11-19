@@ -23,5 +23,8 @@ export function staysOpenInMaintenance(path: string): boolean {
   return STATIC_EXT.test(path); // icons, fonts, images. NOT sitemap.xml: it is hidden with the rest
 }
 
+/** What an admin previewing the hidden storefront must send (a ticked, explicit box) to place a TEST order. */
+export const TEST_ORDER_CONFIRMATION = "I confirm this is a test order";
+
 /** The shared answer for refused order/cart/checkout calls. */
 export const STOREFRONT_CLOSED = { ok: false as const, error: "MIEL+ isn't taking orders yet. Something new is coming." };

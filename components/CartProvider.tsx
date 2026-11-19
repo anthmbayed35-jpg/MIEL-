@@ -15,6 +15,8 @@ type CartCtx = {
   count: number;
   total: number;
   open: boolean;
+  /** An admin previewing the hidden storefront (SITE_MODE=maintenance). */
+  preview: boolean;
   setOpen: (v: boolean) => void;
   add: (id: string, qty?: number) => void;
   setQty: (id: string, qty: number) => void;
@@ -24,7 +26,7 @@ type CartCtx = {
 const Ctx = createContext<CartCtx | null>(null);
 const KEY = "miel_cart_v1";
 
-export function CartProvider({ products, zones, children }: { products: CartProduct[]; zones: CartZone[]; children: React.ReactNode }) {
+export function CartProvider({ products, zones, preview = false, children }: { products: CartProduct[]; zones: CartZone[]; preview?: boolean; children: React.ReactNode }) {
   const [lines, setLines] = useState<Lines>({});
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -65,8 +67,8 @@ export function CartProvider({ products, zones, children }: { products: CartProd
     const valid = Object.entries(lines).filter(([id]) => products.some((p) => p.id === id));
     const count = valid.reduce((n, [, q]) => n + q, 0);
     const total = valid.reduce((n, [id, q]) => n + q * (products.find((p) => p.id === id)?.price ?? 0), 0);
-    return { products, zones, lines, count, total, open, setOpen, add, setQty, clear };
-  }, [products, zones, lines, open, add, setQty, clear]);
+    return { products, zones, lines, count, total, open, preview, setOpen, add, setQty, clear };
+  }, [products, zones, lines, open, preview, add, setQty, clear]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

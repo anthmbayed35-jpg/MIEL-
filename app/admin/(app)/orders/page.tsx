@@ -70,7 +70,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         <OrdersTable
           rows={data.orders.map((o: Row) => ({
             id: o.id, number: o.order_number, date: o.created_at, customer: o.customer?.name ?? "—", phone: o.customer?.phone ?? "",
-            region: o.region, total: Number(o.total), status: o.status, collected: !!o.cod_collected, source: o.source,
+            region: o.region, total: Number(o.total), status: o.status, collected: !!o.cod_collected, source: o.source, test: !!o.is_test,
           }))}
         />
 

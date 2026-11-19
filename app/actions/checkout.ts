@@ -9,7 +9,8 @@ import { orderMessage } from "@/lib/messages";
 import { normalizeLebanesePhone, waLink } from "@/lib/phone";
 import { ipFromHeaders } from "@/lib/client-ip";
 import { rateLimit } from "@/lib/rate-limit";
-import { inMaintenance, STOREFRONT_CLOSED } from "@/lib/site-mode";
+import { previewAdmin } from "@/lib/preview";
+import { inMaintenance, STOREFRONT_CLOSED, TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
 import { notifyNewOrder } from "@/lib/notify";
 
 export type CartInput = { productId: string; qty: number }[];
@@ -27,7 +28,8 @@ export type QuoteView = {
 
 /** Live price preview for the cart drawer (shipping zone + discount code). */
 export async function quoteAction(items: CartInput, region: string, code: string): Promise<QuoteView> {
-  if (inMaintenance()) return { ...STOREFRONT_CLOSED, subtotal: 0, discount: 0, shipping: 0, total: 0, freeDelivery: false }; // under development: no cart, no prices
+  // Under development: no cart and no prices for the public. A signed-in admin previewing the storefront may see prices.
+  if (inMaintenance() && !(await previewAdmin())) return { ...STOREFRONT_CLOSED, subtotal: 0, discount: 0, shipping: 0, total: 0, freeDelivery: false };
   if (code.trim()) {
     // discount-code guessing is rate limited per connection (stored in the database, survives restarts)
     const ip = ipFromHeaders(await headers());
@@ -46,7 +48,7 @@ async function fallbackQuote(items: CartInput): Promise<QuoteView> {
   return { ok: subtotal > 0, subtotal, discount: 0, shipping: 0, total: subtotal, freeDelivery: false };
 }
 
-export type PlaceResult = { ok: true; orderNumber: string; whatsappUrl: string; total: number } | { ok: false; error: string };
+export type PlaceResult = { ok: true; orderNumber: string; whatsappUrl: string; total: number; test?: boolean } | { ok: false; error: string };
 
 export async function placeOrder(input: {
   items: CartInput;
@@ -56,8 +58,19 @@ export async function placeOrder(input: {
   utm?: { source?: string; medium?: string; campaign?: string };
   website?: string; // honeypot
   idempotencyKey?: string;
+  /** Preview only: the exact confirmation text, sent when the admin ticked "this is a test order". */
+  confirmation?: string;
 }): Promise<PlaceResult> {
-  if (inMaintenance()) return STOREFRONT_CLOSED; // no real order can be placed while the storefront is hidden
+  // While the storefront is hidden NO real order can be placed, by anyone. A signed-in admin (checked here from the session,
+  // never from anything the browser claims) may place a TEST order, and only after explicitly confirming it.
+  let test: { by: string } | undefined;
+  if (inMaintenance()) {
+    const admin = await previewAdmin();
+    if (!admin) return STOREFRONT_CLOSED;
+    if (input.confirmation !== TEST_ORDER_CONFIRMATION)
+      return { ok: false, error: "Preview mode: the storefront is hidden, so no real order can be placed. Tick \"This is a test order\" to place a clearly marked TEST order." };
+    test = { by: admin.email };
+  }
   try {
     if (input.website) return { ok: false, error: "Something went wrong. Try again." }; // bots fill the hidden field
     const h = await headers();
@@ -103,6 +116,7 @@ export async function placeOrder(input: {
       utm: input.utm,
       actor: "customer",
       idempotencyKey: input.idempotencyKey,
+      test,
     });
     // Mark any abandoned checkout for this phone as recovered
     await db.from("abandoned_checkouts").update({ recovered: true }).eq("phone", phone);
@@ -112,6 +126,7 @@ export async function placeOrder(input: {
       total: quote.total, code: quote.code, region: input.region, customer: { ...input.customer, phone },
     });
     revalidatePath("/admin", "layout");
+    if (test) return { ok: true, orderNumber: String(order.order_number), whatsappUrl: "", total: quote.total, test: true }; // no WhatsApp, no alert email
     void notifyNewOrder({ number: order.order_number, total: quote.total, customer: input.customer.name, phone, region: input.region, lines: quote.lines });
     return { ok: true, orderNumber: String(order.order_number), whatsappUrl: waLink(wa, text), total: quote.total };
   } catch (e) {

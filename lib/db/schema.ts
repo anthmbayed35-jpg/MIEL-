@@ -35,7 +35,7 @@ export const TABLES: Record<string, Table> = {
   customers: parse("id", "id name phone email tags[] notes blocked? is_demo? version created_at"),
   delivery_partners: parse("id", "id name phone notes active? is_demo? version created_at"),
   shipping_zones: parse("id", "id name fee$ free_over$ eta active? sort version"),
-  orders: parse("id", "id order_number customer_id status payment_method payment_status subtotal$ discount_total$ shipping_fee$ total$ cod_amount_due$ cod_collected? cod_settled_at discount_code region address customer_notes delivery_partner_id tracking_number source utm_source utm_medium utm_campaign cancel_reason stock_deducted? is_demo? delivered_at version created_at updated_at"),
+  orders: parse("id", "id order_number customer_id status payment_method payment_status subtotal$ discount_total$ shipping_fee$ total$ cod_amount_due$ cod_collected? cod_settled_at discount_code region address customer_notes delivery_partner_id tracking_number source utm_source utm_medium utm_campaign cancel_reason stock_deducted? is_demo? is_test? delivered_at version created_at updated_at"),
   order_items: parse("id", "id order_id product_id name unit_price$ qty"),
   order_events: parse("id", "id order_id type message from_status to_status actor created_at"),
   discounts: parse("id", "id code type value% min_order$ product_ids[] starts_at ends_at usage_limit used_count active? is_demo? version created_at"),

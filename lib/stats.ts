@@ -9,7 +9,7 @@ export type Point = { label: string; tip: string; value: number; delta: number |
 export type SeriesSet = Record<"day" | "week" | "month" | "year", Point[]>;
 
 /** Orders that count as sales: not drafts, cancelled or returned. */
-export const isSale = (o: Row) => !["draft", "cancelled", "returned"].includes(o.status);
+export const isSale = (o: Row) => !o.is_test && !["draft", "cancelled", "returned"].includes(o.status);
 
 export type Data = {
   orders: Row[];
@@ -23,7 +23,8 @@ export type Data = {
 export async function loadData(months = 13): Promise<Data> {
   const db = getDb();
   const since = new Date(Date.now() - months * 31 * DAY).toISOString();
-  const orders = must(await db.from("orders").select("*").gte("created_at", since).order("created_at", { ascending: false })) as Row[];
+  // test orders (placed by an admin in preview mode) never count in statistics
+  const orders = (must(await db.from("orders").select("*").gte("created_at", since).order("created_at", { ascending: false })) as Row[]).filter((o) => !o.is_test);
   const ids = orders.map((o) => o.id);
   const [items, customers, products, inventory] = await Promise.all([
     ids.length ? db.from("order_items").select("*").in("order_id", ids).then((r: any) => must(r) as Row[]) : Promise.resolve([] as Row[]),

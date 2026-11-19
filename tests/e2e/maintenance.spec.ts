@@ -207,3 +207,96 @@ test.describe("the admin in maintenance mode, with no email configured", () => {
     await anon.close();
   });
 });
+
+test.describe("admin preview: the real storefront, for the signed-in admin only", () => {
+  test("an admin sees the real storefront with the preview bar on every page, while a visitor still gets the 503 page", async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const admin = await ctx.newPage();
+    await signIn(admin, "manager"); // any role (the staff password was changed by the reset-flow test)
+    for (const url of ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping"]) {
+      const res = await admin.goto(url);
+      expect(res?.status(), url).toBe(200);
+      expect(res?.headers()["cache-control"], url).toContain("no-store");
+      expect(res?.headers()["x-robots-tag"], url).toContain("noindex");
+      const bar = admin.locator("[data-preview-bar]");
+      await expect(bar, url).toContainText("Preview mode: only you can see this.");
+      await expect(admin.getByRole("heading", { level: 1 }), url).not.toContainText("under development");
+    }
+    await admin.goto("/");
+    await expect(admin.getByRole("button", { name: "Add RED BURN to cart" })).toBeVisible(); // the real lineup
+    await expect(admin.getByText("RED BURN").first()).toBeVisible();
+
+    // a visitor at the same moment: still the under-development page
+    const visitor = await browser.newContext();
+    const vp = await visitor.newPage();
+    const vres = await vp.goto("/");
+    expect(vres?.status()).toBe(503);
+    await expect(vp.getByRole("heading", { level: 1 })).toContainText("MIEL+ is under development");
+    await expect(vp.locator("[data-preview-bar]")).toHaveCount(0);
+    await visitor.close();
+    await ctx.close();
+  });
+
+  test("the preview bar never covers the header (phone and desktop)", async ({ browser }) => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+      const ctx = await browser.newContext({ viewport: vp });
+      const page = await ctx.newPage();
+      await signIn(page);
+      await page.goto("/");
+      await page.evaluate(() => window.scrollTo(0, 600));
+      await page.waitForTimeout(300);
+      const bar = await page.locator("[data-preview-bar]").boundingBox();
+      const header = await page.locator(".site-header header").first().boundingBox();
+      expect(bar && header).toBeTruthy();
+      expect(header!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height - 1); // header sits below the bar, also when scrolled
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+      await ctx.close();
+    }
+  });
+
+  test("checkout in preview: a real order is impossible, a confirmed TEST order is clearly marked, and nothing goes to WhatsApp", async ({ browser }) => {
+    const before = one<{ n: number }>("SELECT COUNT(*) n FROM orders WHERE is_test = 0")!.n;
+    const ctx = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.200" } });
+    const page = await ctx.newPage();
+    const popups: string[] = [];
+    ctx.on("page", (p) => popups.push(p.url()));
+    await signIn(page);
+    await page.goto("/products/red-burn");
+    await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
+    await page.getByRole("button", { name: "CHECKOUT" }).click();
+    await page.locator("#name").fill("Preview Tester");
+    await page.locator("#phone").fill("03 600 700");
+    await page.locator("#region").selectOption({ index: 1 });
+    await page.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+    // the button says TEST and stays disabled until the explicit confirmation is ticked
+    const place = page.getByRole("button", { name: "PLACE TEST ORDER" });
+    await expect(place).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^PLACE ORDER$/ })).toHaveCount(0);
+    await page.getByRole("checkbox", { name: /This is a test order/ }).check();
+    await expect(place).toBeEnabled();
+    await place.click();
+    await expect(page.getByText(/TEST ORDER #\d+/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/This was a TEST order/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "OPEN WHATSAPP" })).toHaveCount(0);
+    expect(popups).toEqual([]); // WhatsApp was not opened
+    const n = Number((await page.getByText(/TEST ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+    const o = one<Record<string, any>>("SELECT * FROM orders WHERE order_number = ?", n)!;
+    expect(o).toMatchObject({ is_test: 1, source: "web", status: "new" });
+    expect(o.customer_notes).toContain("[TEST ORDER]");
+    expect(one<{ n: number }>("SELECT COUNT(*) n FROM orders WHERE is_test = 0")!.n).toBe(before); // no real order appeared
+
+    // the admin sees it flagged, and cancelling puts the stock back
+    await page.goto(`/admin/orders/${o.id}`);
+    await expect(page.getByText(/TEST ORDER: not counted in sales/)).toBeVisible();
+    await page.goto("/admin/orders");
+    await expect(page.getByText("TEST", { exact: true }).first()).toBeVisible();
+    await ctx.close();
+  });
+
+  test("a visitor cannot order, whatever they send", async ({ request }) => {
+    const before = one<{ n: number }>("SELECT COUNT(*) n FROM orders")!.n;
+    const r = await request.post("/", { headers: { "next-action": "0123456789abcdef0123456789abcdef01234567", "content-type": "text/plain" }, data: JSON.stringify([{ confirmation: "I confirm this is a test order" }]) });
+    expect(r.status()).toBe(503);
+    expect(one<{ n: number }>("SELECT COUNT(*) n FROM orders")!.n).toBe(before);
+  });
+});

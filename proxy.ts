@@ -11,14 +11,32 @@ import { inMaintenance, MAINTENANCE_MESSAGE, RETRY_AFTER_SECONDS, staysOpenInMai
  *
  * Everything else (the public storefront): in SITE_MODE=maintenance every public page answers 503 with the branded
  * "under development" page, and every other public request (cart, checkout and order server actions, /api/track, the
- * sitemap ...) answers a JSON 503. Admin, /api/health, static files and uploads stay open. The actions and routes also
- * refuse by themselves (lib/site-mode.ts), so no order can be placed whatever happens here.
+ * sitemap ...) answers a JSON 503. Admin, /api/health, static files and uploads stay open. EXCEPT: a fully signed-in admin
+ * (any role) passes through and sees the real storefront in preview mode (lib/preview.ts). The actions and routes refuse
+ * by themselves (lib/site-mode.ts, lib/orders.ts), so even an admin cannot create a real order: only a confirmed TEST order.
  */
 const SECURITY = { "X-Robots-Tag": "noindex, nofollow, noarchive", "Cache-Control": "private, no-store" };
 const PUBLIC_ADMIN = ["/admin/login", "/admin/forgot", "/admin/set-password"];
 
+/** A fully signed-in admin (any role, 2FA done if they have it): the session cookie is looked up in the database. */
+function isPreviewAdmin(req: NextRequest): boolean {
+  try {
+    const f = lookupSession(req.cookies.get(SESSION_COOKIE)?.value);
+    return f.ok && (f.session.mfaOk || !f.session.user.totpEnabled);
+  } catch {
+    return false; // an unreadable database never opens the door
+  }
+}
+
 function publicGate(req: NextRequest, path: string) {
   if (!inMaintenance() || staysOpenInMaintenance(path)) return NextResponse.next();
+  if (isPreviewAdmin(req)) {
+    // Preview: the real storefront, for this signed-in admin only. Never cached, never indexed.
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    res.headers.set("Cache-Control", "private, no-store");
+    return res;
+  }
   const headers = { "Retry-After": String(RETRY_AFTER_SECONDS), "X-Robots-Tag": "noindex, nofollow, noarchive", "Cache-Control": "no-store" };
   const isPage = (req.method === "GET" || req.method === "HEAD") && !path.startsWith("/api/") && !req.headers.has("next-action");
   if (isPage) {

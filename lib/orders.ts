@@ -158,6 +158,8 @@ export type CreateOrderInput = {
   createdAt?: string;
   /** Same key twice = same order (a double click or a retry after a bad connection never places two orders). */
   idempotencyKey?: string;
+  /** Set ONLY by the checkout action for a signed-in admin who explicitly confirmed a TEST order while the storefront is hidden. */
+  test?: { by: string };
 };
 
 export type PlacedOrder = { order: Row; customer: Row; quote: Quote; replayed?: boolean };
@@ -169,8 +171,10 @@ export type PlacedOrder = { order: Row; customer: Row; quote: Quote; replayed?: 
  * Any failure rolls the whole thing back. Throws Error(message) for user-facing problems.
  */
 export function placeOrder(input: CreateOrderInput): PlacedOrder {
-  // Last line of defence: customers cannot order while the storefront is hidden. Orders typed in by the team (admin) still work.
-  if (input.source === "web" && inMaintenance()) throw new Error("MIEL+ isn't taking orders yet. Something new is coming.");
+  // Last line of defence: nobody orders through the storefront while it is hidden, admins included, UNLESS the order is an
+  // explicitly confirmed TEST order (flagged is_test, kept out of statistics). Orders typed in by the team in the admin still work.
+  if (input.source === "web" && inMaintenance() && !input.test) throw new Error("MIEL+ isn't taking orders yet. Something new is coming.");
+  const testBy = input.test && inMaintenance() ? input.test.by : null;
   const phone = normalizeLebanesePhone(input.customer.phone);
   if (!phone) throw new Error("Enter a valid Lebanese phone number, e.g. 03 123 456 or +961 70 123 456.");
   if (input.customer.name.trim().length < 2) throw new Error("Enter your name.");
@@ -210,10 +214,10 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
       q1("orders").insert({
         order_number: number, customer_id: customer.id, status, payment_method: "cod", payment_status: "pending",
         subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: q.total, cod_collected: false,
-        discount_code: q.code ?? null, region: input.region, address: input.customer.address.trim(), customer_notes: input.customer.notes?.trim() ?? "",
+        discount_code: q.code ?? null, region: input.region, address: input.customer.address.trim(), customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
         delivery_partner_id: null, tracking_number: "", source: input.source,
         utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
-        stock_deducted: false, is_demo: !!input.demo, created_at: stamp, updated_at: stamp,
+        stock_deducted: false, is_demo: !!input.demo, is_test: !!testBy, created_at: stamp, updated_at: stamp,
       }).select().single().execute(),
     ) as Row;
     one(q1("order_items").insert(q.lines.map((l) => ({ order_id: order.id, product_id: l.productId, name: l.name, unit_price: l.unitPrice, qty: l.qty }))).execute());
@@ -227,7 +231,7 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
         if (!used) throw new Error("That code has been fully used.");
       }
     }
-    addEventSync(order.id, "created", input.draft ? "Draft created" : `Order placed (${input.source}), cash on delivery`, input.actor, undefined, status, input.createdAt);
+    addEventSync(order.id, "created", testBy ? `TEST order placed by ${testBy} while previewing the hidden storefront (not a real sale)` : input.draft ? "Draft created" : `Order placed (${input.source}), cash on delivery`, input.actor, undefined, status, input.createdAt);
     if (key) e.sqlite.prepare("INSERT INTO idempotency_keys (key, order_id) VALUES (?, ?)").run(key, order.id);
     const fresh = one(q1("orders").select("*").eq("id", order.id).single().execute()) as Row; // with its current version
     return { order: fresh, customer, quote: q };

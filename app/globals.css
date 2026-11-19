@@ -309,3 +309,6 @@ textarea.a-input { border-radius: 18px; }
   .print-area { position: absolute; inset: 0; background: #fff; color: #000; padding: 24px; }
   .no-print { display: none !important; }
 }
+
+/* Preview bar (admin previewing the hidden storefront): keep the floating header clear of the sticky 40px bar. */
+[data-preview] .site-header { top: 3.25rem; }
