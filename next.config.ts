@@ -1,8 +1,9 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { assertEnv, isStrict } from "./lib/env";
 
 // Fail the BUILD with a clear message when a hosted environment is misconfigured (missing variables, wrong
-// Supabase project for this environment). Local builds without MIEL_ENV/VERCEL_ENV stay lenient.
+// Supabase project for this environment). Local builds without MIEL_ENV/Railway stay lenient.
 if (isStrict() && process.env.SKIP_ENV_CHECK !== "1") assertEnv();
 
 const isProd = process.env.NODE_ENV === "production";
@@ -23,10 +24,12 @@ const csp = [
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
-  ...(process.env.VERCEL ? ["upgrade-insecure-requests"] : []),
+  ...(process.env.MIEL_ENV === "production" ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  output: "standalone", // self-contained server for Railway (see scripts/prepare-standalone.mjs)
+  outputFileTracingRoot: path.resolve(process.cwd()), // keep .next/standalone/server.js at a predictable path
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false, // never ship source maps to browsers

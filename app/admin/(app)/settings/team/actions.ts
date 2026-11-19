@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
+import { authConfirmUrl } from "@/lib/site-url";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
 import { adminAuthClient, authClient } from "@/lib/supabase-server";
 import type { ActionState } from "@/components/admin/ActionForm";
 
 const ROLES = ["owner", "manager", "staff"];
-const SITE = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
-const redirectTo = () => `${SITE()}/admin/auth/confirm?next=/admin/set-password`;
+const redirectTo = () => authConfirmUrl();
 
 async function activeOwners(excludeId?: string) {
   return (must(await getDb().from("admin_users").select("*").eq("role", "owner").eq("active", true)) as Row[]).filter((u) => u.id !== excludeId).length;

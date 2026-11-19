@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "node scripts/clean-data-cache.mjs && next build && node scripts/prepare-standalone.mjs",
+    "start": "node scripts/start.mjs",
     "icons": "node scripts/make-icons.mjs",
     "images": "node scripts/make-images.mjs",
     "typecheck": "tsc --noEmit",
@@ -26,7 +26,8 @@
     "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
@@ -38,10 +39,12 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.6",
     "postcss": "^8.5.33",
-    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.1.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -1,8 +1,12 @@
 // Single place for all store-wide settings. Edit values here.
+import { siteUrl } from "../lib/site-url";
 
 export const SITE = {
   name: "MIEL+",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://miel-plus.vercel.app", // TODO: real domain
+  /** The final domain. Comes only from lib/site-url.ts (the site URL environment variable). */
+  get url() {
+    return siteUrl();
+  },
   description:
     "MIEL+ is honey-based sports nutrition in single-serve sachets. Made for training and running. Delivered across Lebanon.",
 };

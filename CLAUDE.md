@@ -1,6 +1,6 @@
 # MIEL+ website
 
-Lebanon-only honey sports-nutrition sachets. Next.js (App Router) + Tailwind 4, deployable to Vercel.
+Lebanon-only honey sports-nutrition sachets. Next.js (App Router) + Tailwind 4, hosted on Railway (Europe, ONE replica; see docs/OPERATIONS.md).
 Tone: raw, performance-driven, short punchy copy. English only. No medical claims.
 
 ## Hard rules
@@ -52,6 +52,11 @@ Shopify-style back office for the Lebanon store. Separate layout (`app/admin/lay
 - **Demo data:** only through scripts, never the UI: `npm run seed-demo -- --yes` (staging only; refuses production), `npm run purge-demo [-- --confirm]` (CSV backup to `/backups`, deletes only `is_demo = true` rows, lists ambiguous rows instead of deleting).
 - **Auth:** Supabase Auth email + password, invitation only (no sign-up code or route anywhere; sign-ups are also off in the Supabase dashboard). `proxy.ts` (401 for APIs/actions, redirect for pages, 12 h idle timeout) + `lib/auth.ts` (`getAdminState`: verified user + active `admin_users` row + 2FA state). Flows: `/admin/login`, `/admin/forgot`, `/admin/auth/confirm` (invite/reset link, button-click verify), `/admin/set-password`, `/admin/mfa`, `/admin/account`. Throttling and auth audit via `lib/security.ts` (DB-backed, hashed emails). Cookies are httpOnly via `lib/cookies.ts`. First owner: `npm run create-owner -- --email <email>` (invite only, refuses if an owner exists). Setup and operations: `docs/OPERATIONS.md`.
 - Gotcha: in server actions, `redirect()` throws; don't swallow it in a `try/catch` (re-throw errors whose digest starts with `NEXT_REDIRECT`).
+
+## Hosting (Railway)
+- `next.config.ts` uses `output: "standalone"`. `npm run build` = clear fetch cache, `next build`, copy static files (`scripts/prepare-standalone.mjs`). `npm start` = `scripts/start.mjs` (binds `0.0.0.0:$PORT`). `railway.json` sets health check `/api/health` (checks the DB), restart policy and **`numReplicas: 1`**: the ISR cache, `revalidatePath` and the checkout rate limiter are per process, so never scale out.
+- **Absolute URLs come only from `lib/site-url.ts`** (`siteUrl()`, `absoluteUrl()`, `authConfirmUrl()`), which reads `NEXT_PUBLIC_SITE_URL`. Never build a URL from request headers or a hardcoded domain. All env vars must exist at build time.
+- No Vercel-specific code (packages, env vars, cron, edge runtime); `tests/unit/railway-guards.test.ts` enforces it. E2E tests (`tests/e2e/railway-flows.spec.ts`) run `npm run build && npm start` against `tests/support/mock-supabase.ts`.
 
 ## Commands
 - `npm run dev`, `npm run build`, `npm run images`, `npm run icons`. Quality gate: `npm run verify` (typecheck, lint, unit, integration incl. real-Postgres RLS tests, build, E2E on a production build with sentinel secrets). Individual: `npm test`, `npm run test:e2e`, `npm run check-env`. Scripts: `create-owner`, `seed-demo`, `purge-demo`.

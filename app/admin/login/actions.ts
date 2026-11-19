@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { audit } from "@/lib/audit";
+import { authConfirmUrl } from "@/lib/site-url";
 import { getAdminState } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { SEEN_COOKIE } from "@/lib/cookies";
@@ -11,7 +12,6 @@ import { authClient } from "@/lib/supabase-server";
 import type { ActionState } from "@/components/admin/ActionForm";
 
 const GENERIC = "Wrong email or password.";
-const SITE = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
 
 export async function login(_prev: ActionState, fd: FormData): Promise<ActionState> {
   if (!hasSupabase()) return { error: "Admin isn't configured on this deployment yet." };
@@ -74,7 +74,7 @@ export async function requestReset(_prev: ActionState, fd: FormData): Promise<Ac
   const row = must(await getDb().from("admin_users").select("id, active").eq("email", email).maybeSingle());
   if (row?.active) {
     // The email template links to /admin/auth/confirm?token_hash=...&type=recovery (see docs/OPERATIONS.md)
-    await (await authClient()).auth.resetPasswordForEmail(email, { redirectTo: `${SITE()}/admin/auth/confirm?next=/admin/set-password` });
+    await (await authClient()).auth.resetPasswordForEmail(email, { redirectTo: authConfirmUrl() });
     await audit({ id: row.id, email }, "password_reset_requested", "admin_user", row.id);
   }
   return SAME;

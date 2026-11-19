@@ -40,33 +40,39 @@ describe("environment rules", () => {
   it("local development without any config is allowed", () => expect(validateEnv({ NODE_ENV: "development" })).toEqual([]));
   it("is strict only on hosted or MIEL_ENV deployments", () => {
     expect(isStrict({})).toBe(false);
-    expect(isStrict({ VERCEL_ENV: "production" })).toBe(true);
+    expect(isStrict({ RAILWAY_ENVIRONMENT_NAME: "production" })).toBe(true);
     expect(isStrict({ MIEL_ENV: "staging" })).toBe(true);
   });
-  it("production with everything set passes", () => expect(validateEnv({ ...base, VERCEL_ENV: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD })).toEqual([]));
+  it("production with everything set passes", () => expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD })).toEqual([]));
   it("production fails clearly when a variable is missing (names only, no values)", () => {
-    const e = validateEnv({ VERCEL_ENV: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SITE_URL: "https://x.example", MIEL_PRODUCTION_SUPABASE_URL: PROD });
+    const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SITE_URL: "https://x.example", MIEL_PRODUCTION_SUPABASE_URL: PROD });
     expect(e.join("\n")).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
     expect(e.join("\n")).toMatch(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
   });
   it("partly configured Supabase is an error", () => expect(validateEnv({ NEXT_PUBLIC_SUPABASE_URL: STAGING }).join()).toMatch(/partly configured/));
-  it("a PREVIEW deployment may not use the production database", () => {
-    const e = validateEnv({ ...base, VERCEL_ENV: "preview", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: PROD });
+  it("a staging deployment may not use the production database", () => {
+    const e = validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: PROD });
     expect(e.join("\n")).toMatch(/PRODUCTION Supabase project/);
   });
-  it("a preview deployment on the staging project passes", () => expect(validateEnv({ ...base, VERCEL_ENV: "preview", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: STAGING })).toEqual([]));
+  it("a staging deployment on the staging project passes", () => expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: STAGING })).toEqual([]));
   it("production must use the production project", () => {
-    const e = validateEnv({ ...base, VERCEL_ENV: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: STAGING });
+    const e = validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: STAGING });
     expect(e.join("\n")).toMatch(/must use the production Supabase project/);
   });
   it("MIEL_ENV=production is refused outside the production deployment", () => {
-    expect(validateEnv({ ...base, VERCEL_ENV: "preview", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD }).join("\n")).toMatch(/only allowed on the production deployment/);
+    expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD }).join("\n")).toMatch(/only allowed in the Railway environment named "production"/);
+  });
+  it("the Railway environment named production must declare MIEL_ENV=production", () => {
+    expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: STAGING }).join(" ")).toMatch(/MIEL_ENV must be production/);
+  });
+  it("production requires an https site URL", () => {
+    expect(validateEnv({ ...base, MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SITE_URL: "http://miel.example" }).join(" ")).toMatch(/https/);
   });
   it("a laptop pointing at the production project is refused", () => {
     expect(validateEnv({ MIEL_PRODUCTION_SUPABASE_URL: PROD, NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SUPABASE_ANON_KEY: "a", SUPABASE_SERVICE_ROLE_KEY: "s" }).join()).toMatch(/PRODUCTION Supabase/);
   });
   it("never leaks secret values into messages", () => {
-    const e = validateEnv({ VERCEL_ENV: "production", SUPABASE_SERVICE_ROLE_KEY: "SUPER-SECRET-VALUE-123", NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co" }).join("\n");
+    const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", SUPABASE_SERVICE_ROLE_KEY: "SUPER-SECRET-VALUE-123", NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co" }).join("\n");
     expect(e).not.toContain("SUPER-SECRET-VALUE-123");
   });
 });

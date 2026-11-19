@@ -10,6 +10,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { assertEnv } from "../lib/env";
+import { authConfirmUrl } from "../lib/site-url";
 
 function arg(name: string) {
   const i = process.argv.indexOf(`--${name}`);
@@ -32,7 +33,7 @@ async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
   const anon = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL!.replace(/\/$/, "")}/admin/auth/confirm?next=/admin/set-password`;
+  const redirectTo = authConfirmUrl();
 
   const owners = await admin.from("admin_users").select("id").eq("role", "owner");
   if (owners.error) fail(`Couldn't read admin_users (did you run the SQL migrations?): ${owners.error.message}`);

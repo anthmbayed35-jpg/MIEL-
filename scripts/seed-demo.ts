@@ -6,7 +6,7 @@ import { seedBase } from "../lib/seed";
 /**
  * DEMO DATA GENERATOR (development / staging ONLY). Everything it creates is flagged is_demo = true so that
  * `npm run purge-demo` can find, back up and remove it. It REFUSES to run against production:
- *   - NODE_ENV, MIEL_ENV or VERCEL_ENV is production, or
+ *   - NODE_ENV or MIEL_ENV is production, or the Railway environment is named production, or
  *   - the Supabase URL equals MIEL_PRODUCTION_SUPABASE_URL, or
  *   - MIEL_PRODUCTION_SUPABASE_URL is not set (it cannot prove this is not the production project).
  * Run:  npm run seed-demo -- --yes
@@ -172,7 +172,7 @@ function refuseIfProduction() {
   const prodHost = host(process.env.MIEL_PRODUCTION_SUPABASE_URL);
   const reasons: string[] = [];
   if (process.env.NODE_ENV === "production") reasons.push("NODE_ENV is production");
-  if (process.env.MIEL_ENV === "production" || process.env.VERCEL_ENV === "production") reasons.push("this is the production environment");
+  if (process.env.MIEL_ENV === "production" || process.env.RAILWAY_ENVIRONMENT_NAME === "production") reasons.push("this is the production environment");
   if (!prodHost) reasons.push("MIEL_PRODUCTION_SUPABASE_URL is not set, so it cannot be proven this is not the production project");
   else if (host(process.env.NEXT_PUBLIC_SUPABASE_URL) === prodHost) reasons.push("NEXT_PUBLIC_SUPABASE_URL is the production project");
   if (!["staging", "development"].includes(process.env.MIEL_ENV ?? "")) reasons.push("MIEL_ENV must be staging or development");
