@@ -1,10 +1,11 @@
 import { requirePerm } from "@/lib/auth";
+import { lastBackupAgeHours, listBackups } from "@/lib/backup";
 import { getDb, must, type Row } from "@/lib/db";
 import { DEFAULT_NOTIFICATIONS, DEFAULT_POLICIES, DEFAULT_STORE } from "@/config/content";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, Field, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { SETTINGS_TABS, SubNav } from "@/components/admin/SubNav";
-import { saveNotifications, savePolicies, saveSecurity, saveStore, seedStoreAction } from "./actions";
+import { backupNow, saveNotifications, savePolicies, saveSecurity, saveStore, seedStoreAction } from "./actions";
 
 export const metadata = { title: "Settings" };
 
@@ -19,6 +20,8 @@ export default async function SettingsPage() {
   const pol = { ...DEFAULT_POLICIES, ...(s("policies") ?? {}) };
   const security = { require_2fa: false, ...(s("security") ?? {}) } as { require_2fa: boolean };
   const owner = admin.role === "owner";
+  const backups = owner ? listBackups().slice(0, 5) : [];
+  const backupAge = owner ? lastBackupAgeHours() : null;
 
   const lock = (children: React.ReactNode) => (owner ? children : <p className="text-[14px] text-muted">Only the owner can change this.</p>);
 
@@ -53,6 +56,18 @@ export default async function SettingsPage() {
         </Card>
 
         <div className="space-y-5">
+          {owner && (
+            <Card>
+              <SectionTitle>Backups</SectionTitle>
+              <p className="text-[15px] text-body">The database is backed up automatically every night and the last 14 (plus 8 weekly) are kept on the volume. {backupAge === null ? "No backup yet." : `Newest backup: ${backupAge} hours ago.`}</p>
+              {backups.length > 0 && <ul className="mt-3 space-y-1 text-[13px] text-muted" aria-label="Recent backups">{backups.map((b) => <li key={b.file}>{b.file} · {(b.size / 1024).toFixed(0)} KB</li>)}</ul>}
+              <div className="mt-4 flex flex-wrap gap-3">
+                <a href="/admin/backup/download" className="pill-btn pill-lime" download>Download backup (zip)</a>
+                <ActionForm action={backupNow}><SubmitButton variant="glass">Back up now</SubmitButton></ActionForm>
+              </div>
+              <p className="mt-3 text-[13px] text-muted">The zip holds all customer data. Keep it private.</p>
+            </Card>
+          )}
           <Card>
             <SectionTitle>New-order alerts</SectionTitle>
             {lock(

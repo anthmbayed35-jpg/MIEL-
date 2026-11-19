@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
+import { publish } from "@/lib/events";
 import { getDb, must, type Row } from "@/lib/db";
 import type { ActionState } from "@/components/admin/ActionForm";
 
 const done = () => {
+  publish({ type: "stock.changed" });
   revalidatePath("/admin/inventory");
   revalidatePath("/admin");
 };

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
-import { saveProductImage } from "@/lib/storage";
+import { deleteUpload, saveProductImage } from "@/lib/storage";
 import type { ActionState } from "@/components/admin/ActionForm";
 
 const refresh = (id?: string) => {
@@ -64,7 +64,10 @@ export async function saveProduct(_p: ActionState, fd: FormData): Promise<Action
   try {
     if (id) {
       const before = must(await db.from("products").select("price, status, slug").eq("id", id).single()) as Row;
-      must(await db.from("products").update(row).eq("id", id));
+      const ver = Number(fd.get("version"));
+      const upd = db.from("products").update(row).eq("id", id);
+      if (ver > 0) upd.ifVersion(ver); // two admins editing the same product: the second save is refused, not silently merged
+      must(await upd);
       await audit(admin, "product_update", "product", id, { name, price: { from: Number(before.price), to: price }, status: { from: before.status, to: row.status } });
       refresh(id);
       return { ok: "Saved. The storefront will update within a moment." };
@@ -99,8 +102,13 @@ export async function uploadImage(_p: ActionState, fd: FormData): Promise<Action
   try {
     const file = fd.get("file") as File | null;
     const src = await saveProductImage(file as File);
-    const mine = (must(await db.from("product_images").select("*").eq("product_id", id)) as Row[]);
-    must(await db.from("product_images").insert({ product_id: id, kind: "extra", src, alt: String(fd.get("alt") ?? "").trim(), label: "EXTRA", sort: mine.length }));
+    try {
+      const mine = (must(await db.from("product_images").select("*").eq("product_id", id)) as Row[]);
+      must(await db.from("product_images").insert({ product_id: id, kind: "extra", src, alt: String(fd.get("alt") ?? "").trim(), label: "EXTRA", sort: mine.length }));
+    } catch (e) {
+      deleteUpload(src); // don't leave orphan files on the volume
+      throw e;
+    }
     await audit(admin, "image_upload", "product", id);
     refresh(id);
     return { ok: "Image uploaded. Add alt text below, then reorder if you like." };
@@ -144,6 +152,7 @@ export async function deleteImage(_p: ActionState, fd: FormData): Promise<Action
   const imgId = String(fd.get("image_id"));
   const img = must(await db.from("product_images").select("*").eq("id", imgId).single()) as Row;
   must(await db.from("product_images").delete().eq("id", imgId));
+  deleteUpload(String(img.src)); // no-op for the built-in photos in /public
   await audit(admin, "image_delete", "product", img.product_id, { src: img.src });
   refresh(img.product_id);
   return { ok: "Image removed from this product." };

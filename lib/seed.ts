@@ -1,10 +1,16 @@
-import "server-only";
 import { products as configProducts } from "@/config/products";
 import {
   DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_NOTIFICATIONS, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
 } from "@/config/content";
 import { SACHETS_PER_POUCH } from "@/config/site";
-import { getDb, must } from "./db";
+import { getEngine } from "./db/core";
+
+// No "server-only" here on purpose: instrumentation.ts runs this at first boot (it only reads the config files).
+const getDb = () => getEngine() as unknown as { from(t: string): any };
+const must = (r: { data: any; error: { message: string } | null }): any => {
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+};
 
 /**
  * Seed the store from the config files. Idempotent: existing products (by slug) are left alone.

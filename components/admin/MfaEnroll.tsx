@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { finishEnroll, startEnroll, type EnrollStart } from "@/app/admin/(flow)/mfa/actions";
+import { finishEnroll, startEnroll, type EnrollResult, type EnrollStart } from "@/app/admin/(flow)/mfa/actions";
 
 /** Authenticator-app (TOTP) setup: shows the QR code, then asks for the first 6-digit code. */
 export function MfaEnroll() {
   const router = useRouter();
   const [start, setStart] = useState<EnrollStart | null>(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
+  const [msg, setMsg] = useState<EnrollResult | null>(null);
 
   async function begin() {
     setBusy(true);
@@ -25,9 +25,19 @@ export function MfaEnroll() {
     const r = await finishEnroll(start.factorId, code);
     setMsg(r);
     setBusy(false);
-    if (r?.ok) setTimeout(() => router.replace("/admin"), 800);
   }
 
+  if (msg?.codes)
+    return (
+      <div className="space-y-4">
+        <p role="status" className="text-[15px] text-acid">{msg.ok}</p>
+        <ul className="grid grid-cols-2 gap-2 rounded-2xl border border-white/15 bg-white/5 p-4 font-mono text-[15px] text-fg" aria-label="Recovery codes">
+          {msg.codes.map((c) => <li key={c}>{c}</li>)}
+        </ul>
+        <p className="text-[14px] text-body">Each code works once if you lose your phone. Store them somewhere safe (a password manager, or printed).</p>
+        <button type="button" onClick={() => { router.replace("/admin"); router.refresh(); }} className="pill-btn pill-lime">I saved them, continue</button>
+      </div>
+    );
   if (!start || !start.ok)
     return (
       <div>

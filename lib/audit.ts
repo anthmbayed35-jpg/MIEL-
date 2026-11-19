@@ -12,7 +12,7 @@ export async function audit(
 ) {
   try {
     await getDb().from("audit_log").insert({
-      actor_id: admin && /^[0-9a-f-]{36}$/.test(admin.id) ? admin.id : null,
+      actor_id: admin?.id ?? null,
       actor_email: admin?.email ?? "system",
       action,
       entity,

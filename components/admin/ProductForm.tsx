@@ -13,6 +13,7 @@ export function ProductForm({ product, others }: { product?: Row; others: Row[] 
   return (
     <ActionForm action={saveProduct} className="space-y-5">
       {p.id && <input type="hidden" name="id" value={p.id} />}
+      {p.id && p.version != null && <input type="hidden" name="version" value={p.version} />}
 
       <Card>
         <SectionTitle>Basics</SectionTitle>

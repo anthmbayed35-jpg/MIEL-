@@ -1,9 +1,14 @@
 import "server-only";
-import { getDb, must, type Row } from "./db";
+import crypto from "node:crypto";
+import { adjustStock } from "./db/core";
+import { getEngine, type Row } from "./db";
+import { publish } from "./events";
 import { normalizeLebanesePhone } from "./phone";
 import type { OrderStatus } from "./status";
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
+/** Money is computed in integer cents and only converted to dollars for display and the API of this module. */
+const cents = (dollars: number) => Math.round(Number(dollars) * 100);
+const dollars = (c: number) => c / 100;
 
 export type LineInput = { productId: string; qty: number };
 export type QuoteLine = { productId: string; name: string; unitPrice: number; qty: number; slug: string };
@@ -21,62 +26,73 @@ export type Quote = {
   freeDelivery: boolean;
 };
 
-/** Price an order on the SERVER from database prices. Never trust prices sent by the browser. */
-export async function quoteOrder(input: { items: LineInput[]; region?: string; code?: string }): Promise<Quote> {
-  const db = getDb();
+const q1 = (table: string) => getEngine().from(table);
+const one = (r: { data: any; error: { message: string } | null }) => {
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+};
+
+/** Price an order from database prices (never from the browser). Synchronous, so it can run inside the order transaction. */
+export function quoteSync(input: { items: LineInput[]; region?: string; code?: string }): Quote {
   const empty = (error: string): Quote => ({ ok: false, error, lines: [], subtotal: 0, discount: 0, shipping: 0, total: 0, freeDelivery: false });
   const items = (input.items ?? []).filter((i) => i && Number.isInteger(i.qty) && i.qty > 0 && i.qty <= 99);
   if (!items.length) return empty("Your cart is empty.");
 
-  const prods = must(await db.from("products").select("*").in("id", items.map((i) => i.productId)).eq("status", "active")) as Row[];
+  const prods = one(q1("products").select("*").in("id", items.map((i) => i.productId)).eq("status", "active").execute()) as Row[];
   const lines: QuoteLine[] = [];
   for (const it of items) {
     const p = prods.find((x) => x.id === it.productId);
     if (!p) return empty("A product in your cart is no longer available.");
     lines.push({ productId: p.id, name: p.name, unitPrice: Number(p.price), qty: it.qty, slug: p.slug });
   }
-  const subtotal = r2(lines.reduce((n, l) => n + l.unitPrice * l.qty, 0));
+  const subtotalC = lines.reduce((n, l) => n + cents(l.unitPrice) * l.qty, 0);
 
   let zone: Row | undefined;
-  if (input.region) zone = (must(await db.from("shipping_zones").select("*").eq("name", input.region).eq("active", true)) as Row[])[0];
-  let shipping = zone ? Number(zone.fee) : 0;
+  if (input.region) zone = (one(q1("shipping_zones").select("*").eq("name", input.region).eq("active", true).execute()) as Row[])[0];
+  let shippingC = zone ? cents(zone.fee) : 0;
 
-  let discount = 0;
+  let discountC = 0;
   let code: string | undefined;
   let codeMessage: string | undefined;
   let freeDelivery = false;
   if (input.code?.trim()) {
     const c = input.code.trim().toUpperCase();
-    const d = (must(await db.from("discounts").select("*").eq("code", c)) as Row[])[0];
+    const d = (one(q1("discounts").select("*").eq("code", c).execute()) as Row[])[0];
     const now = new Date().toISOString();
     if (!d || !d.active) codeMessage = "That code isn't valid.";
     else if (d.starts_at && now < d.starts_at) codeMessage = "That code isn't active yet.";
     else if (d.ends_at && now > d.ends_at) codeMessage = "That code has expired.";
     else if (d.usage_limit != null && d.used_count >= d.usage_limit) codeMessage = "That code has been fully used.";
-    else if (subtotal < Number(d.min_order)) codeMessage = `Spend at least $${Number(d.min_order)} to use this code.`;
+    else if (subtotalC < cents(d.min_order)) codeMessage = `Spend at least $${Number(d.min_order)} to use this code.`;
     else {
-      const eligible = d.product_ids?.length
-        ? lines.filter((l) => d.product_ids.includes(l.productId)).reduce((n, l) => n + l.unitPrice * l.qty, 0)
-        : subtotal;
-      if (d.product_ids?.length && eligible === 0) codeMessage = "That code doesn't apply to these products.";
+      const eligibleC = d.product_ids?.length
+        ? lines.filter((l) => d.product_ids.includes(l.productId)).reduce((n, l) => n + cents(l.unitPrice) * l.qty, 0)
+        : subtotalC;
+      if (d.product_ids?.length && eligibleC === 0) codeMessage = "That code doesn't apply to these products.";
       else {
-        if (d.type === "percent") discount = r2((eligible * Number(d.value)) / 100);
-        else if (d.type === "fixed") discount = r2(Math.min(Number(d.value), eligible));
+        if (d.type === "percent") discountC = Math.round((eligibleC * Number(d.value)) / 100);
+        else if (d.type === "fixed") discountC = Math.min(cents(d.value), eligibleC);
         else if (d.type === "free_delivery") freeDelivery = true;
         code = c;
         codeMessage = "Code applied.";
       }
     }
   }
-  if (zone && zone.free_over != null && subtotal - discount >= Number(zone.free_over)) freeDelivery = true;
-  if (freeDelivery) shipping = 0;
-  return { ok: true, lines, subtotal, discount, shipping, total: r2(Math.max(0, subtotal - discount) + shipping), zone, code, codeMessage, freeDelivery };
+  if (zone && zone.free_over != null && subtotalC - discountC >= cents(zone.free_over)) freeDelivery = true;
+  if (freeDelivery) shippingC = 0;
+  return {
+    ok: true, lines, subtotal: dollars(subtotalC), discount: dollars(discountC), shipping: dollars(shippingC),
+    total: dollars(Math.max(0, subtotalC - discountC) + shippingC), zone, code, codeMessage, freeDelivery,
+  };
 }
 
-/** Inventory items (and quantities) consumed by an order line. Bundles consume their components. */
-async function stockNeeds(lines: { productId: string; qty: number }[]) {
-  const db = getDb();
-  const prods = must(await db.from("products").select("id, kind, bundle_items, name").in("id", lines.map((l) => l.productId))) as Row[];
+export async function quoteOrder(input: { items: LineInput[]; region?: string; code?: string }): Promise<Quote> {
+  return quoteSync(input);
+}
+
+/** Inventory items (and quantities) consumed by order lines. Bundles consume their components. */
+function stockNeeds(lines: { productId: string; qty: number }[]) {
+  const prods = one(q1("products").select("id, kind, bundle_items, name").in("id", lines.map((l) => l.productId)).execute()) as Row[];
   const need = new Map<string, number>(); // product_id -> qty
   for (const l of lines) {
     const p = prods.find((x) => x.id === l.productId);
@@ -84,39 +100,48 @@ async function stockNeeds(lines: { productId: string; qty: number }[]) {
       for (const b of p.bundle_items as { product_id: string; qty: number }[]) need.set(b.product_id, (need.get(b.product_id) ?? 0) + b.qty * l.qty);
     else need.set(l.productId, (need.get(l.productId) ?? 0) + l.qty);
   }
-  const items = must(await db.from("inventory_items").select("*").in("product_id", [...need.keys()])) as Row[];
+  const items = one(q1("inventory_items").select("*").in("product_id", [...need.keys()]).execute()) as Row[];
   return [...need.entries()].map(([productId, qty]) => ({ productId, qty, item: items.find((i) => i.product_id === productId) }));
 }
 
-export async function deductStock(orderId: string, orderNumber: number, lines: { productId: string; qty: number }[], actor: string, demo = false) {
-  const db = getDb();
-  const done: { id: string; qty: number }[] = [];
-  for (const n of await stockNeeds(lines)) {
+/** Take stock for an order. Runs inside the caller's transaction: any shortage throws and everything rolls back. */
+function deductStockSync(orderId: string, orderNumber: number, lines: { productId: string; qty: number }[], actor: string, demo: boolean) {
+  const sqlite = getEngine().sqlite;
+  for (const n of stockNeeds(lines)) {
     if (!n.item) continue; // product without inventory tracking
-    const res = await db.rpc("adjust_stock", { p_item: n.item.id, p_delta: -n.qty, p_reason: "sale", p_note: `Order #${orderNumber}`, p_order: orderId, p_actor: actor, p_demo: demo });
-    if (res.error) {
-      for (const d of done) await db.rpc("adjust_stock", { p_item: d.id, p_delta: d.qty, p_reason: "rollback", p_note: `Order #${orderNumber} failed`, p_order: orderId, p_actor: actor, p_demo: demo });
-      const name = (must(await db.from("products").select("name").eq("id", n.productId).single()) as Row).name;
+    try {
+      adjustStock(sqlite, { p_item: n.item.id, p_delta: -n.qty, p_reason: "sale", p_note: `Order #${orderNumber}`, p_order: orderId, p_actor: actor, p_demo: demo });
+    } catch {
+      const name = (one(q1("products").select("name").eq("id", n.productId).single().execute()) as Row).name;
       throw new Error(`${name} is out of stock.`);
     }
-    done.push({ id: n.item.id, qty: n.qty });
   }
 }
 
-export async function restoreStock(orderId: string, orderNumber: number, reason: "cancel_restore" | "return", actor: string) {
-  const db = getDb();
-  const order = must(await db.from("orders").select("stock_deducted, is_demo").eq("id", orderId).single()) as Row;
-  if (!order.stock_deducted) return;
-  const items = must(await db.from("order_items").select("*").eq("order_id", orderId)) as Row[];
-  for (const n of await stockNeeds(items.map((i) => ({ productId: i.product_id, qty: i.qty })))) {
+/** Give stock back exactly once: the `stock_deducted` flag is cleared with a guarded UPDATE in the same transaction. */
+function restoreStockSync(orderId: string, orderNumber: number, reason: "cancel_restore" | "return", actor: string) {
+  const sqlite = getEngine().sqlite;
+  const flag = sqlite.prepare("UPDATE orders SET stock_deducted = 0 WHERE id = ? AND stock_deducted = 1 RETURNING is_demo").get(orderId) as { is_demo: number } | undefined;
+  if (!flag) return; // nothing was deducted, or it was already restored
+  const items = one(q1("order_items").select("*").eq("order_id", orderId).execute()) as Row[];
+  for (const n of stockNeeds(items.map((i) => ({ productId: i.product_id, qty: i.qty })))) {
     if (!n.item) continue;
-    await db.rpc("adjust_stock", { p_item: n.item.id, p_delta: n.qty, p_reason: reason, p_note: `Order #${orderNumber}`, p_order: orderId, p_actor: actor, p_demo: !!order.is_demo });
+    adjustStock(sqlite, { p_item: n.item.id, p_delta: n.qty, p_reason: reason, p_note: `Order #${orderNumber}`, p_order: orderId, p_actor: actor, p_demo: !!flag.is_demo });
   }
-  must(await db.from("orders").update({ stock_deducted: false }).eq("id", orderId));
 }
 
+export async function deductStock(orderId: string, orderNumber: number, lines: { productId: string; qty: number }[], actor: string, demo = false) {
+  getEngine().tx(() => deductStockSync(orderId, orderNumber, lines, actor, demo));
+}
+export async function restoreStock(orderId: string, orderNumber: number, reason: "cancel_restore" | "return", actor: string) {
+  getEngine().tx(() => restoreStockSync(orderId, orderNumber, reason, actor));
+}
+
+function addEventSync(orderId: string, type: string, message: string, actor: string, from?: string, to?: string, at?: string) {
+  one(q1("order_events").insert({ order_id: orderId, type, message, from_status: from ?? null, to_status: to ?? null, actor, ...(at ? { created_at: at } : {}) }).execute());
+}
 export async function addEvent(orderId: string, type: string, message: string, actor: string, from?: string, to?: string, at?: string) {
-  must(await getDb().from("order_events").insert({ order_id: orderId, type, message, from_status: from ?? null, to_status: to ?? null, actor, ...(at ? { created_at: at } : {}) }));
+  addEventSync(orderId, type, message, actor, from, to, at);
 }
 
 export type CreateOrderInput = {
@@ -130,84 +155,123 @@ export type CreateOrderInput = {
   actor: string;
   demo?: boolean;
   createdAt?: string;
+  /** Same key twice = same order (a double click or a retry after a bad connection never places two orders). */
+  idempotencyKey?: string;
 };
 
-/** Create customer + order + items (+ stock deduction) from validated input. Throws Error(message) on user-facing problems. */
-export async function createOrder(input: CreateOrderInput) {
-  const db = getDb();
+export type PlacedOrder = { order: Row; customer: Row; quote: Quote; replayed?: boolean };
+
+/**
+ * Place an order. Everything below runs in ONE `BEGIN IMMEDIATE` transaction (the write lock is taken first, so two
+ * customers can never both take the last pouch): validate and price, upsert the customer, create the order and items,
+ * write stock movements, apply the discount and count its use, add the timeline event, store the idempotency key.
+ * Any failure rolls the whole thing back. Throws Error(message) for user-facing problems.
+ */
+export function placeOrder(input: CreateOrderInput): PlacedOrder {
   const phone = normalizeLebanesePhone(input.customer.phone);
   if (!phone) throw new Error("Enter a valid Lebanese phone number, e.g. 03 123 456 or +961 70 123 456.");
   if (input.customer.name.trim().length < 2) throw new Error("Enter your name.");
   if (input.customer.address.trim().length < 5) throw new Error("Enter your delivery address.");
-  const q = await quoteOrder({ items: input.items, region: input.region, code: input.code });
-  if (!q.ok) throw new Error(q.error ?? "Could not price the order.");
+  const key = input.idempotencyKey?.slice(0, 80);
 
-  let customer = (must(await db.from("customers").select("*").eq("phone", phone)) as Row[])[0];
-  if (customer?.blocked) throw new Error("We can't take this order online. Please contact us on WhatsApp.");
-  if (!customer) {
-    customer = must(await db.from("customers").insert({ name: input.customer.name.trim(), phone, email: input.customer.email ?? null, tags: [], notes: "", blocked: false, is_demo: !!input.demo, ...(input.createdAt ? { created_at: input.createdAt } : {}) }).select().single());
-  }
-
-  const number = must(await db.rpc("next_order_number")) as number;
-  const status: OrderStatus = input.draft ? "draft" : "new";
-  const stamp = input.createdAt ?? new Date().toISOString();
-  const order = must(
-    await db.from("orders").insert({
-      order_number: number, customer_id: customer.id, status, payment_method: "cod", payment_status: "pending",
-      subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: q.total, cod_collected: false,
-      discount_code: q.code ?? null, region: input.region, address: input.customer.address.trim(), customer_notes: input.customer.notes?.trim() ?? "",
-      delivery_partner_id: null, tracking_number: "", source: input.source,
-      utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
-      stock_deducted: false, is_demo: !!input.demo, created_at: stamp, updated_at: stamp,
-    }).select().single(),
-  ) as Row;
-  must(await db.from("order_items").insert(q.lines.map((l) => ({ order_id: order.id, product_id: l.productId, name: l.name, unit_price: l.unitPrice, qty: l.qty }))));
-
-  if (!input.draft) {
-    try {
-      await deductStock(order.id, number, q.lines, input.actor, input.demo);
-      must(await db.from("orders").update({ stock_deducted: true }).eq("id", order.id));
-    } catch (e) {
-      await db.from("order_items").delete().eq("order_id", order.id);
-      await db.from("orders").delete().eq("id", order.id);
-      throw e;
+  const e = getEngine();
+  const out = e.tx((): PlacedOrder => {
+    if (key) {
+      const seen = e.sqlite.prepare("SELECT order_id FROM idempotency_keys WHERE key = ?").get(key) as { order_id: string } | undefined;
+      if (seen) {
+        const order = one(q1("orders").select("*").eq("id", seen.order_id).single().execute()) as Row;
+        const customer = one(q1("customers").select("*").eq("id", order.customer_id).single().execute()) as Row;
+        const items = one(q1("order_items").select("*").eq("order_id", order.id).execute()) as Row[];
+        const quote: Quote = {
+          ok: true, lines: items.map((i) => ({ productId: i.product_id, name: i.name, unitPrice: Number(i.unit_price), qty: i.qty, slug: "" })),
+          subtotal: order.subtotal, discount: order.discount_total, shipping: order.shipping_fee, total: order.total, code: order.discount_code ?? undefined, freeDelivery: false,
+        };
+        return { order, customer, quote, replayed: true };
+      }
     }
-    if (q.code) {
-      const d = (must(await db.from("discounts").select("id, used_count").eq("code", q.code)) as Row[])[0];
-      if (d) must(await db.from("discounts").update({ used_count: d.used_count + 1 }).eq("id", d.id));
+    const q = quoteSync({ items: input.items, region: input.region, code: input.code });
+    if (!q.ok) throw new Error(q.error ?? "Could not price the order.");
+
+    let customer = (one(q1("customers").select("*").eq("phone", phone).execute()) as Row[])[0];
+    if (customer?.blocked) throw new Error("We can't take this order online. Please contact us on WhatsApp.");
+    if (!customer) {
+      customer = one(
+        q1("customers").insert({ name: input.customer.name.trim(), phone, email: input.customer.email ?? null, tags: [], notes: "", blocked: false, is_demo: !!input.demo, ...(input.createdAt ? { created_at: input.createdAt } : {}) }).select().single().execute(),
+      );
     }
-  }
-  await addEvent(order.id, "created", input.draft ? "Draft created" : `Order placed (${input.source}), cash on delivery`, input.actor, undefined, status, input.createdAt);
-  return { order: { ...order, stock_deducted: !input.draft } as Row, customer: customer as Row, quote: q };
+
+    const number = (e.sqlite.prepare("UPDATE counters SET value = value + 1 WHERE name = 'order_number' RETURNING value").get() as { value: number }).value;
+    const status: OrderStatus = input.draft ? "draft" : "new";
+    const stamp = input.createdAt ?? new Date().toISOString();
+    const order = one(
+      q1("orders").insert({
+        order_number: number, customer_id: customer.id, status, payment_method: "cod", payment_status: "pending",
+        subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: q.total, cod_collected: false,
+        discount_code: q.code ?? null, region: input.region, address: input.customer.address.trim(), customer_notes: input.customer.notes?.trim() ?? "",
+        delivery_partner_id: null, tracking_number: "", source: input.source,
+        utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
+        stock_deducted: false, is_demo: !!input.demo, created_at: stamp, updated_at: stamp,
+      }).select().single().execute(),
+    ) as Row;
+    one(q1("order_items").insert(q.lines.map((l) => ({ order_id: order.id, product_id: l.productId, name: l.name, unit_price: l.unitPrice, qty: l.qty }))).execute());
+
+    if (!input.draft) {
+      deductStockSync(order.id, number, q.lines, input.actor, !!input.demo);
+      one(q1("orders").update({ stock_deducted: true }).eq("id", order.id).execute());
+      if (q.code) {
+        // guarded: if two customers race for the last use of a code, only one wins
+        const used = e.sqlite.prepare("UPDATE discounts SET used_count = used_count + 1, version = version + 1 WHERE code = ? AND (usage_limit IS NULL OR used_count < usage_limit) RETURNING id").get(q.code);
+        if (!used) throw new Error("That code has been fully used.");
+      }
+    }
+    addEventSync(order.id, "created", input.draft ? "Draft created" : `Order placed (${input.source}), cash on delivery`, input.actor, undefined, status, input.createdAt);
+    if (key) e.sqlite.prepare("INSERT INTO idempotency_keys (key, order_id) VALUES (?, ?)").run(key, order.id);
+    return { order: { ...order, stock_deducted: !input.draft }, customer, quote: q };
+  });
+  if (!out.replayed && !input.draft) publish({ type: "order.created", orderId: out.order.id, number: out.order.order_number, total: out.order.total });
+  return out;
 }
 
-/** Change status with all side effects (stock restore on cancel/return, delivered timestamp, draft confirmation). */
-export async function setOrderStatus(orderId: string, to: OrderStatus, actor: string, opts: { reason?: string; message?: string } = {}) {
-  const db = getDb();
-  const o = must(await db.from("orders").select("*").eq("id", orderId).single()) as Row;
-  const from = o.status as OrderStatus;
-  if (from === to) return o;
-  if (["cancelled", "returned"].includes(from)) throw new Error(`A ${from} order can't change status.`);
-  if (to === "cancelled" && !opts.reason?.trim()) throw new Error("Add a reason for cancelling.");
-
-  const patch: Row = { status: to, updated_at: new Date().toISOString() };
-  if (to === "delivered") patch.delivered_at = new Date().toISOString();
-
-  if (from === "draft" && to !== "cancelled") {
-    const items = must(await db.from("order_items").select("*").eq("order_id", orderId)) as Row[];
-    await deductStock(orderId, o.order_number, items.map((i) => ({ productId: i.product_id, qty: i.qty })), actor, !!o.is_demo);
-    patch.stock_deducted = true;
-  }
-  if (to === "cancelled") {
-    patch.cancel_reason = opts.reason!.trim();
-    await restoreStock(orderId, o.order_number, "cancel_restore", actor);
-    patch.cod_collected = false;
-  }
-  if (to === "returned") {
-    await restoreStock(orderId, o.order_number, "return", actor);
-    if (o.cod_collected) patch.payment_status = "refunded";
-  }
-  must(await db.from("orders").update(patch).eq("id", orderId));
-  await addEvent(orderId, "status", opts.message ?? (to === "cancelled" ? `Cancelled: ${opts.reason}` : to === "returned" ? "Marked as returned (stock restored)" : `Status: ${from} → ${to}`), actor, from, to);
-  return { ...o, ...patch };
+/** Create customer + order + items (+ stock deduction) from validated input. Throws Error(message) on user-facing problems. */
+export async function createOrder(input: CreateOrderInput): Promise<PlacedOrder> {
+  return placeOrder(input);
 }
+
+/** Change status with all side effects (stock restore on cancel/return, delivered timestamp, draft confirmation), atomically. */
+export async function setOrderStatus(orderId: string, to: OrderStatus, actor: string, opts: { reason?: string; message?: string; expectedVersion?: number } = {}) {
+  const e = getEngine();
+  const result = e.tx(() => {
+    const o = one(q1("orders").select("*").eq("id", orderId).single().execute()) as Row;
+    const from = o.status as OrderStatus;
+    if (from === to) return o;
+    if (["cancelled", "returned"].includes(from)) throw new Error(`A ${from} order can't change status.`);
+    if (to === "cancelled" && !opts.reason?.trim()) throw new Error("Add a reason for cancelling.");
+
+    const patch: Row = { status: to, updated_at: new Date().toISOString() };
+    if (to === "delivered") patch.delivered_at = new Date().toISOString();
+
+    if (from === "draft" && to !== "cancelled") {
+      const items = one(q1("order_items").select("*").eq("order_id", orderId).execute()) as Row[];
+      deductStockSync(orderId, o.order_number, items.map((i) => ({ productId: i.product_id, qty: i.qty })), actor, !!o.is_demo);
+      patch.stock_deducted = true;
+    }
+    if (to === "cancelled") {
+      patch.cancel_reason = opts.reason!.trim();
+      restoreStockSync(orderId, o.order_number, "cancel_restore", actor);
+      patch.cod_collected = false;
+    }
+    if (to === "returned") {
+      restoreStockSync(orderId, o.order_number, "return", actor);
+      if (o.cod_collected) patch.payment_status = "refunded";
+    }
+    const upd = q1("orders").update(patch).eq("id", orderId);
+    if (opts.expectedVersion !== undefined) upd.ifVersion(opts.expectedVersion);
+    one(upd.execute());
+    addEventSync(orderId, "status", opts.message ?? (to === "cancelled" ? `Cancelled: ${opts.reason}` : to === "returned" ? "Marked as returned (stock restored)" : `Status: ${from} → ${to}`), actor, from, to);
+    return { ...o, ...patch, changed: true };
+  });
+  if (result.changed) publish({ type: "order.status", orderId, number: result.order_number, status: to });
+  return result;
+}
+
+export const newIdempotencyKey = () => crypto.randomUUID();

@@ -20,6 +20,7 @@ export function CartDrawer() {
   const [waLink, setWaLink] = useState("");
   const [orderId, setOrderId] = useState("");
   const [busy, setBusy] = useState(false);
+  const idemKey = useRef(""); // one key per checkout attempt: a double click or a retry never places two orders
   const [error, setError] = useState("");
   const [region, setRegion] = useState("");
   const [code, setCode] = useState("");
@@ -97,7 +98,9 @@ export function CartDrawer() {
     const fd = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
+    idemKey.current ||= crypto.randomUUID();
     const res = await placeOrder({
+      idempotencyKey: idemKey.current,
       items: cartInput,
       customer: {
         name: String(fd.get("name") ?? "").trim(),

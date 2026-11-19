@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Note = { id: string; number: number; total: number; customer: string; region: string; created_at: string };
@@ -27,10 +28,13 @@ function beep() {
 }
 
 /**
- * New-order alerts. Polls a session-protected endpoint every 5 seconds (no browser-side database client, so the
- * session cookie can stay httpOnly). New orders show a toast, a badge and a soft sound that can be muted.
+ * New-order alerts over Server-Sent Events (session cookie stays httpOnly), with 30-second polling as the fallback. New orders show a toast, a badge and a soft sound that can be muted.
  */
 export function NotificationBell() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
   const [notes, setNotes] = useState<Note[]>([]);
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -65,9 +69,28 @@ export function NotificationBell() {
     setMuted(m);
     mutedRef.current = m;
     load();
-    const iv = setInterval(load, 5000);
-    return () => clearInterval(iv);
-  }, [load]);
+    // Live stream (Server-Sent Events). While it is connected there is no polling; if it drops, poll every 30 s until it
+    // is back, and refetch once on every (re)connect so nothing that happened in between is missed.
+    let es: EventSource | null = null;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    const startPoll = () => { poll ??= setInterval(load, 30_000); };
+    const stopPoll = () => { if (poll) { clearInterval(poll); poll = null; } };
+    if (typeof EventSource === "undefined") startPoll();
+    else {
+      es = new EventSource("/admin/api/events");
+      es.addEventListener("hello", () => { stopPoll(); load(); });
+      let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+      for (const t of ["order.created", "order.status", "stock.changed", "kpi.refresh"])
+        es.addEventListener(t, () => {
+          load();
+          // live dashboard / order list / stock page: re-render their server data (never on edit pages, so nobody loses typing)
+          if (/^\/admin(\/orders|\/inventory)?$/.test(pathRef.current) && !refreshTimer) refreshTimer = setTimeout(() => { refreshTimer = null; router.refresh(); }, 800);
+        });
+      es.addEventListener("auth", () => { es?.close(); window.location.assign("/admin/login?expired=1"); });
+      es.onerror = () => startPoll(); // the browser retries the stream by itself
+    }
+    return () => { es?.close(); stopPoll(); };
+  }, [load, router]);
 
   useEffect(() => {
     if (!open) return;

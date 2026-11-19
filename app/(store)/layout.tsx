@@ -4,8 +4,9 @@ import { CartProvider } from "@/components/CartProvider";
 import { CartDrawer } from "@/components/CartDrawer";
 import { Tracker } from "@/components/Tracker";
 
-// Storefront pages are statically generated and refreshed every 5 minutes; admin edits revalidate them immediately.
-export const revalidate = 300;
+// The storefront reads the database on every request (SQLite on the volume answers in well under a millisecond), so a
+// price or stock change made in the admin is live immediately and a fresh deploy never shows stale pre-rendered data.
+export const dynamic = "force-dynamic";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const cat = await getCatalog();

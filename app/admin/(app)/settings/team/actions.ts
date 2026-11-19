@@ -2,22 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
-import { authConfirmUrl } from "@/lib/site-url";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
-import { adminAuthClient, authClient } from "@/lib/supabase-server";
+import { createInvite, createReset, InviteError, revokeInvite as revoke } from "@/lib/invites";
+import { MailNotConfigured } from "@/lib/mail";
+import { clientIp, isThrottled, recordAuthEvent } from "@/lib/security";
+import { destroyUserSessions } from "@/lib/session";
 import type { ActionState } from "@/components/admin/ActionForm";
 
 const ROLES = ["owner", "manager", "staff"];
-const redirectTo = () => authConfirmUrl();
 
 async function activeOwners(excludeId?: string) {
   return (must(await getDb().from("admin_users").select("*").eq("role", "owner").eq("active", true)) as Row[]).filter((u) => u.id !== excludeId).length;
 }
 
 /**
- * Invite someone: Supabase emails them a link, they choose their own password. No password is ever created or shown here.
- * The person only gets in once they accept (the link) AND are listed here as active.
+ * Invite someone: they get an email with a single-use link and choose their own password. No password is ever created or
+ * shown here. They only get in once they accept AND are listed as active.
  */
 export async function inviteMember(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("team.manage");
@@ -26,29 +27,27 @@ export async function inviteMember(_p: ActionState, fd: FormData): Promise<Actio
   const role = String(fd.get("role"));
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 200) return { error: "Enter a valid email." };
   if (!ROLES.includes(role)) return { error: "Pick a role." };
-  const db = getDb();
-  const existing = (must(await db.from("admin_users").select("*").eq("email", email)) as Row[])[0];
-  if (existing?.active) return { error: "That person is already on the team." };
-
-  if (existing && !existing.active) {
-    // Previously deactivated: reactivate with the chosen role and send a fresh reset link instead of a new invite.
-    must(await db.from("admin_users").update({ active: true, role, name: name || existing.name }).eq("id", existing.id));
-    await (await authClient()).auth.resetPasswordForEmail(email, { redirectTo: redirectTo() });
-    await audit(admin, "invite_sent", "admin_user", existing.id, { email, role, reactivated: true });
-    revalidatePath("/admin/settings/team");
-    return { ok: `${email} was reactivated and sent a link to set a new password.` };
-  }
-
-  const { data, error } = await adminAuthClient().auth.admin.inviteUserByEmail(email, { data: { name }, redirectTo: redirectTo() });
-  if (error || !data?.user) return { error: /already|registered/i.test(error?.message ?? "") ? "That email already has an account. Ask them to use 'Forgot password', or contact support." : "Couldn't send the invite. Check the email address and your Supabase email settings." };
+  const ip = await clientIp();
+  if (await isThrottled("invite_sent", ip, admin.email)) return { error: "Too many invites. Try again in an hour." };
   try {
-    must(await db.from("admin_users").insert({ id: data.user.id, email, name, role, active: true }));
+    await createInvite({ email, name, role: role as "owner" | "manager" | "staff", invitedBy: admin.id });
   } catch (e) {
-    return { error: `Invite sent, but saving the team record failed: ${(e as Error).message}` };
+    if (e instanceof InviteError) return { error: e.message };
+    if (e instanceof MailNotConfigured) return { error: e.message };
+    return { error: `The invite email could not be sent (${(e as Error).message}). Nothing was lost: fix the email settings and send it again.` };
   }
-  await audit(admin, "invite_sent", "admin_user", data.user.id, { email, role });
+  await recordAuthEvent("invite_sent", { ip, email: admin.email, actorId: admin.id, actorEmail: admin.email });
+  await audit(admin, "invite_sent", "admin_user", email, { email, role });
   revalidatePath("/admin/settings/team");
-  return { ok: `Invite sent to ${email}. They choose their own password from the link (valid for 24 hours).` };
+  return { ok: `Invite sent to ${email}. They choose their own password from the link (valid for 48 hours, works once).` };
+}
+
+export async function cancelInvite(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("team.manage");
+  const id = String(fd.get("id"));
+  if (revoke(id)) await audit(admin, "invite_revoked", "admin_user", id);
+  revalidatePath("/admin/settings/team");
+  return { ok: "Invite cancelled." };
 }
 
 export async function setRole(_p: ActionState, fd: FormData): Promise<ActionState> {
@@ -66,7 +65,7 @@ export async function setRole(_p: ActionState, fd: FormData): Promise<ActionStat
   return { ok: "Role updated. It applies on their next request." };
 }
 
-/** Deactivation takes effect immediately: every request re-checks that the person is an active team member. */
+/** Deactivation takes effect immediately: their sessions are deleted and every request re-checks that they are active. */
 export async function setActive(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("team.manage");
   const id = String(fd.get("id"));
@@ -74,6 +73,7 @@ export async function setActive(_p: ActionState, fd: FormData): Promise<ActionSt
   if (!active && id === admin.id) return { error: "You can't deactivate yourself." };
   if (!active && (await activeOwners(id)) === 0) return { error: "There must be at least one active owner." };
   must(await getDb().from("admin_users").update({ active }).eq("id", id));
+  if (!active) destroyUserSessions(id);
   await audit(admin, active ? "team_activate" : "team_deactivate", "admin_user", id);
   revalidatePath("/admin/settings/team");
   return { ok: active ? "Reactivated." : "Deactivated. They are locked out immediately." };
@@ -84,7 +84,24 @@ export async function sendReset(_p: ActionState, fd: FormData): Promise<ActionSt
   const id = String(fd.get("id"));
   const row = (must(await getDb().from("admin_users").select("*").eq("id", id).maybeSingle()) as Row | null);
   if (!row?.active) return { error: "That person isn't an active team member." };
-  await (await authClient()).auth.resetPasswordForEmail(row.email, { redirectTo: redirectTo() });
+  try {
+    await createReset(id);
+  } catch (e) {
+    return { error: e instanceof MailNotConfigured ? e.message : `The email could not be sent (${(e as Error).message}).` };
+  }
   await audit(admin, "password_reset_sent", "admin_user", id, { email: row.email });
   return { ok: `Reset link sent to ${row.email}.` };
+}
+
+/** Owner support: remove someone's two-factor setup (lost phone AND lost recovery codes). */
+export async function resetMfa(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("team.manage");
+  const id = String(fd.get("id"));
+  const row = (must(await getDb().from("admin_users").select("*").eq("id", id).maybeSingle()) as Row | null);
+  if (!row) return { error: "That person isn't on the team." };
+  must(await getDb().from("admin_users").update({ totp_enabled: false, totp_secret: null, recovery_codes: [], totp_last_step: 0 }).eq("id", id));
+  destroyUserSessions(id);
+  await audit(admin, "mfa_reset", "admin_user", id, { email: row.email });
+  revalidatePath("/admin/settings/team");
+  return { ok: "Two-factor setup removed. They sign in with their password and set it up again." };
 }

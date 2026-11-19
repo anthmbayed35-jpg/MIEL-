@@ -1,44 +1,34 @@
 import "server-only";
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { forbidden, redirect, unauthorized } from "next/navigation";
-import { getDb, hasSupabase, must, type Row } from "./db";
-import { authClient } from "./supabase-server";
+import { getDb, must, type Row } from "./db";
+import { lookupSession, SESSION_COOKIE } from "./session";
 import { can, type Admin, type Perm } from "./roles";
 
 export { can };
 export type { Admin, Perm };
 
-/** "ok" = fully signed in. "verify" = must enter the TOTP code. "enroll" = owner requires 2FA and this person has none yet. */
+/** "ok" = fully signed in. "verify" = must enter the TOTP code. "enroll" = the owner requires 2FA and this person has none yet. */
 export type MfaState = "ok" | "verify" | "enroll";
 
-type SessionUser = { id: string; email: string; currentLevel: string; nextLevel: string };
+/** The raw session token of this request (from the httpOnly cookie), or undefined. */
+export async function sessionToken(): Promise<string | undefined> {
+  return (await cookies()).get(SESSION_COOKIE)?.value;
+}
 
-/** The Supabase Auth user for this request (verified with the Auth server, not just decoded from the cookie). */
-export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  if (!hasSupabase()) return null;
-  try {
-    const supabase = await authClient();
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return null;
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    return { id: data.user.id, email: data.user.email ?? "", currentLevel: aal?.currentLevel ?? "aal1", nextLevel: aal?.nextLevel ?? "aal1" };
-  } catch {
-    return null;
-  }
-});
-
-/** Signed in AND listed as an active team member. Includes the 2FA state so the MFA pages can use it. */
-export const getAdminState = cache(async (): Promise<{ admin: Admin; mfa: MfaState } | null> => {
-  const s = await getSessionUser();
-  if (!s) return null;
-  const db = getDb();
-  const row = must(await db.from("admin_users").select("*").eq("id", s.id).maybeSingle()) as Row | null;
-  if (!row || !row.active) return null;
-  const sec = (must(await db.from("settings").select("*").eq("key", "security")) as Row[])[0]?.value as { require_2fa?: boolean } | undefined;
+/** Signed in (valid, unexpired database session) AND still an active team member. Includes the 2FA state so the MFA pages can use it. */
+export const getAdminState = cache(async (): Promise<{ admin: Admin; mfa: MfaState; totpEnabled: boolean } | null> => {
+  const token = await sessionToken();
+  const found = lookupSession(token);
+  if (!found.ok) return null;
+  const { session } = found;
+  const u = session.user;
+  const sec = (must(await getDb().from("settings").select("*").eq("key", "security")) as Row[])[0]?.value as { require_2fa?: boolean } | undefined;
   let mfa: MfaState = "ok";
-  if (s.nextLevel === "aal2" && s.currentLevel !== "aal2") mfa = "verify";
-  else if (sec?.require_2fa && s.currentLevel !== "aal2") mfa = "enroll";
-  return { admin: { id: row.id, email: row.email, name: row.name || String(row.email).split("@")[0], role: row.role }, mfa };
+  if (u.totpEnabled && !session.mfaOk) mfa = "verify";
+  else if (!u.totpEnabled && sec?.require_2fa) mfa = "enroll";
+  return { admin: { id: u.id, email: u.email, name: u.name || u.email.split("@")[0], role: u.role }, mfa, totpEnabled: u.totpEnabled };
 });
 
 /** The current admin, or null. Null also when 2FA is still pending, so APIs treat a half-signed-in session as signed out. */

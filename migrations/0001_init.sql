@@ -130,7 +130,7 @@ CREATE TABLE inventory_items (
 CREATE TABLE batches (
   id TEXT PRIMARY KEY,
   inventory_item_id TEXT NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
-  lot_number TEXT,
+  lot_number TEXT NOT NULL,
   expiry_date TEXT,
   quantity INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'incoming' CHECK (status IN ('incoming','received')),
@@ -214,6 +214,8 @@ CREATE TABLE orders (
   tracking_number TEXT NOT NULL DEFAULT '',
   source TEXT NOT NULL DEFAULT 'web' CHECK (source IN ('web','whatsapp','manual')),
   utm_source TEXT,
+  utm_medium TEXT,
+  utm_campaign TEXT,
   cancel_reason TEXT,
   stock_deducted INTEGER NOT NULL DEFAULT 0,
   is_demo INTEGER NOT NULL DEFAULT 0,
@@ -254,7 +256,7 @@ CREATE INDEX order_events_order ON order_events(order_id, created_at);
 CREATE TABLE discounts (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  type TEXT NOT NULL CHECK (type IN ('percent','fixed')),
+  type TEXT NOT NULL CHECK (type IN ('percent','fixed','free_delivery')),
   value_x100 INTEGER NOT NULL DEFAULT 0,     -- percent: 10% = 1000. fixed: cents
   min_order_cents INTEGER NOT NULL DEFAULT 0,
   product_ids TEXT,

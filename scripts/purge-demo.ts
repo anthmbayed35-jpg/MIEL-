@@ -18,7 +18,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { getEngine } from "../lib/db/core";
 import { assertEnv } from "../lib/env";
 
 type Row = Record<string, any>;
@@ -31,11 +31,8 @@ const csv = (rows: Row[]) => {
 
 async function main() {
   const confirm = process.argv.includes("--confirm");
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
   assertEnv();
-  const db = createClient(url, key, { auth: { persistSession: false } });
+  const db = getEngine();
   const get = async (table: string, filter?: (q: any) => any): Promise<Row[]> => {
     const q = db.from(table).select("*");
     const r = await (filter ? filter(q) : q);

@@ -1,4 +1,7 @@
-import { dbMode, getDb } from "@/lib/db";
+import fs from "node:fs";
+import path from "node:path";
+import { dataDir, getEngine } from "@/lib/db";
+import { lastBackupAgeHours } from "@/lib/backup";
 
 // Railway health check. Always evaluated per request (never cached) and never reveals details or secrets.
 export const dynamic = "force-dynamic";
@@ -6,20 +9,20 @@ export const dynamic = "force-dynamic";
 const HEADERS = { "Cache-Control": "no-store" };
 
 /**
- * 200 when the server is up AND the database answers a real query (or no database is configured at all, which only
- * local development allows). 503 when the database is configured but unreachable, so Railway doesn't route traffic
- * to (or keeps restarting) an instance that can't serve orders.
+ * 200 when the server is up, the database answers a real query AND the volume is writable. 503 with no details
+ * otherwise, so Railway doesn't route traffic to (or keeps restarting) an instance that can't take orders safely.
+ * Also reports how old the newest backup is (informational: a young deploy has none yet and must still go live).
  */
 export async function GET() {
-  if (dbMode() === "none") return Response.json({ status: "ok", db: "not_configured" }, { headers: HEADERS });
   try {
-    const res = await Promise.race([
-      getDb().from("settings").select("key").limit(1),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
-    ]);
-    if (res.error) throw new Error("query failed");
-    return Response.json({ status: "ok", db: "ok" }, { headers: HEADERS });
+    const db = getEngine().sqlite;
+    const row = db.prepare("SELECT COUNT(*) AS n FROM migrations").get() as { n: number };
+    if (!row || row.n < 1) throw new Error("no migrations");
+    const probe = path.join(dataDir(), `.health-${process.pid}`);
+    fs.writeFileSync(probe, String(Date.now()));
+    fs.rmSync(probe, { force: true });
+    return Response.json({ status: "ok", db: "ok", volume: "writable", backupAgeHours: lastBackupAgeHours() }, { headers: HEADERS });
   } catch {
-    return Response.json({ status: "error", db: "unreachable" }, { status: 503, headers: HEADERS });
+    return Response.json({ status: "error" }, { status: 503, headers: HEADERS });
   }
 }

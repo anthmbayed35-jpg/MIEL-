@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAdminState } from "@/lib/auth";
-import { hasSupabase } from "@/lib/db";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { login } from "./actions";
 
@@ -22,12 +21,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         {sp.expired && <p role="status" className="mb-4 rounded-2xl border border-white/20 bg-white/5 px-4 py-3 text-[15px]">You were signed out after a long break. Sign in again.</p>}
         {sp.error && <p role="alert" className="mb-4 rounded-2xl border border-[#FF5C7A]/50 bg-[#FF5C7A]/10 px-4 py-3 text-[15px]">That link is invalid or has expired. Ask for a new one.</p>}
 
-        {!hasSupabase() ? (
-          <p role="alert" className="rounded-2xl border border-[#FF5C7A]/40 bg-[#FF5C7A]/10 p-4 text-[15px]">
-            Admin isn&apos;t configured on this deployment yet. See <span className="mono">docs/OPERATIONS.md</span>.
-          </p>
-        ) : (
-          <ActionForm action={login} className="space-y-4">
+        <ActionForm action={login} className="space-y-4">
             <label className="block">
               <span className="a-label">Email</span>
               <input name="email" type="email" required autoComplete="username" className="a-input" />
@@ -39,7 +33,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <SubmitButton variant="lime" className="w-full">Sign in</SubmitButton>
             <p className="text-center text-[14px]"><Link href="/admin/forgot" className="link">Forgot your password?</Link></p>
           </ActionForm>
-        )}
       </div>
     </main>
   );

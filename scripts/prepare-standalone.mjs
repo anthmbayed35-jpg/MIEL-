@@ -11,4 +11,6 @@ if (!existsSync(join(out, "server.js"))) {
 }
 cpSync(join(root, ".next", "static"), join(out, ".next", "static"), { recursive: true });
 if (existsSync(join(root, "public"))) cpSync(join(root, "public"), join(out, "public"), { recursive: true });
-console.log("prepare-standalone: copied .next/static and public into .next/standalone");
+// SQL migrations are read from ./migrations at startup (the standalone server runs from its own folder).
+cpSync(join(root, "migrations"), join(out, "migrations"), { recursive: true });
+console.log("prepare-standalone: copied .next/static, public and migrations into .next/standalone");

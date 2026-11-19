@@ -25,6 +25,11 @@ export type QuoteView = {
 
 /** Live price preview for the cart drawer (shipping zone + discount code). */
 export async function quoteAction(items: CartInput, region: string, code: string): Promise<QuoteView> {
+  if (code.trim()) {
+    // discount-code guessing is rate limited per connection (stored in the database, survives restarts)
+    const ip = ((await headers()).get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+    if (!rateLimit(`discount:${ip}`, 30, 60_000)) return { ok: false, error: "Too many code attempts. Wait a minute.", subtotal: 0, discount: 0, shipping: 0, total: 0, freeDelivery: false };
+  }
   if (!usesDb()) return fallbackQuote(items);
   const cat = await getCatalog();
   if (!cat.live) return fallbackQuote(items);
@@ -47,6 +52,7 @@ export async function placeOrder(input: {
   code: string;
   utm?: { source?: string; medium?: string; campaign?: string };
   website?: string; // honeypot
+  idempotencyKey?: string;
 }): Promise<PlaceResult> {
   try {
     if (input.website) return { ok: false, error: "Something went wrong. Try again." }; // bots fill the hidden field
@@ -92,6 +98,7 @@ export async function placeOrder(input: {
       source: "web",
       utm: input.utm,
       actor: "customer",
+      idempotencyKey: input.idempotencyKey,
     });
     // Mark any abandoned checkout for this phone as recovered
     await db.from("abandoned_checkouts").update({ recovered: true }).eq("phone", phone);

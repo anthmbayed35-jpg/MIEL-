@@ -1,5 +1,11 @@
 import { photoMeta } from "@/config/photos.generated";
 
+/** `/uploads/<id>@480-768-1080@1080x1350` (made by lib/storage.ts for images uploaded in the admin). */
+function parseUpload(src: string) {
+  const m = src.match(/^\/uploads\/([0-9a-f-]{36})@([\d-]+)@(\d+)x(\d+)$/);
+  return m ? { id: m[1], widths: m[2].split("-").map(Number), width: Number(m[3]), height: Number(m[4]) } : null;
+}
+
 /**
  * Responsive product photo: <picture> with AVIF + WebP at the sizes made by `npm run images`
  * (480/768/1080/1600, never upscaled), explicit width/height, a tiny blurred placeholder,

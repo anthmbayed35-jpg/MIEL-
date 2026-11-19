@@ -7,12 +7,7 @@ import { Footer } from "@/components/Sections";
 
 const TITLES: Record<string, string> = { shipping: "Shipping policy", returns: "Returns & refunds", privacy: "Privacy policy", terms: "Terms of service" };
 
-export const revalidate = 300;
-export const dynamicParams = true;
-
-export function generateStaticParams() {
-  return Object.keys(TITLES).map((slug) => ({ slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

@@ -1,63 +1,59 @@
 import "server-only";
-import crypto from "node:crypto";
 import { headers } from "next/headers";
-import { getDb, must, type Row } from "./db";
+import { getDb } from "./db";
+import { hmac } from "./crypto";
+import { rateCount, rateHit } from "./rate-limit";
+
+export { PASSWORD_MIN, passwordProblem } from "./passwords";
 
 /**
- * Auth abuse protection that works across serverless instances: every attempt is written to audit_log
- * (entity "auth") and counted from the database. Emails are stored only as salted hashes in those rows.
+ * Sign-in abuse protection. Counters live in the database (table rate_limits) so they survive restarts, and every
+ * attempt is written to the audit log. IPs and emails are stored only as keyed hashes.
  */
-const WINDOW_MS = 15 * 60_000;
-
 export async function clientIp(): Promise<string> {
   const h = await headers();
   return (h.get("x-forwarded-for") ?? h.get("x-real-ip") ?? "unknown").split(",")[0].trim().slice(0, 64);
 }
 
-export const hashEmail = (email: string) =>
-  crypto.createHash("sha256").update(`${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}|${email.trim().toLowerCase()}`).digest("hex").slice(0, 24);
-
-type Kind = "login_failed" | "reset_requested" | "mfa_failed";
+type Kind = "login_failed" | "reset_requested" | "mfa_failed" | "invite_sent";
+const MIN = 60_000;
 const LIMITS: Record<Kind, { ip: number; email: number; windowMs: number }> = {
-  login_failed: { ip: 12, email: 5, windowMs: WINDOW_MS },
-  reset_requested: { ip: 6, email: 3, windowMs: 60 * 60_000 },
-  mfa_failed: { ip: 12, email: 6, windowMs: WINDOW_MS },
+  login_failed: { ip: 12, email: 5, windowMs: 15 * MIN },
+  reset_requested: { ip: 6, email: 3, windowMs: 60 * MIN },
+  mfa_failed: { ip: 12, email: 6, windowMs: 15 * MIN },
+  invite_sent: { ip: 30, email: 10, windowMs: 60 * MIN },
 };
+const keyIp = (kind: string, ip: string) => `${kind}:ip:${hmac(ip)}`;
+const keyEmail = (kind: string, email: string) => `${kind}:email:${hmac(email)}`;
 
-export async function recordAuthEvent(kind: Kind | "login" | "logout" | "logout_all" | "invite_accepted" | "password_set" | "password_changed" | "reset_link_used" | "mfa_enabled" | "mfa_disabled" | "mfa_verified", opts: { ip: string; email?: string; actorId?: string | null; actorEmail?: string; details?: Row }) {
+export type AuthEvent = Kind | "login" | "logout" | "logout_all" | "invite_accepted" | "password_set" | "password_changed" | "reset_link_used" | "mfa_enabled" | "mfa_disabled" | "mfa_verified" | "recovery_code_used" | "session_revoked";
+
+export async function recordAuthEvent(kind: AuthEvent, opts: { ip: string; email?: string; actorId?: string | null; actorEmail?: string; details?: Record<string, unknown> }) {
   try {
+    if (kind in LIMITS) {
+      const lim = LIMITS[kind as Kind];
+      rateHit(keyIp(kind, opts.ip), lim.windowMs);
+      if (opts.email) rateHit(keyEmail(kind, opts.email), lim.windowMs);
+    }
     await getDb().from("audit_log").insert({
       actor_id: opts.actorId ?? null,
-      actor_email: opts.actorEmail ?? (opts.email ? `hash:${hashEmail(opts.email)}` : "anonymous"),
+      actor_email: opts.actorEmail ?? (opts.email ? `hash:${hmac(opts.email)}` : "anonymous"),
       action: kind,
       entity: "auth",
-      entity_id: `ip:${opts.ip}`,
+      entity_id: `ip:${hmac(opts.ip).slice(0, 12)}`,
       details: opts.details ?? {},
     });
   } catch {}
 }
 
-/** True when this IP or email has too many recent failures of this kind. */
+/** True when this IP or email has too many recent attempts of this kind. */
 export async function isThrottled(kind: Kind, ip: string, email?: string): Promise<boolean> {
-  const lim = LIMITS[kind];
-  const since = new Date(Date.now() - lim.windowMs).toISOString();
   try {
-    const byIp = must(await getDb().from("audit_log").select("id", { count: "exact" }).eq("action", kind).eq("entity_id", `ip:${ip}`).gte("created_at", since)) as Row[];
-    if (byIp.length >= lim.ip) return true;
-    if (email) {
-      const byEmail = must(await getDb().from("audit_log").select("id", { count: "exact" }).eq("action", kind).eq("actor_email", `hash:${hashEmail(email)}`).gte("created_at", since)) as Row[];
-      if (byEmail.length >= lim.email) return true;
-    }
+    const lim = LIMITS[kind];
+    if (rateCount(keyIp(kind, ip)) >= lim.ip) return true;
+    if (email && rateCount(keyEmail(kind, email)) >= lim.email) return true;
   } catch {
-    return false; // never lock everyone out because the audit table was unreachable
+    return false; // never lock everyone out because the counter table was unreachable
   }
   return false;
-}
-
-export const PASSWORD_MIN = 12;
-export function passwordProblem(p: string): string | null {
-  if (p.length < PASSWORD_MIN) return `Use at least ${PASSWORD_MIN} characters.`;
-  if (p.length > 128) return "That password is too long.";
-  if (!/[a-z]/i.test(p) || !/\d/.test(p)) return "Mix letters and numbers (a passphrase of several words works well).";
-  return null;
 }

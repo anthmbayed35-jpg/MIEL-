@@ -24,13 +24,8 @@ import {
 
 type Props = { params: Promise<{ slug: string }> };
 
-// Products added in the admin render on first request (then are cached); unknown slugs 404.
-export const dynamicParams = true;
-export const revalidate = 300;
-
-export async function generateStaticParams() {
-  return (await getCatalog()).products.map((p) => ({ slug: p.slug }));
-}
+// Rendered per request from the database; unknown slugs 404.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;

@@ -7,11 +7,7 @@ export const alt = "MIEL+ product";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export const dynamicParams = true;
-
-export async function generateStaticParams() {
-  return (await getCatalog()).products.map((p) => ({ slug: p.slug }));
-}
+export const dynamic = "force-dynamic";
 
 // Per-product Open Graph image: M+ logo, product name and flavour glow on #23201C.
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {

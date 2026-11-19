@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
+import { runBackup } from "@/lib/backup";
 import { seedBase } from "@/lib/seed";
 import { getDb, must, type Row } from "@/lib/db";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -13,6 +14,19 @@ export async function seedStoreAction(): Promise<ActionState> {
   await audit(admin, "seed_store", "store", "", { created });
   revalidatePath("/", "layout");
   return { ok: created ? `Added ${created} product(s) from the config.` : "Everything from the config is already in the database." };
+}
+
+/** Take a backup right now (owner only). */
+export async function backupNow(): Promise<ActionState> {
+  const admin = await requirePerm("backup.download");
+  try {
+    const r = await runBackup();
+    await audit(admin, "backup_created", "backup", r.file, { offsite: r.offsite });
+    revalidatePath("/admin/settings");
+    return { ok: `Backup saved: ${r.file}${r.offsite ? " (and copied off-site)" : ""}.` };
+  } catch (e) {
+    return { error: `Backup failed: ${(e as Error).message}` };
+  }
 }
 
 async function putSetting(key: string, value: unknown) {

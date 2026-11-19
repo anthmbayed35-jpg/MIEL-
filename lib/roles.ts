@@ -2,7 +2,7 @@ export type Role = "owner" | "manager" | "staff";
 
 /**
  * Permission -> roles allowed. Enforced in server code on every page, action and route (requirePerm / getAdmin),
- * and mirrored by row-level security in supabase/migrations.
+ * There is no database-level security: the database file is only reachable from server code, so these checks ARE the access control.
  *  - staff:   day-to-day work (orders, customers, inventory). No pricing, discounts, exports, settings or team.
  *  - manager: everything operational, but cannot touch team/settings or DELETE data.
  *  - owner:   everything, including settings, team and deletion.
@@ -26,6 +26,8 @@ export const PERMS = {
   "settings.read": ["owner", "manager"],
   "settings.write": ["owner"],
   "team.manage": ["owner"],
+  /** Download the database + uploads as a zip (customer data: owner only). */
+  "backup.download": ["owner"],
   /** CSV exports (orders, customers, analytics). */
   "exports.run": ["owner", "manager"],
   /** Permanently removing things (images, testimonials). Everything else is archived or disabled. */
