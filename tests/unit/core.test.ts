@@ -46,15 +46,24 @@ describe("environment rules", () => {
   it("production with everything set passes", () => expect(validateEnv(prod)).toEqual([]));
   it("production fails clearly when a variable is missing (names only, no values)", () => {
     const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production" }).join(" ");
-    for (const k of ["NEXT_PUBLIC_SITE_URL", "DATABASE_PATH", "AUTH_SECRET", "MAIL_FROM", "BREVO_API_KEY"]) expect(e).toMatch(new RegExp(k));
+    for (const k of ["NEXT_PUBLIC_SITE_URL", "DATABASE_PATH", "AUTH_SECRET"]) expect(e).toMatch(new RegExp(k));
+    expect(e).not.toMatch(/MAIL_FROM|BREVO_API_KEY/); // email is optional until configured
   });
-  it("missing mail configuration fails loudly in production, but not in staging", () => {
-    const noMail = { ...prod, MAIL_FROM: undefined, BREVO_API_KEY: undefined };
-    expect(validateEnv(noMail).join(" ")).toMatch(/MAIL_FROM/);
-    expect(validateEnv({ ...prod, BREVO_API_KEY: undefined }).join(" ")).toMatch(/BREVO_API_KEY/);
-    expect(validateEnv({ ...prod, BREVO_API_KEY: undefined, MAIL_PROVIDER: "smtp" }).join(" ")).toMatch(/SMTP_URL/);
-    expect(validateEnv({ ...prod, BREVO_API_KEY: undefined, MAIL_PROVIDER: "smtp", SMTP_URL: "smtp://u:p@h:587" })).toEqual([]);
+  it("email is OPTIONAL: production passes with no mail configuration at all", () => {
+    const noMail = { ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production" };
+    expect(validateEnv(noMail)).toEqual([]);
+    expect(validateEnv({ ...noMail, MAIL_PROVIDER: "smtp" })).toEqual([]); // half-configured mail is simply "not configured"
     expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "staging" })).toEqual([]);
+  });
+  it("SITE_MODE must be live or maintenance (a typo never silently goes live)", () => {
+    for (const v of ["live", "maintenance", "MAINTENANCE", undefined]) expect(validateEnv({ ...prod, SITE_MODE: v })).toEqual([]);
+    expect(validateEnv({ ...prod, SITE_MODE: "maintenence" }).join(" ")).toMatch(/SITE_MODE must be/);
+    expect(validateEnv({ SITE_MODE: "closed" }).join(" ")).toMatch(/SITE_MODE must be/); // even in plain local development
+  });
+  it("the Railway production guards are unchanged by maintenance mode", () => {
+    expect(validateEnv({ ...prod, SITE_MODE: "maintenance", RAILWAY_ENVIRONMENT_NAME: "staging" }).join(" ")).toMatch(/only allowed in the Railway environment named "production"/);
+    expect(validateEnv({ ...prod, SITE_MODE: "maintenance", DATABASE_PATH: "relative/miel.db" }).join(" ")).toMatch(/absolute path/);
+    expect(validateEnv({ ...prod, SITE_MODE: "maintenance", AUTH_SECRET: undefined }).join(" ")).toMatch(/AUTH_SECRET/);
   });
   it("the test-only file mailer is refused in production", () => expect(validateEnv({ ...prod, MAIL_PROVIDER: "file" }).join(" ")).toMatch(/not allowed in production/));
   it("AUTH_SECRET must be long, DATABASE_PATH absolute and never in a public folder", () => {

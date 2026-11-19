@@ -9,6 +9,7 @@ import { orderMessage } from "@/lib/messages";
 import { normalizeLebanesePhone, waLink } from "@/lib/phone";
 import { ipFromHeaders } from "@/lib/client-ip";
 import { rateLimit } from "@/lib/rate-limit";
+import { inMaintenance, STOREFRONT_CLOSED } from "@/lib/site-mode";
 import { notifyNewOrder } from "@/lib/notify";
 
 export type CartInput = { productId: string; qty: number }[];
@@ -26,6 +27,7 @@ export type QuoteView = {
 
 /** Live price preview for the cart drawer (shipping zone + discount code). */
 export async function quoteAction(items: CartInput, region: string, code: string): Promise<QuoteView> {
+  if (inMaintenance()) return { ...STOREFRONT_CLOSED, subtotal: 0, discount: 0, shipping: 0, total: 0, freeDelivery: false }; // under development: no cart, no prices
   if (code.trim()) {
     // discount-code guessing is rate limited per connection (stored in the database, survives restarts)
     const ip = ipFromHeaders(await headers());
@@ -55,6 +57,7 @@ export async function placeOrder(input: {
   website?: string; // honeypot
   idempotencyKey?: string;
 }): Promise<PlaceResult> {
+  if (inMaintenance()) return STOREFRONT_CLOSED; // no real order can be placed while the storefront is hidden
   try {
     if (input.website) return { ok: false, error: "Something went wrong. Try again." }; // bots fill the hidden field
     const h = await headers();
@@ -118,6 +121,7 @@ export async function placeOrder(input: {
 
 /** Remember a started checkout (name + valid phone) so the store can follow up on WhatsApp. */
 export async function captureCheckout(input: { name: string; phone: string; items: CartInput; utm_source?: string }) {
+  if (inMaintenance()) return;
   try {
     if (!usesDb()) return;
     const phone = normalizeLebanesePhone(input.phone);

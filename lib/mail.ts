@@ -1,27 +1,24 @@
 import "server-only";
 import fs from "node:fs";
 import nodemailer from "nodemailer";
+import { getDb } from "./db";
+import { fileOutbox, mailConfigured, mailProvider } from "./mail-config";
+
+export { mailConfigured, mailProvider, mailStatus, warnIfMailMissing } from "./mail-config";
 
 /**
- * One small mail adapter for invites, password resets and order confirmations.
+ * One small mail adapter for invites, password resets and order alerts.
  *   MAIL_PROVIDER=brevo (default)  needs BREVO_API_KEY and MAIL_FROM
  *   MAIL_PROVIDER=smtp             needs SMTP_URL (smtp://user:pass@host:587) and MAIL_FROM
  *   MAIL_PROVIDER=file             tests only: appends each message to MAIL_OUTBOX (refused when MIEL_ENV=production)
- * Missing configuration is an error, never a silent skip: sendMail() throws MailNotConfigured in production, so an
- * invite that cannot be delivered says so. In development it logs the message to the server console instead.
+ *
+ * Email is OPTIONAL until you configure it. With no configuration sendMail() is a safe no-op: it never throws, it writes
+ * "email not sent: not configured" to the audit log (subject only, no address, no body) and returns { sent: false }.
+ * Callers that need a person to receive something (invites, resets) then hand the owner a one-time link to pass on
+ * manually (lib/invites.ts). A configured provider that fails (rejected key, network) still throws, so that is never silent.
  */
-export class MailNotConfigured extends Error {
-  constructor(m = "Email isn't set up on this server (MAIL_FROM and BREVO_API_KEY or SMTP_URL).") {
-    super(m);
-  }
-}
-
 export type Mail = { to: string; subject: string; text: string; html?: string };
-
-const fileOutbox = () => (process.env.MAIL_PROVIDER === "file" && process.env.MIEL_ENV !== "production" ? process.env.MAIL_OUTBOX : undefined);
-export const mailProvider = () => (process.env.MAIL_PROVIDER === "smtp" ? "smtp" : "brevo");
-export const mailRequired = () => process.env.NODE_ENV === "production" || process.env.MIEL_ENV === "production";
-export const mailConfigured = () => !!fileOutbox() || (!!process.env.MAIL_FROM && (mailProvider() === "smtp" ? !!process.env.SMTP_URL : !!process.env.BREVO_API_KEY));
+export type MailResult = { sent: true } | { sent: false; reason: "not_configured" };
 
 /** "MIEL+ <orders@domain>" or a bare address. */
 function sender(): { name?: string; email: string } {
@@ -30,22 +27,25 @@ function sender(): { name?: string; email: string } {
   return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: raw.trim() };
 }
 
-export async function sendMail(mail: Mail): Promise<void> {
+export async function sendMail(mail: Mail): Promise<MailResult> {
   const outbox = fileOutbox();
   if (outbox) {
     fs.appendFileSync(outbox, JSON.stringify({ ...mail, at: new Date().toISOString() }) + "\n");
-    return;
+    return { sent: true };
   }
   if (!mailConfigured()) {
-    if (mailRequired()) throw new MailNotConfigured();
-    console.log(`[mail:dev] to=${mail.to} subject=${mail.subject}\n${mail.text}`);
-    return;
+    try {
+      await getDb().from("audit_log").insert({ actor_email: "system", action: "email_not_sent", entity: "email", entity_id: "not_configured", details: { reason: "not_configured", subject: mail.subject.slice(0, 120) } });
+    } catch {
+      // never let the audit write break the caller
+    }
+    return { sent: false, reason: "not_configured" };
   }
   const from = sender();
   if (mailProvider() === "smtp") {
     const t = nodemailer.createTransport(process.env.SMTP_URL!);
     await t.sendMail({ from: from.name ? `"${from.name}" <${from.email}>` : from.email, to: mail.to, subject: mail.subject, text: mail.text, html: mail.html });
-    return;
+    return { sent: true };
   }
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -53,4 +53,5 @@ export async function sendMail(mail: Mail): Promise<void> {
     body: JSON.stringify({ sender: from, to: [{ email: mail.to }], subject: mail.subject, textContent: mail.text, ...(mail.html ? { htmlContent: mail.html } : {}) }),
   });
   if (!res.ok) throw new Error(`Email provider refused the message (HTTP ${res.status}).`);
+  return { sent: true };
 }

@@ -19,6 +19,10 @@ export async function register() {
   const products = (engine.sqlite.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number }).n;
   if (products === 0) await seedBase();
 
+  // Email is optional until configured: one warning, no secrets.
+  const { warnIfMailMissing } = await import("./lib/mail-config");
+  warnIfMailMissing();
+
   // Nightly backups of the database file (single instance: one scheduler).
   const { startBackupScheduler } = await import("./lib/backup");
   startBackupScheduler();

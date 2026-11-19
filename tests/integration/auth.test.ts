@@ -229,15 +229,23 @@ describe("invites", () => {
     await expect(inviteMember(null, form({ email: "a@t.test", role: "owner" }))).rejects.toThrow("HTTP_403");
   });
 
-  it("fails loudly (and creates nothing) when email is not configured in production", async () => {
-    process.env.MAIL_PROVIDER = "brevo";
+  it("with NO email configured an invite still works: the owner gets a copyable one-time link, nothing is emailed", async () => {
+    delete process.env.MAIL_PROVIDER;
     delete process.env.BREVO_API_KEY;
     delete process.env.MAIL_FROM;
     process.env.MIEL_ENV = "production";
     try {
-      const r = await invite("loud@t.test");
-      expect(r).toEqual({ error: expect.stringMatching(/Email isn't set up/) });
-      expect(sql().prepare("SELECT COUNT(*) n FROM invites").get()).toEqual({ n: 0 });
+      const r = await invite("manual@t.test", "manager");
+      expect(r).toMatchObject({ ok: expect.stringMatching(/Email isn.t configured yet/), copy: { label: expect.stringMatching(/invite link/), value: expect.stringContaining("https://miel.example/admin/set-password?type=invite&token=") } });
+      expect(outbox()).toEqual([]);
+      const token = tokenOf((r as { copy: { value: string } }).copy.value);
+      const { setPassword } = await import("@/app/admin/(flow)/set-password/actions");
+      jar.clear();
+      expect(await act(setPassword(null, form({ type: "invite", token, password: "handed over passphrase 42", confirm: "handed over passphrase 42" })))).toEqual({ e: "NEXT_REDIRECT:/admin" });
+      expect(sql().prepare("SELECT role FROM admin_users WHERE email = 'manual@t.test'").get()).toEqual({ role: "manager" });
+      jar.clear();
+      expect(await setPassword(null, form({ type: "invite", token, password: "another passphrase 43", confirm: "another passphrase 43" }))).toEqual({ error: expect.stringMatching(/already used/) }); // still single-use
+      expect(sql().prepare("SELECT details FROM audit_log WHERE action = 'invite_sent' AND entity = 'admin_user'").get()).toEqual({ details: expect.stringContaining("manual_link") });
     } finally {
       delete process.env.MIEL_ENV;
     }

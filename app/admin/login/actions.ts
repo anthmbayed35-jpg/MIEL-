@@ -62,8 +62,8 @@ export async function logoutEverywhere() {
 /** Password reset by email. The answer is the same whether or not the address belongs to a team member. */
 export async function requestReset(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const SAME: ActionState = { ok: "If that address belongs to a team member, a reset link is on its way. It expires in an hour." };
-  if (!mailConfigured() && (process.env.NODE_ENV === "production" || process.env.MIEL_ENV === "production"))
-    return { error: "Email isn't set up on this server, so reset links can't be sent. Ask the owner to reset your password." };
+  // No email provider yet: nothing is sent (the answer does not depend on whether the address exists). The owner hands out reset links from Settings > Team.
+  if (!mailConfigured()) return { ok: "Password reset by email isn't available yet. Ask the owner for a reset link." };
   const ip = await clientIp();
   const email = String(fd.get("email") ?? "").trim().toLowerCase().slice(0, 200);
   if (!/^\S+@\S+\.\S+$/.test(email)) return SAME;

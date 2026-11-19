@@ -5,7 +5,6 @@ import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
 import { createInvite, createReset, InviteError, revokeInvite as revoke } from "@/lib/invites";
-import { MailNotConfigured } from "@/lib/mail";
 import { clientIp, isThrottled, recordAuthEvent } from "@/lib/security";
 import { destroyUserSessions } from "@/lib/session";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -29,16 +28,18 @@ export async function inviteMember(_p: ActionState, fd: FormData): Promise<Actio
   if (!ROLES.includes(role)) return { error: "Pick a role." };
   const ip = await clientIp();
   if (await isThrottled("invite_sent", ip, admin.email)) return { error: "Too many invites. Try again in an hour." };
+  let delivery;
   try {
-    await createInvite({ email, name, role: role as "owner" | "manager" | "staff", invitedBy: admin.id });
+    delivery = await createInvite({ email, name, role: role as "owner" | "manager" | "staff", invitedBy: admin.id });
   } catch (e) {
     if (e instanceof InviteError) return { error: e.message };
-    if (e instanceof MailNotConfigured) return { error: e.message };
     return { error: `The invite email could not be sent (${(e as Error).message}). Nothing was lost: fix the email settings and send it again.` };
   }
   await recordAuthEvent("invite_sent", { ip, email: admin.email, actorId: admin.id, actorEmail: admin.email });
-  await audit(admin, "invite_sent", "admin_user", email, { email, role });
+  await audit(admin, "invite_sent", "admin_user", email, { email, role, delivery: delivery.emailed ? "email" : "manual_link" });
   revalidatePath("/admin/settings/team");
+  if (!delivery.emailed)
+    return { ok: `Invite created for ${email}. Email isn't configured yet, so copy the link below and send it to them yourself.`, copy: { label: "One-time invite link (valid 48 hours)", value: delivery.link! } };
   return { ok: `Invite sent to ${email}. They choose their own password from the link (valid for 48 hours, works once).` };
 }
 
@@ -84,12 +85,14 @@ export async function sendReset(_p: ActionState, fd: FormData): Promise<ActionSt
   const id = String(fd.get("id"));
   const row = (must(await getDb().from("admin_users").select("*").eq("id", id).maybeSingle()) as Row | null);
   if (!row?.active) return { error: "That person isn't an active team member." };
+  let delivery;
   try {
-    await createReset(id);
+    delivery = await createReset(id);
   } catch (e) {
-    return { error: e instanceof MailNotConfigured ? e.message : `The email could not be sent (${(e as Error).message}).` };
+    return { error: `The email could not be sent (${(e as Error).message}).` };
   }
-  await audit(admin, "password_reset_sent", "admin_user", id, { email: row.email });
+  await audit(admin, "password_reset_sent", "admin_user", id, { email: row.email, delivery: delivery.emailed ? "email" : "manual_link" });
+  if (!delivery.emailed) return { ok: `Reset link for ${row.email}. Email isn't configured yet, so copy it and send it to them yourself.`, copy: { label: "One-time reset link (valid 1 hour)", value: delivery.link! } };
   return { ok: `Reset link sent to ${row.email}.` };
 }
 

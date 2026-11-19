@@ -1,10 +1,38 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Flash } from "./ui";
 
-export type ActionState = { ok?: string; error?: string } | null;
+/** `copy`: a one-time link the owner must hand over by hand (shown while email is not configured). */
+export type ActionState = { ok?: string; error?: string; copy?: { label: string; value: string } } | null;
+
+function CopyBox({ label, value }: { label: string; value: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div className="mb-4 rounded-2xl border border-acid/40 bg-acid/5 p-3" role="group" aria-label={label}>
+      <p className="mono mb-2">{label}</p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input readOnly value={value} onFocus={(e) => e.currentTarget.select()} aria-label={label} className="a-input !text-[13px]" />
+        <button
+          type="button"
+          className="pill-btn pill-lime shrink-0"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(value);
+              setDone(true);
+            } catch {
+              setDone(false); // clipboard blocked: the text above is selectable
+            }
+          }}
+        >
+          {done ? "Copied" : "Copy link"}
+        </button>
+      </div>
+      <p className="mt-2 text-[13px] text-body">Shown once. Send it to them yourself (WhatsApp, in person). It works one time only.</p>
+    </div>
+  );
+}
 
 /** Form bound to a server action that returns { ok } or { error }, with inline feedback. */
 export function ActionForm({
@@ -31,6 +59,7 @@ export function ActionForm({
       }}
     >
       <Flash msg={state?.ok} error={state?.error} />
+      {state?.copy && <CopyBox label={state.copy.label} value={state.copy.value} />}
       {children}
     </form>
   );

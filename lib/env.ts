@@ -19,6 +19,7 @@ export const isStrict = (env: Env = process.env) => !!railwayEnvironment(env) ||
 
 export function validateEnv(env: Env = process.env): string[] {
   const errors: string[] = [];
+  if (env.SITE_MODE && !["live", "maintenance"].includes(env.SITE_MODE.trim().toLowerCase())) errors.push('SITE_MODE must be "live" or "maintenance" (unset means live).');
   if (!isStrict(env)) return errors; // plain local development
   const prod = isProductionDeploy(env);
 
@@ -31,11 +32,7 @@ export function validateEnv(env: Env = process.env): string[] {
   if (prod) {
     if (env.NEXT_PUBLIC_SITE_URL && !/^https:\/\//.test(env.NEXT_PUBLIC_SITE_URL)) errors.push("NEXT_PUBLIC_SITE_URL must be an https:// URL in production.");
     if (env.MAIL_PROVIDER === "file") errors.push("MAIL_PROVIDER=file is for tests and is not allowed in production.");
-    // Missing mail configuration must fail loudly in production: invites and resets could not be delivered.
-    if (!env.MAIL_FROM) errors.push("Missing required environment variable MAIL_FROM.");
-    if (env.MAIL_PROVIDER === "smtp") {
-      if (!env.SMTP_URL) errors.push("Missing required environment variable SMTP_URL (MAIL_PROVIDER=smtp).");
-    } else if (!env.BREVO_API_KEY) errors.push("Missing required environment variable BREVO_API_KEY (or set MAIL_PROVIDER=smtp with SMTP_URL).");
+    // Email is OPTIONAL until configured (lib/mail.ts is a safe no-op, the admin shows a banner), so it is not checked here.
     if (env.BACKUP_S3_BUCKET) {
       for (const k of ["BACKUP_S3_ACCESS_KEY_ID", "BACKUP_S3_SECRET_ACCESS_KEY", "BACKUP_ENCRYPTION_KEY"]) if (!env[k]) errors.push(`Off-site backups are on (BACKUP_S3_BUCKET) but ${k} is missing.`);
     }

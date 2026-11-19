@@ -5,6 +5,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { logout } from "../login/actions";
 import { SearchButton } from "@/components/admin/SearchButton";
+import { StatusBanners } from "@/components/admin/StatusBanners";
 
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
@@ -38,7 +39,10 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
           </div>
         </header>
       </div>
-      <main className="relative mx-auto max-w-[1400px] px-4 pt-8 md:px-8">{children}</main>
+      <main className="relative mx-auto max-w-[1400px] px-4 pt-8 md:px-8">
+        <StatusBanners />
+        {children}
+      </main>
       <BottomTabs role={admin.role} />
       <CommandPalette />
     </div>

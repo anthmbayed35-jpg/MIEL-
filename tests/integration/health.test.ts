@@ -14,7 +14,7 @@ describe("GET /api/health", () => {
     const res = await GET();
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ status: "ok", db: "ok", volume: "writable", backupAgeHours: null });
+    expect(await res.json()).toEqual({ status: "ok", db: "ok", volume: "writable", backupAgeHours: null, mail: "configured" });
     await runBackup();
     expect((await (await GET()).json()).backupAgeHours).toBeLessThan(0.1);
   });

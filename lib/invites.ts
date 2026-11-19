@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { getEngine } from "./db/core";
 import { newToken, sha256 } from "./crypto";
 import { hashPassword } from "./passwords";
-import { MailNotConfigured, mailConfigured, mailRequired, sendMail } from "./mail";
+import { sendMail } from "./mail";
 import { inviteUrl, resetUrl } from "./site-url";
 import type { Role } from "./roles";
 
@@ -20,12 +20,14 @@ const sql = () => getEngine().sqlite;
 
 export class InviteError extends Error {}
 
-export async function createInvite(input: { email: string; name: string; role: Role; invitedBy: string | null }): Promise<void> {
+/** `link` is set ONLY when no email could be sent (email not configured): the owner then hands it over manually. */
+export type Delivery = { emailed: boolean; link?: string };
+
+export async function createInvite(input: { email: string; name: string; role: Role; invitedBy: string | null }): Promise<Delivery> {
   const email = input.email.trim().toLowerCase();
   const db = sql();
   const existing = db.prepare("SELECT id, active FROM admin_users WHERE email = ?").get(email) as { id: string; active: number } | undefined;
   if (existing?.active) throw new InviteError("That person is already on the team.");
-  if (!mailConfigured() && mailRequired()) throw new MailNotConfigured(); // fail loudly BEFORE creating anything
   const token = newToken();
   db.transaction(() => {
     db.prepare("UPDATE invites SET used_at = ? WHERE email = ? AND used_at IS NULL").run(iso(Date.now()), email); // older links stop working
@@ -33,26 +35,28 @@ export async function createInvite(input: { email: string; name: string; role: R
       crypto.randomUUID(), email, input.name.trim().slice(0, 80), input.role, sha256(token), input.invitedBy, iso(Date.now() + INVITE_TTL_MS),
     );
   })();
-  await sendMail({
+  const r = await sendMail({
     to: email,
     subject: "You're invited to the MIEL+ admin",
     text: `You've been invited to run the MIEL+ store as ${input.role}.\n\nChoose your password here (the link works once and expires in 48 hours):\n${inviteUrl(token)}\n\nIf you weren't expecting this, ignore this email.`,
   });
+  return r.sent ? { emailed: true } : { emailed: false, link: inviteUrl(token) };
 }
 
-export async function createReset(userId: string): Promise<void> {
+export async function createReset(userId: string): Promise<Delivery> {
   const u = sql().prepare("SELECT email FROM admin_users WHERE id = ? AND active = 1").get(userId) as { email: string } | undefined;
-  if (!u) return;
+  if (!u) return { emailed: false };
   const token = newToken();
   sql().transaction(() => {
     sql().prepare("UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL").run(iso(Date.now()), userId);
     sql().prepare("INSERT INTO password_resets (id, user_id, token_hash, expires_at) VALUES (?,?,?,?)").run(crypto.randomUUID(), userId, sha256(token), iso(Date.now() + RESET_TTL_MS));
   })();
-  await sendMail({
+  const r = await sendMail({
     to: u.email,
     subject: "Reset your MIEL+ admin password",
     text: `Choose a new password here (the link works once and expires in 1 hour):\n${resetUrl(token)}\n\nIf you didn't ask for this, ignore this email.`,
   });
+  return r.sent ? { emailed: true } : { emailed: false, link: resetUrl(token) };
 }
 
 export type TokenKind = "invite" | "reset";

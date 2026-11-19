@@ -35,3 +35,17 @@ export const E2E_ENV = {
   NEXT_TELEMETRY_DISABLED: "1",
   PORT: String(APP_PORT),
 };
+
+/** Second server on the same build: maintenance mode, and NO email configured. */
+export const MAINT_PORT = 3403;
+export const MAINT_URL = `http://localhost:${MAINT_PORT}`;
+export const MAINT_ENV = {
+  MIEL_ENV: "staging",
+  DATABASE_PATH: E2E_DB,
+  AUTH_SECRET: SENTINEL_AUTH_SECRET,
+  NEXT_PUBLIC_SITE_URL: MAINT_URL,
+  SITE_MODE: "maintenance",
+  BACKUPS_DISABLED: "1",
+  NEXT_TELEMETRY_DISABLED: "1",
+  PORT: String(MAINT_PORT),
+};

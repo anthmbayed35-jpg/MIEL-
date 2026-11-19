@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { getDb, usesDb } from "@/lib/db";
 import { ipFromHeaders } from "@/lib/client-ip";
 import { rateLimit } from "@/lib/rate-limit";
+import { inMaintenance } from "@/lib/site-mode";
 
 // Tiny first-party funnel tracking: visit -> add_to_cart -> begin_checkout. No personal data.
 export async function POST(req: Request) {
+  if (inMaintenance()) return NextResponse.json({ ok: false, error: "Under development" }, { status: 503, headers: { "Retry-After": "3600" } });
   try {
     if (!usesDb()) return NextResponse.json({ ok: true });
     const ip = ipFromHeaders(req.headers);

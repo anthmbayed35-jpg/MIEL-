@@ -4,6 +4,7 @@ import { adjustStock } from "./db/core";
 import { getEngine, type Row } from "./db";
 import { publish } from "./events";
 import { normalizeLebanesePhone } from "./phone";
+import { inMaintenance } from "./site-mode";
 import type { OrderStatus } from "./status";
 
 /** Money is computed in integer cents and only converted to dollars for display and the API of this module. */
@@ -168,6 +169,8 @@ export type PlacedOrder = { order: Row; customer: Row; quote: Quote; replayed?: 
  * Any failure rolls the whole thing back. Throws Error(message) for user-facing problems.
  */
 export function placeOrder(input: CreateOrderInput): PlacedOrder {
+  // Last line of defence: customers cannot order while the storefront is hidden. Orders typed in by the team (admin) still work.
+  if (input.source === "web" && inMaintenance()) throw new Error("MIEL+ isn't taking orders yet. Something new is coming.");
   const phone = normalizeLebanesePhone(input.customer.phone);
   if (!phone) throw new Error("Enter a valid Lebanese phone number, e.g. 03 123 456 or +961 70 123 456.");
   if (input.customer.name.trim().length < 2) throw new Error("Enter your name.");

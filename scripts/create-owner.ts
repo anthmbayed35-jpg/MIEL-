@@ -30,9 +30,13 @@ async function main() {
   const owners = (db.prepare("SELECT COUNT(*) AS n FROM admin_users WHERE role = 'owner'").get() as { n: number }).n;
   if (owners > 0) fail("An owner already exists. This script only creates the first one. Use Settings > Team in the admin.");
 
-  await createInvite({ email, name, role: "owner", invitedBy: null });
+  const d = await createInvite({ email, name, role: "owner", invitedBy: null });
   db.prepare("INSERT INTO audit_log (id, actor_email, action, entity, entity_id, details) VALUES (?, 'system', 'owner_invited', 'admin_user', ?, ?)").run(crypto.randomUUID(), email, JSON.stringify({ email }));
-  console.log(`\nDone. An email with a one-time link was sent to ${email} (valid 48 hours).`);
+  if (d.emailed) console.log(`\nDone. An email with a one-time link was sent to ${email} (valid 48 hours).`);
+  else {
+    // No email provider yet: the one-time link is shown here, once. It is a link, never a password.
+    console.log(`\nEmail is not configured, so nothing was sent. Open this one-time link yourself (valid 48 hours, works once):\n\n${d.link}\n`);
+  }
   console.log("Open the link, choose your password, then sign in at /admin/login and turn on two-factor in My account.");
 }
 

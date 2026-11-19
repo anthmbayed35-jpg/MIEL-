@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { dataDir, getEngine } from "@/lib/db";
 import { lastBackupAgeHours } from "@/lib/backup";
+import { mailStatus } from "@/lib/mail-config";
 
 // Railway health check. Always evaluated per request (never cached) and never reveals details or secrets.
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function GET() {
     const probe = path.join(dataDir(), `.health-${process.pid}`);
     fs.writeFileSync(probe, String(Date.now()));
     fs.rmSync(probe, { force: true });
-    return Response.json({ status: "ok", db: "ok", volume: "writable", backupAgeHours: lastBackupAgeHours() }, { headers: HEADERS });
+    return Response.json({ status: "ok", db: "ok", volume: "writable", backupAgeHours: lastBackupAgeHours(), mail: mailStatus() }, { headers: HEADERS });
   } catch {
     return Response.json({ status: "error" }, { status: 503, headers: HEADERS });
   }
