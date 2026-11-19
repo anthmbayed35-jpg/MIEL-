@@ -68,7 +68,7 @@ const sha = (t: string) => crypto.createHash("sha256").update(t).digest("hex");
 /** Fresh empty database + clean cookie jar. Call in beforeEach. */
 export function resetState() {
   closeEngine();
-  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  if (dir) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 });
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "miel-test-"));
   process.env.DATABASE_PATH = path.join(dir, "miel.db");
   process.env.AUTH_SECRET = "test-only-auth-secret-at-least-32-characters-long";
@@ -83,6 +83,6 @@ export function resetState() {
 
 export function cleanupState() {
   closeEngine();
-  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  if (dir) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 });
   dir = "";
 }

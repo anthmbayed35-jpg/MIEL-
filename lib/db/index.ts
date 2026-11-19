@@ -1,4 +1,5 @@
 import "server-only";
+import path from "node:path";
 import { getEngine, dataDir, type Engine } from "./core";
 import type { Result, Row } from "./query";
 
@@ -8,7 +9,7 @@ export type Db = {
   from(table: string): any;
   rpc(name: string, args?: Row): PromiseLike<Result>;
 };
-export const uploadsDir = () => `${dataDir()}/uploads`;
+export const uploadsDir = () => path.join(dataDir(), "uploads");
 
 /** The store always has its own database (SQLite on the volume), so the storefront always reads from it. */
 export const usesDb = () => true;

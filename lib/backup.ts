@@ -161,16 +161,21 @@ export function restoreFrom(source: string, opts: { dir?: string } = {}): { rest
   const probeFile = path.join(dir, `.restore-probe-${process.pid}.db`);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(probeFile, dbBytes);
-  let tables: number;
+  let tables = 0;
+  let probe: Database.Database | undefined;
   try {
-    const probe = new Database(probeFile, { readonly: true });
+    probe = new Database(probeFile, { readonly: true });
     if (probe.pragma("integrity_check", { simple: true }) !== "ok") throw new Error("The backup file is damaged (integrity check failed).");
     tables = (probe.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE type='table'").get() as { n: number }).n;
     if (!probe.prepare("SELECT name FROM sqlite_master WHERE name = 'migrations'").get()) throw new Error("This doesn't look like a MIEL+ database.");
-    probe.close();
   } catch (e) {
+    probe?.close();
+    probe = undefined;
     fs.rmSync(probeFile, { force: true });
+    if (/not a database|malformed|disk image/i.test((e as Error).message)) throw new Error("The backup file is damaged or is not a database.");
     throw e;
+  } finally {
+    probe?.close();
   }
 
   closeEngine();
