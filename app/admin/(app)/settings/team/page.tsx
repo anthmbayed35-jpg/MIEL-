@@ -40,16 +40,16 @@ export default async function TeamPage() {
                   <ActionForm action={setRole} className="flex gap-2">
                     <input type="hidden" name="id" value={m.id} />
                     <select name="role" defaultValue={m.role} className="a-input !w-36" aria-label={`Role for ${m.email}`}><option>owner</option><option>manager</option><option>staff</option></select>
-                    <SubmitButton variant="glass" className="!min-h-10">Set</SubmitButton>
+                    <SubmitButton variant="glass" className="!min-h-12 md:!min-h-10">Set</SubmitButton>
                   </ActionForm>
-                  {m.active && <ActionForm action={resetMfa}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" confirm={`Remove two-factor for ${m.email}? They set it up again at next sign-in.`} className="!min-h-10">Reset 2FA</SubmitButton></ActionForm>}
+                  {m.active && <ActionForm action={resetMfa}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" confirm={`Remove two-factor for ${m.email}? They set it up again at next sign-in.`} className="!min-h-12 md:!min-h-10">Reset 2FA</SubmitButton></ActionForm>}
                   {m.active && pending.has(m.id) && m.id !== admin.id && (
-                    <ActionForm action={regenerateTemporaryPasswordAction}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" confirm={`Make a new temporary password for ${m.email}? The old one stops working.`} className="!min-h-10">Regenerate temporary password</SubmitButton></ActionForm>
+                    <ActionForm action={regenerateTemporaryPasswordAction}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" confirm={`Make a new temporary password for ${m.email}? The old one stops working.`} className="!min-h-12 md:!min-h-10">Regenerate temporary password</SubmitButton></ActionForm>
                   )}
-                  {m.active && <ActionForm action={sendReset}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" className="!min-h-10">Send reset link</SubmitButton></ActionForm>}
+                  {m.active && <ActionForm action={sendReset}><input type="hidden" name="id" value={m.id} /><SubmitButton variant="glass" className="!min-h-12 md:!min-h-10">Send reset link</SubmitButton></ActionForm>}
                   <ActionForm action={setActive}>
                     <input type="hidden" name="id" value={m.id} /><input type="hidden" name="active" value={m.active ? "0" : "1"} />
-                    <SubmitButton variant={m.active ? "danger" : "lime"} confirm={m.active ? `Deactivate ${m.email}? They are locked out immediately.` : undefined} className="!min-h-10">{m.active ? "Deactivate" : "Reactivate"}</SubmitButton>
+                    <SubmitButton variant={m.active ? "danger" : "lime"} confirm={m.active ? `Deactivate ${m.email}? They are locked out immediately.` : undefined} className="!min-h-12 md:!min-h-10">{m.active ? "Deactivate" : "Reactivate"}</SubmitButton>
                   </ActionForm>
                 </div>
               </li>
@@ -62,7 +62,7 @@ export default async function TeamPage() {
                 {invites.map((i) => (
                   <li key={i.id} className="admin-card-flat flex flex-wrap items-center justify-between gap-3 p-3 text-[14px]">
                     <span className="text-body"><b className="text-fg">{i.email}</b> · {i.role} · expires {new Date(i.expires_at).toLocaleString("en-GB", { timeZone: "Asia/Beirut" })}</span>
-                    <ActionForm action={cancelInvite}><input type="hidden" name="id" value={i.id} /><SubmitButton variant="danger" className="!min-h-9">Cancel</SubmitButton></ActionForm>
+                    <ActionForm action={cancelInvite}><input type="hidden" name="id" value={i.id} /><SubmitButton variant="danger" className="!min-h-12 md:!min-h-9">Cancel</SubmitButton></ActionForm>
                   </li>
                 ))}
               </ul>

@@ -28,7 +28,7 @@ export function NewOrderForm({ products, zones }: { products: P[]; zones: Z[] })
               </div>
               <div className="flex items-center">
                 <button type="button" aria-label={`Fewer ${p.name}`} onClick={() => setQty((q) => ({ ...q, [p.id]: Math.max(0, (q[p.id] ?? 0) - 1) }))} className="pill-btn pill-glass !min-w-12 !px-0">−</button>
-                <input name={`qty_${p.id}`} value={qty[p.id] ?? 0} readOnly aria-label={`${p.name} quantity`} className="w-12 bg-transparent text-center text-[18px] text-fg" />
+                <input name={`qty_${p.id}`} value={qty[p.id] ?? 0} readOnly aria-label={`${p.name} quantity`} className="h-12 w-12 bg-transparent text-center text-[18px] text-fg" />
                 <button type="button" aria-label={`More ${p.name}`} onClick={() => setQty((q) => ({ ...q, [p.id]: Math.min(99, (q[p.id] ?? 0) + 1) }))} className="pill-btn pill-glass !min-w-12 !px-0">+</button>
               </div>
             </li>

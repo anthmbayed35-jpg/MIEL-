@@ -15,7 +15,7 @@ export function SubNav({ items, role }: { items: SubItem[]; role: Role }) {
       {visible.map((i) => {
         const on = path === i.href;
         return (
-          <Link key={i.href} href={i.href} aria-current={on ? "page" : undefined} className={`flex min-h-11 shrink-0 items-center rounded-full px-5 text-[15px] font-medium ${on ? "bg-fg text-black" : "bg-white/8 text-body hover:text-fg"}`}>
+          <Link key={i.href} href={i.href} aria-current={on ? "page" : undefined} className={`flex min-h-12 shrink-0 items-center rounded-full px-5 text-[15px] font-medium ${on ? "bg-fg text-black" : "bg-white/8 text-body hover:text-fg"}`}>
             {i.label}
           </Link>
         );

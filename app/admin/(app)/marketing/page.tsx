@@ -54,9 +54,9 @@ export default async function MarketingPage() {
               key: "a", label: "Recover",
               render: (a) => (
                 <span className="flex flex-wrap items-center gap-2">
-                  <a href={waLink(a.phone, abandonedMessage(a.name, (a.items as Row[]).map((i) => `${i.qty}× ${i.name}`).join(", ")))} target="_blank" rel="noopener noreferrer" className="pill-btn pill-lime !min-h-10">WhatsApp</a>
+                  <a href={waLink(a.phone, abandonedMessage(a.name, (a.items as Row[]).map((i) => `${i.qty}× ${i.name}`).join(", ")))} target="_blank" rel="noopener noreferrer" className="pill-btn pill-lime !min-h-12 md:!min-h-10">WhatsApp</a>
                   {a.contacted_at ? <span className="status st-delivered">Contacted</span> : (
-                    <ActionForm action={markContacted}><input type="hidden" name="id" value={a.id} /><SubmitButton variant="glass" className="!min-h-10">Mark contacted</SubmitButton></ActionForm>
+                    <ActionForm action={markContacted}><input type="hidden" name="id" value={a.id} /><SubmitButton variant="glass" className="!min-h-12 md:!min-h-10">Mark contacted</SubmitButton></ActionForm>
                   )}
                 </span>
               ),

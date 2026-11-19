@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { isLivePage } from "@/lib/live-pages";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Note = { id: string; number: number; total: number; customer: string; region: string; created_at: string };
@@ -86,7 +87,7 @@ export function NotificationBell() {
         es.addEventListener(t, () => {
           load();
           // live dashboard / order list / stock page: re-render their server data (never on edit pages, so nobody loses typing)
-          if (/^\/admin(\/orders|\/inventory)?$/.test(pathRef.current) && !refreshTimer) refreshTimer = setTimeout(() => { refreshTimer = null; router.refresh(); }, 800);
+          if (isLivePage(pathRef.current) && !refreshTimer) refreshTimer = setTimeout(() => { refreshTimer = null; router.refresh(); }, 800);
         });
       es.addEventListener("auth", () => { es?.close(); router.replace("/admin/login?expired=1"); });
       es.onerror = () => startPoll(); // the browser retries the stream by itself

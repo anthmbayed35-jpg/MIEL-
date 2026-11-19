@@ -5,7 +5,7 @@ import { E2E_PASSWORD, ROOT, USERS } from "../support/e2e-env";
 import { one, query } from "../support/e2e-db";
 
 /**
- * Click-through of the WHOLE site, storefront and every admin page, at phone width (390) and desktop width (1440).
+ * Click-through of the WHOLE site, storefront and every admin page, at phone width (375) and desktop width (1440).
  * For each page it records: console errors and warnings, uncaught exceptions, failed or 4xx/5xx requests, broken
  * images, horizontal overflow (a visual break on phones) and junk text (undefined / NaN / [object Object]).
  * A full-page screenshot of each is saved in test-results/pages/ for a visual review. The report is written to
@@ -15,7 +15,7 @@ test.describe.configure({ mode: "default" }); // a failing page must not hide th
 test.setTimeout(180_000);
 
 const VIEWPORTS = [
-  { name: "mobile-390", width: 390, height: 844 },
+  { name: "mobile-375", width: 375, height: 812 },
   { name: "desktop-1440", width: 1440, height: 900 },
 ] as const;
 
@@ -85,6 +85,25 @@ async function inspect(page: Page, url: string, viewport: string, expected = 200
     text: document.body.innerText,
     title: document.title,
   }));
+  if (url.startsWith("/admin") && (await page.evaluate(() => window.innerWidth)) < 500) {
+    // every control a thumb has to hit is at least 48px in both directions (a checkbox counts through its 48px label)
+    const small = await page.evaluate(() => {
+      const bad: string[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>("a,button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=tab]")) {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        if (!r.width || !r.height || cs.visibility === "hidden" || cs.display === "none" || el.closest("[aria-hidden=true]")) continue;
+        if (el.tagName === "A" && el.closest("p,td") && r.height < 40) continue; // an inline text link inside a sentence
+        if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
+          const lr = el.closest("label")?.getBoundingClientRect();
+          if (lr && lr.height >= 47.5 && lr.width >= 47.5) continue;
+        }
+        if (r.height < 47.5 || r.width < 47.5) bad.push(`${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") || el.textContent || el.getAttribute("name") || "").trim().slice(0, 24)}" ${Math.round(r.width)}x${Math.round(r.height)}`);
+      }
+      return [...new Set(bad)].slice(0, 6);
+    });
+    for (const b of small) add("tap-target", b);
+  }
   if (facts.overflow > 1) add("overflow", `page is ${facts.overflow}px wider than the screen`);
   for (const b of facts.broken) add("broken-image", b);
   const junk = facts.text.match(/\bundefined\b|\bNaN\b|\[object Object\]|\bnull\b(?!\s*(?:\.|,))/i);

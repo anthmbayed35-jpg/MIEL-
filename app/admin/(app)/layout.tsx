@@ -14,7 +14,7 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
     <div className="relative min-h-screen pb-32 lg:pb-12">
       <div className="sticky top-3 z-40 mx-3">
         <header className="glass-strong mx-auto flex max-w-[1400px] items-center justify-between gap-3 rounded-full px-5 py-[18px] md:px-8">
-          <Link href="/admin" aria-label="Dashboard" className="block shrink-0">
+          <Link href="/admin" aria-label="Dashboard" className="-my-1.5 block shrink-0 py-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/miel-m-plus.png" alt="MIEL+" width={358} height={228} className="h-9 w-auto" />
           </Link>

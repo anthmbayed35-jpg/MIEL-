@@ -31,7 +31,7 @@ function DiscountForm({ d, products }: { d?: Row; products: Row[] }) {
         <legend className="a-label">Limit to products (none ticked = all products)</legend>
         <div className="flex flex-wrap gap-3">
           {products.map((p) => (
-            <label key={p.id} className="flex min-h-11 items-center gap-2 rounded-full bg-white/8 px-4 text-[15px]"><input type="checkbox" name="products" value={p.id} defaultChecked={(d?.product_ids as string[] | null)?.includes(p.id)} className="h-5 w-5 accent-[#DAFC69]" />{p.name}</label>
+            <label key={p.id} className="flex min-h-12 items-center gap-2 rounded-full bg-white/8 px-4 text-[15px]"><input type="checkbox" name="products" value={p.id} defaultChecked={(d?.product_ids as string[] | null)?.includes(p.id)} className="h-5 w-5 accent-[#DAFC69]" />{p.name}</label>
           ))}
         </div>
       </fieldset>
@@ -75,7 +75,7 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Pr
               render: (d) => (
                 <ActionForm action={toggleDiscount} className="contents">
                   <input type="hidden" name="id" value={d.id} /><input type="hidden" name="active" value={d.active ? "0" : "1"} />
-                  <SubmitButton variant={d.active ? "glass" : "lime"} className="!min-h-10">{d.active ? "Active · disable" : "Disabled · enable"}</SubmitButton>
+                  <SubmitButton variant={d.active ? "glass" : "lime"} className="!min-h-12 md:!min-h-10">{d.active ? "Active · disable" : "Disabled · enable"}</SubmitButton>
                 </ActionForm>
               ),
             },

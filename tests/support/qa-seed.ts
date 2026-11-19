@@ -9,7 +9,7 @@
  */
 import crypto from "node:crypto";
 import path from "node:path";
-import { getEngine } from "../../lib/db/core";
+import { closeEngine, getEngine } from "../../lib/db/core";
 import { hashPassword } from "../../lib/passwords";
 import { seedBase } from "../../lib/seed";
 import { E2E_PASSWORD, USERS } from "./e2e-env";
@@ -134,7 +134,7 @@ export async function qaSeed(dir: string, opts: { orders?: number; customers?: n
   })();
   const counts = Object.fromEntries(["products", "inventory_items", "customers", "orders", "order_items", "order_events", "stock_movements", "discounts"].map((t) => [t, (db.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }).n]));
   db.pragma("wal_checkpoint(TRUNCATE)");
-  e.close();
+  closeEngine();
   return counts;
 }
 

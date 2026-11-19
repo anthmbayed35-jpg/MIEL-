@@ -70,7 +70,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                         <ActionForm action={setThreshold} className="flex items-center gap-2">
                           <input type="hidden" name="item" value={i.id} />
                           <input name="threshold" type="number" min="0" defaultValue={i.low_stock_threshold} className="a-input !w-20" aria-label={`Low-stock threshold for ${product!.name}`} />
-                          <SubmitButton variant="glass" className="!min-h-10 !px-3">Set</SubmitButton>
+                          <SubmitButton variant="glass" className="!min-h-12 md:!min-h-10 !px-3">Set</SubmitButton>
                         </ActionForm>
                       ) : i.low_stock_threshold}
                     </td>
@@ -83,7 +83,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                           <input name="amount" type="number" min="1" required placeholder="Qty" className="a-input !w-20" aria-label="Quantity" />
                           <select name="reason" className="a-input !w-44" aria-label="Reason">{REASONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                           <input name="note" placeholder="Note" className="a-input !w-32" aria-label="Note" />
-                          <SubmitButton variant="lime" className="!min-h-10">Apply</SubmitButton>
+                          <SubmitButton variant="lime" className="!min-h-12 md:!min-h-10">Apply</SubmitButton>
                         </ActionForm>
                       </td>
                     )}
@@ -130,7 +130,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
               {
                 key: "st", label: "Status",
                 render: (b) => b.status === "received" ? <span className="status st-delivered">Received</span> : canWrite ? (
-                  <ActionForm action={receiveBatch}><input type="hidden" name="batch" value={b.id} /><SubmitButton variant="lime" className="!min-h-10">Receive</SubmitButton></ActionForm>
+                  <ActionForm action={receiveBatch}><input type="hidden" name="batch" value={b.id} /><SubmitButton variant="lime" className="!min-h-12 md:!min-h-10">Receive</SubmitButton></ActionForm>
                 ) : <span className="status st-packed">Incoming</span>,
               },
             ]}

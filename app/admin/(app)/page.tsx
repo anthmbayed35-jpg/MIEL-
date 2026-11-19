@@ -146,7 +146,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <ul className="space-y-2.5">
             {ORDER_STATUSES.filter((s) => d.status[s]).map((s) => (
               <li key={s}>
-                <Link href={`/admin/orders?status=${s}`} className="flex min-h-9 items-center justify-between gap-3">
+                <Link href={`/admin/orders?status=${s}`} className="flex min-h-12 items-center justify-between gap-3">
                   <StatusBadge status={s} />
                   <span className="flex shrink-0 items-center gap-3">
                     <span className="h-1.5 w-14 rounded-full bg-white/10"><span className="block h-1.5 rounded-full bg-fg/60" style={{ width: `${(d.status[s] / totalStatus) * 100}%` }} /></span>
@@ -179,7 +179,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[2fr_1fr]">
         <Card>
-          <SectionTitle right={<Link href="/admin/orders" className="text-[14px] text-body underline-offset-4 hover:underline">View all</Link>}>Recent orders</SectionTitle>
+          <SectionTitle right={<Link href="/admin/orders" className="inline-flex min-h-12 min-w-12 items-center justify-center text-[14px] text-body underline-offset-4 hover:underline">View all</Link>}>Recent orders</SectionTitle>
           {d.recent.length === 0 ? <Empty title="Nothing yet." hint="New orders will appear here." /> : (
             <ul className="divide-y divide-white/8">
               {d.recent.map((o) => (
@@ -198,7 +198,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </Card>
         <Card>
-          <SectionTitle right={<Link href="/admin/inventory" className="text-[14px] text-body underline-offset-4 hover:underline">Inventory</Link>}>Low-stock alerts</SectionTitle>
+          <SectionTitle right={<Link href="/admin/inventory" className="inline-flex min-h-12 min-w-12 items-center justify-center text-[14px] text-body underline-offset-4 hover:underline">Inventory</Link>}>Low-stock alerts</SectionTitle>
           {d.low.length === 0 ? <p className="text-[15px] text-body">All good. Stock is above your thresholds.</p> : (
             <ul className="space-y-3">
               {d.low.map((i) => (

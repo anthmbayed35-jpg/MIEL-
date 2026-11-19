@@ -23,7 +23,7 @@ export default async function AnalyticsPage() {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <Card>
-          <SectionTitle right={<a href={exp("products")} className="text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Sales by product</SectionTitle>
+          <SectionTitle right={<a href={exp("products")} className="inline-flex min-h-12 min-w-12 items-center justify-center px-2 text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Sales by product</SectionTitle>
           <DataTable
             rows={a.products.map((p) => ({ id: p.product, ...p }))}
             empty={<Empty title="No sales yet." />}
@@ -37,7 +37,7 @@ export default async function AnalyticsPage() {
         </Card>
 
         <Card>
-          <SectionTitle right={<a href={exp("regions")} className="text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Sales by region</SectionTitle>
+          <SectionTitle right={<a href={exp("regions")} className="inline-flex min-h-12 min-w-12 items-center justify-center px-2 text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Sales by region</SectionTitle>
           <DataTable
             rows={a.regions.map((r) => ({ id: r.region, ...r }))}
             empty={<Empty title="No regional data yet." />}
@@ -59,7 +59,7 @@ export default async function AnalyticsPage() {
         </Card>
 
         <Card>
-          <SectionTitle right={<a href={exp("discounts")} className="text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Discount usage</SectionTitle>
+          <SectionTitle right={<a href={exp("discounts")} className="inline-flex min-h-12 min-w-12 items-center justify-center px-2 text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Discount usage</SectionTitle>
           <DataTable
             rows={a.discounts.map((d) => ({ id: d.code, ...d }))}
             empty={<Empty title="No discount codes used." />}
@@ -73,7 +73,7 @@ export default async function AnalyticsPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <SectionTitle right={<a href={exp("funnel")} className="text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Funnel (unique sessions)</SectionTitle>
+          <SectionTitle right={<a href={exp("funnel")} className="inline-flex min-h-12 min-w-12 items-center justify-center px-2 text-[14px] text-body underline-offset-4 hover:underline">CSV</a>}>Funnel (unique sessions)</SectionTitle>
           {!a.hasEvents ? <p className="text-[15px] text-body">No tracking data yet. Visits, add-to-carts and checkouts are recorded automatically once people use the store.</p> : (
             <ul className="space-y-4">
               {a.funnel.map((f, i) => (
