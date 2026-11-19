@@ -20,7 +20,7 @@ export default async function Home() {
         name: `${p.name} ${p.descriptor}`,
         description: p.flavor,
         brand: { "@type": "Brand", name: SITE.name },
-        offers: { "@type": "Offer", price: p.price, priceCurrency: CURRENCY, availability: "https://schema.org/InStock" },
+        offers: { "@type": "Offer", price: p.price, priceCurrency: CURRENCY, availability: p.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
       })),
     ],
   };

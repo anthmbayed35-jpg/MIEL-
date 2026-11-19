@@ -24,8 +24,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1172.0",
-    "@supabase/ssr": "^0.12.7",
-    "@supabase/supabase-js": "^2.119.0",
     "archiver": "^8.0.0",
     "argon2": "^0.45.2",
     "better-sqlite3": "^13.2.0",
@@ -39,7 +37,6 @@
     "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.16",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/archiver": "^8.0.0",

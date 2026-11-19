@@ -33,9 +33,9 @@ describe("role permissions", () => {
 });
 
 describe("environment rules", () => {
-  const PROD = "https://prodref.supabase.co";
-  const STAGING = "https://stagingref.supabase.co";
-  const base = { NEXT_PUBLIC_SUPABASE_ANON_KEY: "a", SUPABASE_SERVICE_ROLE_KEY: "s", NEXT_PUBLIC_SITE_URL: "https://miel.example", MIEL_PRODUCTION_SUPABASE_URL: PROD };
+  const PROD_MAIL = { MAIL_FROM: "MIEL+ <orders@miel.example>", BREVO_API_KEY: "k" };
+  const base = { NEXT_PUBLIC_SITE_URL: "https://miel.example", DATABASE_PATH: "/data/miel.db", AUTH_SECRET: "x".repeat(40) };
+  const prod = { ...base, ...PROD_MAIL, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production" };
 
   it("local development without any config is allowed", () => expect(validateEnv({ NODE_ENV: "development" })).toEqual([]));
   it("is strict only on hosted or MIEL_ENV deployments", () => {
@@ -43,37 +43,46 @@ describe("environment rules", () => {
     expect(isStrict({ RAILWAY_ENVIRONMENT_NAME: "production" })).toBe(true);
     expect(isStrict({ MIEL_ENV: "staging" })).toBe(true);
   });
-  it("production with everything set passes", () => expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD })).toEqual([]));
+  it("production with everything set passes", () => expect(validateEnv(prod)).toEqual([]));
   it("production fails clearly when a variable is missing (names only, no values)", () => {
-    const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SITE_URL: "https://x.example", MIEL_PRODUCTION_SUPABASE_URL: PROD });
-    expect(e.join("\n")).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
-    expect(e.join("\n")).toMatch(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+    const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production" }).join(" ");
+    for (const k of ["NEXT_PUBLIC_SITE_URL", "DATABASE_PATH", "AUTH_SECRET", "MAIL_FROM", "BREVO_API_KEY"]) expect(e).toMatch(new RegExp(k));
   });
-  it("partly configured Supabase is an error", () => expect(validateEnv({ NEXT_PUBLIC_SUPABASE_URL: STAGING }).join()).toMatch(/partly configured/));
-  it("a staging deployment may not use the production database", () => {
-    const e = validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: PROD });
-    expect(e.join("\n")).toMatch(/PRODUCTION Supabase project/);
+  it("missing mail configuration fails loudly in production, but not in staging", () => {
+    const { MAIL_FROM: _f, BREVO_API_KEY: _k, ...noMail } = prod;
+    expect(validateEnv(noMail).join(" ")).toMatch(/MAIL_FROM/);
+    expect(validateEnv({ ...prod, BREVO_API_KEY: undefined }).join(" ")).toMatch(/BREVO_API_KEY/);
+    expect(validateEnv({ ...prod, BREVO_API_KEY: undefined, MAIL_PROVIDER: "smtp" }).join(" ")).toMatch(/SMTP_URL/);
+    expect(validateEnv({ ...prod, BREVO_API_KEY: undefined, MAIL_PROVIDER: "smtp", SMTP_URL: "smtp://u:p@h:587" })).toEqual([]);
+    expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "staging" })).toEqual([]);
   });
-  it("a staging deployment on the staging project passes", () => expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: STAGING })).toEqual([]));
-  it("production must use the production project", () => {
-    const e = validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: STAGING });
-    expect(e.join("\n")).toMatch(/must use the production Supabase project/);
+  it("the test-only file mailer is refused in production", () => expect(validateEnv({ ...prod, MAIL_PROVIDER: "file" }).join(" ")).toMatch(/not allowed in production/));
+  it("AUTH_SECRET must be long, DATABASE_PATH absolute and never in a public folder", () => {
+    expect(validateEnv({ ...prod, AUTH_SECRET: "short" }).join(" ")).toMatch(/at least 32/);
+    expect(validateEnv({ ...prod, DATABASE_PATH: "data/miel.db" }).join(" ")).toMatch(/absolute path/);
+    expect(validateEnv({ ...prod, DATABASE_PATH: "/app/public/miel.db" }).join(" ")).toMatch(/public folder/);
+    expect(validateEnv({ ...prod, DATABASE_PATH: "C:/data/miel.db" })).toEqual([]);
   });
-  it("MIEL_ENV=production is refused outside the production deployment", () => {
-    expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "staging", MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD }).join("\n")).toMatch(/only allowed in the Railway environment named "production"/);
+  it("off-site backups need their credentials and an encryption key", () => {
+    const e = validateEnv({ ...prod, BACKUP_S3_BUCKET: "b" }).join(" ");
+    expect(e).toMatch(/BACKUP_S3_ACCESS_KEY_ID/);
+    expect(e).toMatch(/BACKUP_ENCRYPTION_KEY/);
+    expect(validateEnv({ ...prod, BACKUP_S3_BUCKET: "b", BACKUP_S3_ACCESS_KEY_ID: "a", BACKUP_S3_SECRET_ACCESS_KEY: "s", BACKUP_ENCRYPTION_KEY: "k" })).toEqual([]);
+  });
+  it("MIEL_ENV=production is refused outside the Railway environment named production", () => {
+    expect(validateEnv({ ...prod, RAILWAY_ENVIRONMENT_NAME: "staging" }).join(" ")).toMatch(/only allowed in the Railway environment named "production"/);
   });
   it("the Railway environment named production must declare MIEL_ENV=production", () => {
-    expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "staging", NEXT_PUBLIC_SUPABASE_URL: STAGING }).join(" ")).toMatch(/MIEL_ENV must be production/);
+    expect(validateEnv({ ...base, RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "staging" }).join(" ")).toMatch(/MIEL_ENV must be production/);
   });
   it("production requires an https site URL", () => {
-    expect(validateEnv({ ...base, MIEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SITE_URL: "http://miel.example" }).join(" ")).toMatch(/https/);
+    expect(validateEnv({ ...prod, NEXT_PUBLIC_SITE_URL: "http://miel.example" }).join(" ")).toMatch(/https/);
   });
-  it("a laptop pointing at the production project is refused", () => {
-    expect(validateEnv({ MIEL_PRODUCTION_SUPABASE_URL: PROD, NEXT_PUBLIC_SUPABASE_URL: PROD, NEXT_PUBLIC_SUPABASE_ANON_KEY: "a", SUPABASE_SERVICE_ROLE_KEY: "s" }).join()).toMatch(/PRODUCTION Supabase/);
-  });
+  it("MIEL_ENV must be one of the three values", () => expect(validateEnv({ ...base, MIEL_ENV: "prod" }).join(" ")).toMatch(/MIEL_ENV must be set/));
   it("never leaks secret values into messages", () => {
-    const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", SUPABASE_SERVICE_ROLE_KEY: "SUPER-SECRET-VALUE-123", NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co" }).join("\n");
+    const e = validateEnv({ RAILWAY_ENVIRONMENT_NAME: "production", MIEL_ENV: "production", AUTH_SECRET: "SUPER-SECRET-VALUE-123", BREVO_API_KEY: "SECRET-BREVO-KEY" }).join(" ");
     expect(e).not.toContain("SUPER-SECRET-VALUE-123");
+    expect(e).not.toContain("SECRET-BREVO-KEY");
   });
 });
 

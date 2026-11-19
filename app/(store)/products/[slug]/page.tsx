@@ -63,7 +63,7 @@ export default async function ProductPage({ params }: Props) {
       "@type": "Offer",
       price: p.price,
       priceCurrency: CURRENCY,
-      availability: "https://schema.org/InStock",
+      availability: p.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
       url: `${SITE.url}/products/${p.slug}`,
     },
   };

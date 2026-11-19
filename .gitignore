@@ -14,3 +14,10 @@ screenshots
 /backups
 
 !.env.example
+
+# local database, uploads and backups (customer data: never in git)
+.data
+test-results
+*.db
+*.db-wal
+*.db-shm

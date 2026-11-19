@@ -1,42 +1,48 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getEngine } from "../../lib/db/core";
+import { GET } from "@/app/api/health/route";
+import { runBackup } from "@/lib/backup";
+import { resetState, testDir } from "../support/state";
 
-const state = { mode: "supabase" as "supabase" | "none", error: null as null | { message: string }, hang: false };
-vi.mock("@/lib/db", () => ({
-  dbMode: () => state.mode,
-  getDb: () => ({
-    from: () => ({ select: () => ({ limit: () => (state.hang ? new Promise(() => {}) : Promise.resolve({ data: [], error: state.error })) }) }),
-  }),
-}));
-
-afterEach(() => { state.mode = "supabase"; state.error = null; state.hang = false; vi.useRealTimers(); });
+beforeEach(() => resetState());
+afterEach(() => vi.restoreAllMocks());
 
 describe("GET /api/health", () => {
-  it("200 when the database answers", async () => {
-    const { GET } = await import("@/app/api/health/route");
+  it("200 when the database answers a real query and the volume is writable; reports the backup age", async () => {
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok", db: "ok" });
     expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ status: "ok", db: "ok", volume: "writable", backupAgeHours: null });
+    await runBackup();
+    expect((await (await GET()).json()).backupAgeHours).toBeLessThan(0.1);
   });
-  it("503 (no details) when the database returns an error", async () => {
-    state.error = { message: "password authentication failed for user secret" };
-    const { GET } = await import("@/app/api/health/route");
+
+  it("503 with NO details when the database is broken", async () => {
+    getEngine().sqlite.exec("DROP TABLE migrations");
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ status: "error" });
+  });
+
+  it("503 with no details when the volume is not writable", async () => {
+    const real = fs.writeFileSync;
+    vi.spyOn(fs, "writeFileSync").mockImplementation(((p: fs.PathOrFileDescriptor, ...rest: unknown[]) => {
+      if (String(p).includes(".health-")) throw new Error("EROFS: read-only file system, open '/data/.health-1' secret-path");
+      return (real as (...a: unknown[]) => void)(p, ...rest);
+    }) as typeof fs.writeFileSync);
     const res = await GET();
     expect(res.status).toBe(503);
     const body = JSON.stringify(await res.json());
-    expect(body).toBe('{"status":"error","db":"unreachable"}');
+    expect(body).toBe('{"status":"error"}');
+    expect(body).not.toMatch(/EROFS|secret-path|data/);
   });
-  it("503 when the database never answers (5 s timeout)", async () => {
-    vi.useFakeTimers();
-    state.hang = true;
-    const { GET } = await import("@/app/api/health/route");
-    const pending = GET();
-    await vi.advanceTimersByTimeAsync(5100);
-    expect((await pending).status).toBe(503);
-  });
-  it("200 when no database is configured (local development only)", async () => {
-    state.mode = "none";
-    const { GET } = await import("@/app/api/health/route");
-    expect(await (await GET()).json()).toEqual({ status: "ok", db: "not_configured" });
+
+  it("leaves no probe files behind", async () => {
+    await GET();
+    await GET();
+    expect(fs.readdirSync(testDir()).filter((f) => f.startsWith(".health-"))).toEqual([]);
+    void path;
   });
 });

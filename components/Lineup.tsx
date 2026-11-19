@@ -58,9 +58,13 @@ export function Lineup({ products }: { products: Product[] }) {
                     <span className="display text-[28px]">{money(p.price)}</span>
                     <span className="mono !text-body">{SACHETS_PER_POUCH} SACHETS</span>
                   </div>
-                  <button className="btn btn-block mt-5" onClick={() => add(p.id)} aria-label={`Add ${p.name} to cart`}>
-                    ADD TO CART
-                  </button>
+                  {p.soldOut ? (
+                    <button className="btn btn-block mt-5 opacity-50" disabled aria-disabled="true" aria-label={`${p.name} is sold out`}>SOLD OUT</button>
+                  ) : (
+                    <button className="btn btn-block mt-5" onClick={() => add(p.id)} aria-label={`Add ${p.name} to cart`}>
+                      ADD TO CART
+                    </button>
+                  )}
                 </div>
               </div>
             </Reveal>

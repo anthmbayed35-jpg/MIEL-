@@ -43,6 +43,8 @@ export type Product = {
   kind?: "single" | "bundle";
   compareAtPrice?: number | null;
   sachetCount?: number;
+  /** Set from the live stock level: true when nothing is left to sell. */
+  soldOut?: boolean;
   seoTitle?: string | null;
   seoDescription?: string | null;
 

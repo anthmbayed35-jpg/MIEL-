@@ -46,6 +46,12 @@ const configCatalog = (): Catalog => ({
   store: DEFAULT_STORE, tracking: DEFAULT_TRACKING, policies: DEFAULT_POLICIES, live: false,
 });
 
+/** Nothing left to sell: a tracked product at 0, or a bundle whose components cannot fill one bundle. Untracked products are never sold out. */
+export function isSoldOut(p: Row, stock: Map<string, number>): boolean {
+  if (p.kind === "bundle" && p.bundle_items?.length) return (p.bundle_items as { product_id: string; qty: number }[]).some((b) => stock.has(b.product_id) && (stock.get(b.product_id) ?? 0) < b.qty);
+  return stock.has(p.id) && (stock.get(p.id) ?? 0) <= 0;
+}
+
 /** Everything the storefront needs. Falls back to the config files when the database is unavailable or empty. */
 export async function getCatalog(): Promise<Catalog> {
   if (!usesDb()) return configCatalog();
@@ -59,10 +65,12 @@ export async function getCatalog(): Promise<Catalog> {
       db.from("settings").select("*"),
     ]);
     if (!prods?.length) return configCatalog();
+    const { data: inv } = await db.from("inventory_items").select("product_id, on_hand");
+    const stock = new Map<string, number>(((inv ?? []) as Row[]).map((i) => [i.product_id as string, Number(i.on_hand)]));
     const c = (k: string) => (content ?? []).find((x: Row) => x.key === k)?.value;
     const s = (k: string) => (settings ?? []).find((x: Row) => x.key === k)?.value;
     return {
-      products: (prods as Row[]).map((p) => rowToProduct(p, imgs ?? [])),
+      products: (prods as Row[]).map((p) => ({ ...rowToProduct(p, imgs ?? []), soldOut: isSoldOut(p, stock) })),
       zones: (zones ?? []).map((z: Row) => ({ ...z, fee: Number(z.fee), free_over: z.free_over != null ? Number(z.free_over) : null })),
       faq: c("faq") ?? DEFAULT_FAQ,
       announcement: { ...DEFAULT_ANNOUNCEMENT, ...(c("announcement") ?? {}) },

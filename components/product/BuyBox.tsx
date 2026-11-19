@@ -40,6 +40,15 @@ export function BuyBox({ product }: { product: Product }) {
 
   const addToCart = () => add(product.id, qty);
 
+  if (product.soldOut)
+    return (
+      <div role="status" className="glass p-5">
+        <p className="display text-[22px]">SOLD OUT</p>
+        <p className="mt-1 text-[16px]">This one is out of stock right now. Message us on WhatsApp and we'll tell you when it's back.</p>
+        <button disabled className="btn btn-block mt-4 !w-full opacity-50" aria-disabled="true">SOLD OUT</button>
+      </div>
+    );
+
   return (
     <>
       <div className="flex items-center gap-3">
@@ -99,6 +108,7 @@ export function BuyBox({ product }: { product: Product }) {
 /** Yellow CTA used in the final section. Adds one pouch. */
 export function AddOneButton({ product }: { product: Product }) {
   const { add } = useCart();
+  if (product.soldOut) return <button disabled className="btn opacity-50" aria-disabled="true">{product.name} IS SOLD OUT</button>;
   return (
     <button onClick={() => add(product.id)} className="btn">
       ADD {product.name} TO CART

@@ -18,8 +18,8 @@ const sourceFiles = [...walk("app"), ...walk("components"), ...walk("lib"), ...w
 
 const GUARD = /(requirePerm|requireAdmin|getAdminState|getAdmin)\(/;
 // Public by design: the token in an invite/reset link IS the credential; login/reset requests are for signed-out people.
-const PUBLIC_ACTIONS = new Set(["login", "requestReset", "confirmLink"]);
-const PUBLIC_PAGES = new Set(["app/admin/login/page.tsx", "app/admin/forgot/page.tsx", "app/admin/auth/confirm/page.tsx"]);
+const PUBLIC_ACTIONS = new Set(["login", "requestReset", "setPassword"]); // setPassword: the single-use token in the link is the credential
+const PUBLIC_PAGES = new Set(["app/admin/login/page.tsx", "app/admin/forgot/page.tsx", "app/admin/(flow)/set-password/page.tsx"]);
 
 describe("every admin entry point checks who is calling (not just the proxy)", () => {
   const actionFiles = sourceFiles.filter((f) => f.startsWith("app/admin/") && /actions\.ts$/.test(f));
@@ -55,8 +55,10 @@ describe("every admin entry point checks who is calling (not just the proxy)", (
 });
 
 describe("sign-up is impossible", () => {
-  it("no code calls signUp / OAuth / magic-link sign-in", () => {
-    for (const f of sourceFiles) expect(read(f), f).not.toMatch(/\.signUp\(|signInWithOAuth|signInWithOtp|signInAnonymously/);
+  it("no code can create an account except by accepting an invite", () => {
+    // the only INSERT into admin_users is in lib/invites.ts (consumeToken, after a valid single-use invite token)
+    const inserts = sourceFiles.filter((f) => /INSERT INTO admin_users|from\("admin_users"\)\.insert/.test(read(f)));
+    expect(inserts).toEqual(["lib/invites.ts"]);
   });
   it("there is no sign-up route", () => {
     const routes = walk("app").filter((f) => /(sign-?up|register|join)/i.test(f));
@@ -64,7 +66,7 @@ describe("sign-up is impossible", () => {
   });
   it("login uses only email + password and requires an active admin_users row", () => {
     const src = read("app/admin/login/actions.ts");
-    expect(src).toMatch(/signInWithPassword/);
+    expect(src).toMatch(/verifyPassword/);
     expect(src).toMatch(/admin_users/);
     expect(src).toMatch(/active/);
   });
@@ -76,21 +78,21 @@ describe("secrets stay on the server", () => {
   it("no client component can reach the service key, the DB client or auth admin", () => {
     for (const f of clientFiles) {
       const src = read(f);
-      expect(src, f).not.toMatch(/SERVICE_ROLE|adminAuthClient|supabase-server|lib\/db"|from "@\/lib\/db|lib\/security|lib\/auth"/);
+      expect(src, f).not.toMatch(/AUTH_SECRET|DATABASE_PATH|lib\/db|lib\/security|lib\/auth"|lib\/session|lib\/crypto|lib\/passwords|lib\/invites|lib\/backup|better-sqlite3|argon2/);
     }
   });
   it("server-only modules are marked server-only", () => {
-    for (const f of ["lib/db/index.ts", "lib/auth.ts", "lib/supabase-server.ts", "lib/security.ts", "lib/orders.ts", "lib/storage.ts", "lib/audit.ts"])
+    for (const f of ["lib/db/index.ts", "lib/auth.ts", "lib/security.ts", "lib/orders.ts", "lib/storage.ts", "lib/audit.ts", "lib/invites.ts", "lib/mail.ts", "lib/notify.ts"])
       expect(read(f), f).toMatch(/^import "server-only";/);
   });
-  it("the service-role key is read only in server modules", () => {
-    const users = sourceFiles.filter((f) => read(f).includes("SUPABASE_SERVICE_ROLE_KEY")).sort();
-    expect(users).toEqual(["lib/db/index.ts", "lib/env.ts", "lib/notify.ts", "lib/security.ts", "lib/storage.ts", "lib/supabase-server.ts", "proxy.ts", "next.config.ts"].filter((f) => users.includes(f)).sort());
+  it("secrets are read only in server modules, never in a client component", () => {
+    const users = sourceFiles.filter((f) => /process\.env\.(AUTH_SECRET|DATABASE_PATH|BREVO_API_KEY|SMTP_URL|BACKUP_[A-Z_]+)/.test(read(f)));
+    expect(users.length).toBeGreaterThan(3);
     for (const f of users) expect(/^\s*["']use client["']/.test(read(f)), f).toBe(false);
   });
-  it("the browser Supabase client is gone (so auth cookies can be httpOnly)", () => {
-    expect(fs.existsSync(path.join(ROOT, "lib/supabase-browser.ts"))).toBe(false);
-    for (const f of sourceFiles) expect(read(f), f).not.toMatch(/createBrowserClient/);
+  it("the database file is never inside a public folder and nothing serves it", () => {
+    expect(walk("public").filter((f) => /\.(db|sqlite|sqlite3)(-wal|-shm)?$/.test(f))).toEqual([]);
+    expect(read(".gitignore")).toMatch(/^\.data$/m);
   });
 });
 
