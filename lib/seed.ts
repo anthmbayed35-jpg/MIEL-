@@ -55,5 +55,38 @@ export async function seedBase() {
   await put("settings", "tracking", DEFAULT_TRACKING);
   await put("settings", "notifications", DEFAULT_NOTIFICATIONS);
   await put("settings", "policies", DEFAULT_POLICIES);
+  await syncConfigImages();
   return { created };
+}
+
+/** The flavour glow colours these products had before they were retuned (only an untouched old value is replaced). */
+const OLD_GLOW: Record<string, string> = {
+  "red-burn": "rgba(190, 30, 60, 0.45)",
+  gold: "rgba(236, 178, 60, 0.4)",
+  creatine: "rgba(205, 212, 224, 0.32)",
+};
+
+/**
+ * Bring an EXISTING database up to date with config/products.ts, once per product: a product that has no photos in the
+ * database yet gets the ones listed in the config, and an untouched old glow colour becomes the new one. After that the admin
+ * owns them (a photo you delete or reorder never comes back). Recorded in settings key "config_sync". Idempotent; runs at
+ * every boot (instrumentation.ts) and after "Sync products from config".
+ */
+export async function syncConfigImages(): Promise<number> {
+  const db = getDb();
+  const flag = (must(await db.from("settings").select("*").eq("key", "config_sync")) as { value?: { images?: string[] } }[])[0];
+  const done = new Set<string>(flag?.value?.images ?? []);
+  let added = 0;
+  for (const p of configProducts) {
+    const prod = (must(await db.from("products").select("id, glow").eq("slug", p.slug)) as { id: string; glow: string }[])[0];
+    if (!prod || done.has(p.slug)) continue;
+    if (OLD_GLOW[p.slug] && prod.glow === OLD_GLOW[p.slug] && p.glow !== prod.glow) must(await db.from("products").update({ glow: p.glow }).eq("id", prod.id));
+    if (p.images.length && !(must(await db.from("product_images").select("id").eq("product_id", prod.id)) as unknown[]).length) {
+      must(await db.from("product_images").insert(p.images.map((im, n) => ({ product_id: prod.id, kind: im.kind, src: im.src, alt: im.alt, label: im.label, sort: n }))));
+      added += p.images.length;
+    }
+    done.add(p.slug);
+  }
+  must(await db.from("settings").upsert({ key: "config_sync", value: { images: [...done] } }, { onConflict: "key" }));
+  return added;
 }

@@ -428,8 +428,11 @@ test("image upload: re-encoded to AVIF/WebP on the volume, served with long cach
   }
   expect((await request.get(`/uploads/${m[1]}-1600.webp`)).status()).toBe(404);
   expect((await request.get("/uploads/..%2f..%2fmiel.db")).status()).toBe(404);
+  // the gallery shows four photos and CREATINE already has four, so put the new one first (as an admin would with the up arrow)
+  exec("UPDATE product_images SET sort = -1 WHERE alt = 'E2E uploaded photo'");
   const html = (await visitorHtml(browser, "/products/creatine")).html;
   expect(html).toContain(`/uploads/${m[1]}-1080.webp`);
+  exec("DELETE FROM product_images WHERE alt = 'E2E uploaded photo'"); // leave the gallery as configured for the later specs
   await ctx.close();
 });
 

@@ -4,13 +4,17 @@ import type { HeroContent } from "@/config/content";
 import { FEATURED_SLUG, SACHETS_PER_POUCH } from "@/config/site";
 import { Blobs } from "./Blobs";
 import { photoPreload } from "./Photo";
-import { ProductImage } from "./ProductImage";
+import { HeroPouches, type HeroPouch } from "./HeroPouches";
 
 const HERO_SIZES = "(min-width: 1024px) 520px, calc(100vw - 56px)";
 
 export function Hero({ products, hero }: { products: Product[]; hero: HeroContent }) {
   const product = products.find((p) => p.slug === FEATURED_SLUG) ?? products[0];
   const photo = product && findPhoto(product, "pouch-hero");
+  // All flavours, the featured one first (it is the visible, prioritised, preloaded image).
+  const pouches: HeroPouch[] = [product, ...products.filter((p) => p !== product)]
+    .filter((p): p is Product => !!p && !!findPhoto(p, "pouch-hero"))
+    .map((p) => ({ slug: p.slug, name: p.name, glow: p.glow, alt: p.images.find((i) => i.kind === "pouch-hero")?.alt ?? p.imageAlt, photo: findPhoto(p, "pouch-hero") }));
 
   // The ONLY preload on the site: the hero (LCP) image.
   if (photo) {
@@ -54,18 +58,17 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
           </div>
         </div>
 
-        {/* Pouch photo in a glass-bordered rounded panel: right of the headline on desktop, full width below it on mobile.
-            Its own grid cell, so the headline can never overlap the pouch. Panel and photo are both 4:5. */}
-        <div className="glass mx-auto w-full max-w-[520px] p-2 sm:p-3 lg:mx-0 lg:justify-self-end">
-          <ProductImage
-            photo={photo}
-            alt={product?.imageAlt ?? "MIEL+ honey sachet pouch"}
-            label="HERO POUCH IMAGE"
-            sizes={HERO_SIZES}
-            priority
-            className="aspect-[4/5] w-full rounded-[12px]"
-          />
-        </div>
+        {/* Pouch photos in a glass-bordered rounded panel: right of the headline on desktop, full width below it on mobile.
+            Its own grid cell, so the headline can never overlap the pouch. Panel and photos are all 4:5. */}
+        {pouches.length ? (
+          <HeroPouches pouches={pouches} sizes={HERO_SIZES} />
+        ) : (
+          <div className="glass mx-auto w-full max-w-[520px] p-2 sm:p-3 lg:mx-0 lg:justify-self-end">
+            <div role="img" aria-label="MIEL+ honey sachet pouch (image placeholder)" className="flex aspect-[4/5] w-full items-center justify-center rounded-[12px]">
+              <span className="mono !text-body opacity-70">HERO POUCH IMAGE</span>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

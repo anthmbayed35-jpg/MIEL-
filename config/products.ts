@@ -86,7 +86,7 @@ export const products: Product[] = [
     flavor: "Pomegranate + beet",
     spec: "22G · CARBS 17G · STIM-FREE",
     price: POUCH_PRICE,
-    glow: "rgba(190, 30, 60, 0.45)",
+    glow: "rgba(184, 20, 62, 0.45)", // #B8143E
     imageAlt: "RED BURN Endurance Honey pouch, pomegranate and beet",
     images: [
       { kind: "pouch-hero", src: "/images/products/red-burn/red-burn-pouch-hero", label: "POUCH", alt: "RED BURN endurance honey pouch with pomegranate and beetroot" },
@@ -136,8 +136,18 @@ export const products: Product[] = [
     flavor: "Vanilla + 150mg caffeine",
     spec: "~21G · 150MG CAFFEINE",
     price: POUCH_PRICE,
-    glow: "rgba(236, 178, 60, 0.4)",
-    images: [],
+    glow: "rgba(245, 180, 0, 0.4)", // #F5B400
+    // Same gallery order as RED BURN: pouch-hero, flat-lay, sachet-open, ingredients.
+    // TODO(gold-flat-lay): the supplied GOLD flat-lay photo has a typo on the pouch ("21 C EACH" instead of "21 G EACH"), so it is
+    // NOT published. The flat-lay slot shows the pouch hero instead (kind "flat-lay", label "POUCH"). When the corrected photo
+    // arrives: node scripts/ingest-image.mjs <file> gold gold-flat-lay && npm run images, then point this slot's src at
+    // "/images/products/gold/gold-flat-lay", and set its label back to "FLAT LAY" and its alt to describe the flat lay.
+    images: [
+      { kind: "pouch-hero", src: "/images/products/gold/gold-pouch-hero", label: "POUCH", alt: "GOLD pouch, black with gold lettering, standing beside vanilla pods and a vanilla flower with honey pouring on the right" },
+      { kind: "flat-lay", src: "/images/products/gold/gold-pouch-hero", label: "POUCH", alt: "GOLD pouch beside vanilla pods and a vanilla flower, with honey pouring on a dark reflective surface" }, // TODO(gold-flat-lay): replace with the corrected flat lay
+      { kind: "sachet-open", src: "/images/products/gold/gold-sachet-open", label: "SACHET", alt: "Torn-open GOLD sachet with honey spilling from the top, on dark slate beside a vanilla pod" },
+      { kind: "ingredients", src: "/images/products/gold/gold-ingredients", label: "INGREDIENTS", alt: "Crossed vanilla pods in a splash of golden honey against a dark background" },
+    ],
     imageAlt: "GOLD Energy Honey pouch, vanilla with caffeine",
     description: "Smooth vanilla honey with 150mg of caffeine per sachet. Take it before you train and go.",
     chips: ["12 SACHETS", "~21G EACH", "150MG CAFFEINE"],
@@ -182,8 +192,13 @@ export const products: Product[] = [
     flavor: "5g creatine",
     spec: "20G · 5G CREATINE · STIM-FREE",
     price: POUCH_PRICE,
-    glow: "rgba(205, 212, 224, 0.32)",
-    images: [],
+    glow: "rgba(77, 163, 255, 0.4)", // #4DA3FF
+    images: [
+      { kind: "pouch-hero", src: "/images/products/creatine/creatine-pouch-hero", label: "POUCH", alt: "CREATINE pouch, black with blue lettering, standing beside a small pile of white powder and pouring honey" },
+      { kind: "flat-lay", src: "/images/products/creatine/creatine-flat-lay", label: "FLAT LAY", alt: "CREATINE pouch above four sachets laid flat on dark slate, with white powder and honey around them" },
+      { kind: "sachet-open", src: "/images/products/creatine/creatine-sachet-open", label: "SACHET", alt: "Torn-open CREATINE sachet with honey spilling out and white powder beside it, on dark slate" },
+      { kind: "ingredients", src: "/images/products/creatine/creatine-ingredients", label: "INGREDIENTS", alt: "White powder and golden honey bursting apart in mid-air against a dark background" },
+    ],
     imageAlt: "CREATINE Strength Honey pouch",
     description: "5g of creatine in every honey sachet. No scoops, no powder, no mess. Built for strength days.",
     chips: ["12 SACHETS", "20G EACH", "5G CREATINE"],

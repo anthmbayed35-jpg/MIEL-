@@ -6,11 +6,13 @@ import { Blobs } from "./Blobs";
 import { Photo } from "./Photo";
 import { Reveal } from "./Reveal";
 
-/** Full-bleed feature band: ingredients photo dimmed under a dark overlay + a glass card. Needs an "ingredients" photo. */
-export function FeatureBand({ products }: { products: Product[] }) {
-  const p = products.find((x) => x.slug === FEATURED_SLUG);
-  const bg = p && findPhoto(p, "ingredients");
-  if (!p || !bg) return null;
+/**
+ * Full-bleed band for ONE flavour: its ingredients photo dimmed under a dark overlay + a glass card, tinted with the flavour's
+ * glow colour. Needs an "ingredients" photo. The home page renders one per flavour (the featured one first).
+ */
+export function FeatureBand({ product: p }: { product: Product }) {
+  const bg = findPhoto(p, "ingredients");
+  if (!bg) return null;
   const fade = "linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent)";
   return (
     <section aria-label={`Featured: ${p.name}`} className="relative isolate overflow-x-clip">
@@ -22,7 +24,7 @@ export function FeatureBand({ products }: { products: Product[] }) {
       <Blobs spots={[{ x: "62%", y: "10%", color: p.glow }]} />
       <div className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-32">
         <Reveal className="glass max-w-xl p-6 md:p-10">
-          <p className="mono mb-3">FEATURED</p>
+          <p className="mono mb-3">{p.slug === FEATURED_SLUG ? "FEATURED" : "FLAVOUR"}</p>
           <h2 className="display h-section">{p.name}</h2>
           <p className="mono mt-3 !text-[15px]">{p.descriptor}</p>
           <p className="body-lg mt-4 !text-fg">{p.description}</p>

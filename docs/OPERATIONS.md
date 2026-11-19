@@ -190,3 +190,17 @@ To take the shop offline again at any time: set `SITE_MODE=maintenance` and rest
 * `AUTH_SECRET` leaked: change it in Railway and redeploy; everyone must re-enrol two-factor (the old secrets can no longer be decrypted), and use "Sign out everywhere".
 * `BREVO_API_KEY` leaked: revoke it in Brevo, create a new one, update Railway, redeploy.
 * A team member's account compromised: **Settings → Team → Deactivate** (their sessions end immediately), then review **Settings → Activity**.
+
+## 14. Product photos
+
+All three flavours have the same four-photo gallery (pouch hero, flat lay, sachet open, ingredients). The pipeline, for a new or replaced photo:
+
+1. Put the big original (4:5 portrait PNG/JPG) in `./incoming-images/` (git-ignored: 25 MB originals are never committed).
+2. `node scripts/ingest-image.mjs incoming-images/<file> <slug> <slug>-<kind>`, for example `... gold gold-flat-lay`. This writes the source `assets-src/<slug>/<name>.webp` (2000 px tall, like the RED BURN sources, a few hundred KB).
+3. `npm run images` makes AVIF + WebP at 480/768/1080/1600 (never upscaled), the blur placeholders (`config/photos.generated.ts`) and keeps explicit width/height. It does not change the other products' files.
+4. List the photo in the product's `images` array in `config/products.ts` (order: pouch-hero, flat-lay, sachet-open, ingredients; each with a specific alt text that describes only what is visible).
+5. Delete `./incoming-images/`.
+
+An **existing** database picks up photos and glow colours added to `config/products.ts` once, at the next start, only for a product that has no photos yet (and only if its glow colour was never changed). After that the admin owns them: a photo you delete or reorder never comes back. A new database gets everything when it is first created.
+
+**TODO(gold-flat-lay): swap in the corrected GOLD flat lay.** The supplied GOLD flat-lay photo has a typo on the pouch ("21 C EACH" instead of "21 G EACH"), so it is **not published**; the GOLD gallery's flat-lay slot shows the pouch hero instead (label "POUCH"). When the corrected photo is ready: run steps 1 to 3 with `gold gold-flat-lay`, change that slot in `config/products.ts` to `src: "/images/products/gold/gold-flat-lay"`, label `FLAT LAY` and an alt text describing the flat lay, remove the `TODO(gold-flat-lay)` comments, and in the admin (**Products → GOLD → images**) replace the duplicate pouch-hero entry with the new photo (existing databases keep what the admin shows).

@@ -4,6 +4,7 @@ import { ProofStrip } from "@/components/ProofStrip";
 import { Lineup } from "@/components/Lineup";
 import { FeatureBand } from "@/components/FeatureBand";
 import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer, Testimonials } from "@/components/Sections";
+import { findPhoto } from "@/config/products";
 import { getCatalog } from "@/lib/catalog";
 import { FEATURED_SLUG, SITE, CURRENCY } from "@/config/site";
 
@@ -31,7 +32,9 @@ export default async function Home() {
         <Hero products={products} hero={cat.hero} />
         <ProofStrip />
         <Lineup products={products} />
-        <FeatureBand products={products} />
+        {[featured, ...products.filter((p) => p !== featured)].filter((p) => p && findPhoto(p, "ingredients")).map((p) => (
+          <FeatureBand key={p.slug} product={p} />
+        ))}
         <HowTo />
         <WhyHoney />
         <Value price={featured?.price ?? 0} />

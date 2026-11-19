@@ -18,6 +18,7 @@ export async function register() {
   const { seedBase } = await import("./lib/seed");
   const products = (engine.sqlite.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number }).n;
   if (products === 0) await seedBase();
+  else await (await import("./lib/seed")).syncConfigImages(); // photos/colours added to config/products.ts reach an existing database once
 
   // Email is optional until configured: one warning, no secrets.
   const { warnIfMailMissing } = await import("./lib/mail-config");

@@ -24,3 +24,6 @@ test-results
 .data-e2e
 /data
 /uploads
+
+# large original photos (25 MB PNGs): processed with scripts/ingest-image.mjs, never committed
+incoming-images
