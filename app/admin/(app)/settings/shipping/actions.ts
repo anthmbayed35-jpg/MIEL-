@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { guarded, orFail } from "@/lib/version";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
@@ -25,7 +26,7 @@ export async function saveZone(_p: ActionState, fd: FormData): Promise<ActionSta
     eta: String(fd.get("eta") ?? "").trim(), active: fd.get("active") === "on",
   };
   try {
-    if (id) must(await db.from("shipping_zones").update(row).eq("id", id));
+    if (id) must(await guarded(db.from("shipping_zones").update(row).eq("id", id), fd));
     else {
       const n = (must(await db.from("shipping_zones").select("id")) as Row[]).length;
       must(await db.from("shipping_zones").insert({ ...row, sort: n + 1 }));
@@ -39,13 +40,17 @@ export async function saveZone(_p: ActionState, fd: FormData): Promise<ActionSta
 }
 
 export async function savePartner(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => savePartnerImpl(_p, fd));
+}
+
+async function savePartnerImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("shipping.manage");
   const db = getDb();
   const id = String(fd.get("id") ?? "");
   const name = String(fd.get("name") ?? "").trim();
   if (!name) return { error: "Give the partner a name." };
   const row = { name, phone: String(fd.get("phone") ?? "").trim(), notes: String(fd.get("notes") ?? "").trim(), active: fd.get("active") === "on" };
-  if (id) must(await db.from("delivery_partners").update(row).eq("id", id));
+  if (id) must(await guarded(db.from("delivery_partners").update(row).eq("id", id), fd));
   else must(await db.from("delivery_partners").insert({ ...row, is_demo: false }));
   await audit(admin, id ? "partner_update" : "partner_create", "delivery_partner", id || name);
   done();

@@ -1,21 +1,16 @@
 import Link from "next/link";
 import { can, requirePerm } from "@/lib/auth";
-import { customersWithStats } from "@/lib/customers";
+import { listCustomers } from "@/lib/customers";
+import { Pager } from "@/components/admin/Pager";
 import { Card, DataTable, Empty, Money, PageHeader, PillLink } from "@/components/admin/ui";
 
 export const metadata = { title: "Customers" };
 
-export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; blocked?: string; sort?: string }> }) {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; blocked?: string; sort?: string; page?: string }> }) {
   const admin = await requirePerm("customers.read");
   const sp = await searchParams;
-  let list = await customersWithStats();
-  const tags = [...new Set(list.flatMap((c) => (c.tags as string[]) ?? []))].sort();
-  const q = (sp.q ?? "").trim().toLowerCase();
-  if (q) list = list.filter((c) => c.name.toLowerCase().includes(q) || c.phone.replace(/\D/g, "").includes(q.replace(/\D/g, "") || "§"));
-  if (sp.tag) list = list.filter((c) => (c.tags as string[]).includes(sp.tag!));
-  if (sp.blocked === "1") list = list.filter((c) => c.blocked);
-  list.sort(sp.sort === "recent" ? (a, b) => String(b.last).localeCompare(String(a.last)) : (a, b) => b.spent - a.spent);
-  const exportQs = new URLSearchParams(Object.entries(sp).filter(([, v]) => v) as [string, string][]).toString();
+  const { rows: list, total, page, pages, tags } = listCustomers({ q: sp.q, tag: sp.tag, blocked: sp.blocked, sort: sp.sort, page: Number(sp.page) || 1 });
+  const exportQs = new URLSearchParams(Object.entries({ q: sp.q, tag: sp.tag, blocked: sp.blocked, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
 
   return (
     <>
@@ -41,6 +36,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             { key: "tags", label: "Tags", render: (c) => <span className="flex flex-wrap gap-1">{(c.tags as string[]).map((t) => <span key={t} className="status st-draft">{t}</span>)}</span> },
           ]}
         />
+        <Pager basePath="/admin/customers" params={{ q: sp.q, tag: sp.tag, blocked: sp.blocked, sort: sp.sort }} page={page} pages={pages} total={total} noun="customer" />
       </Card>
     </>
   );

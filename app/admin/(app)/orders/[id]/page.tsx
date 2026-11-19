@@ -52,13 +52,13 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <Card flat className="flex flex-wrap items-center gap-3">
               {next && (
                 <ActionForm action={changeStatus} className="contents">
-                  <input type="hidden" name="id" value={o.id} />
+                  <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
                   <input type="hidden" name="to" value={next} />
                   <SubmitButton variant="lime">{status === "draft" ? "Confirm draft (deducts stock)" : `Mark as ${STATUS_LABEL[next].toLowerCase()}`}</SubmitButton>
                 </ActionForm>
               )}
               <ActionForm action={changeStatus} className="flex flex-wrap items-center gap-2">
-                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
                 <select name="to" defaultValue={status} className="a-input !w-auto" aria-label="Set status">
                   {ORDER_STATUSES.filter((s) => !["cancelled", "returned", "draft"].includes(s)).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                 </select>
@@ -88,7 +88,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </dl>
             {!["draft", "cancelled"].includes(status) && (
               <ActionForm action={toggleCod} className="mt-4 flex flex-wrap items-center gap-3">
-                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
                 <input type="hidden" name="collected" value={o.cod_collected ? "0" : "1"} />
                 <SubmitButton variant={o.cod_collected ? "glass" : "lime"}>{o.cod_collected ? "Undo: mark as not collected" : `Mark $${Number(o.cod_amount_due).toFixed(2)} COD as collected`}</SubmitButton>
                 {o.cod_settled_at && <span className="text-[13px] text-muted">Settled {new Date(o.cod_settled_at).toLocaleDateString("en-GB")}</span>}
@@ -110,7 +110,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               ))}
             </ol>
             <ActionForm action={addComment} resetOnSuccess className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <input type="hidden" name="id" value={o.id} />
+              <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
               <input name="text" required placeholder="Add an internal comment (customers can't see this)" className="a-input" aria-label="Comment" />
               <SubmitButton variant="light">Add</SubmitButton>
             </ActionForm>
@@ -137,7 +137,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <a href={mapUrl(o.address, o.region)} target="_blank" rel="noopener noreferrer" className="link text-[15px]">Open in Google Maps ↗</a>
             {o.customer_notes && <p className="mt-3 rounded-2xl bg-white/6 p-3 text-[15px]"><span className="mono block !text-[11px]">CUSTOMER NOTE</span>{o.customer_notes}</p>}
             <ActionForm action={saveDelivery} className="mt-4 space-y-3">
-              <input type="hidden" name="id" value={o.id} />
+              <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
               <label className="block"><span className="a-label">Delivery partner</span>
                 <select name="partner" defaultValue={o.delivery_partner_id ?? ""} className="a-input">
                   <option value="">Not assigned</option>
@@ -157,14 +157,14 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <SectionTitle>{status === "delivered" ? "Return" : "Cancel order"}</SectionTitle>
               {status === "delivered" ? (
                 <ActionForm action={returnOrder} className="space-y-3">
-                  <input type="hidden" name="id" value={o.id} />
+                  <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
                   <input name="note" placeholder="Reason / note (optional)" className="a-input" />
                   <SubmitButton variant="danger" confirm="Mark this order as returned? Stock will be restored.">Mark as returned</SubmitButton>
                   <p className="text-[13px] text-muted">Restores stock. If the COD was collected, a refund is noted on the order.</p>
                 </ActionForm>
               ) : (
                 <ActionForm action={cancelOrder} className="space-y-3">
-                  <input type="hidden" name="id" value={o.id} />
+                  <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
                   <input name="reason" required placeholder="Reason for cancelling" className="a-input" />
                   <SubmitButton variant="danger" confirm="Cancel this order? Stock will be restored.">Cancel order</SubmitButton>
                   <p className="text-[13px] text-muted">Stock is restored automatically.</p>

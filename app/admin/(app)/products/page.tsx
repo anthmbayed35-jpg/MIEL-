@@ -3,17 +3,33 @@ import { getDb, must, type Row } from "@/lib/db";
 import { perSachet } from "@/lib/format";
 import { Card, DataTable, Empty, Money, PageHeader, PillLink } from "@/components/admin/ui";
 import { Photo } from "@/components/Photo";
+import { Pager } from "@/components/admin/Pager";
+import { LIST_PAGE_SIZE } from "@/lib/lists";
+import Link from "next/link";
 
 export const metadata = { title: "Products" };
 
 const tone: Record<string, string> = { active: "st-delivered", draft: "st-packed", archived: "st-cancelled" };
 
-export default async function ProductsPage() {
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; page?: string }> }) {
   const admin = await requirePerm("products.read");
   const db = getDb();
-  const products = must(await db.from("products").select("*").order("sort", { ascending: true })) as Row[];
-  const images = must(await db.from("product_images").select("*").order("sort", { ascending: true })) as Row[];
-  const inventory = must(await db.from("inventory_items").select("*")) as Row[];
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim().replace(/[%,()]/g, "");
+  const filtered = () => {
+    let f = db.from("products").select("*", { count: "exact" }).order("sort", { ascending: true }).order("created_at", { ascending: false });
+    if (sp.status && ["active", "draft", "archived"].includes(sp.status)) f = f.eq("status", sp.status);
+    if (q) f = f.or(`name.ilike.%${q}%,slug.ilike.%${q}%,descriptor.ilike.%${q}%`);
+    return f;
+  };
+  const total = (await filtered().limit(1)).count ?? 0;
+  const pages = Math.max(1, Math.ceil(total / LIST_PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(sp.page) || 1), pages);
+  const products = must(await filtered().range((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE - 1)) as Row[];
+  // two more queries for the whole page (no per-row lookups): the photos and the stock of these products
+  const ids = products.map((p) => p.id);
+  const images = ids.length ? (must(await db.from("product_images").select("*").in("product_id", ids).order("sort", { ascending: true })) as Row[]) : [];
+  const inventory = ids.length ? (must(await db.from("inventory_items").select("*").in("product_id", ids)) as Row[]) : [];
 
   const rows = products.map((p) => {
     const img = images.find((i) => i.product_id === p.id);
@@ -25,6 +41,11 @@ export default async function ProductsPage() {
     <>
       <PageHeader eyebrow="What you sell" title="Products" actions={can(admin.role, "products.write") && <PillLink href="/admin/products/new" variant="lime">+ Add product</PillLink>} />
       <Card>
+        <form className="mb-5 grid gap-3 md:grid-cols-[2fr_1fr_auto]" role="search">
+          <input name="q" defaultValue={sp.q} placeholder="Search name, slug or descriptor" className="a-input" aria-label="Search products" />
+          <select name="status" defaultValue={sp.status ?? ""} className="a-input" aria-label="Status"><option value="">All statuses</option><option value="active">Active</option><option value="draft">Draft</option><option value="archived">Archived</option></select>
+          <div className="flex gap-2"><button className="pill-btn pill-light">Apply</button><Link href="/admin/products" className="pill-btn pill-glass">Reset</Link></div>
+        </form>
         <DataTable
           rows={rows}
           href={(r) => `/admin/products/${r.id}`}
@@ -47,6 +68,7 @@ export default async function ProductsPage() {
             { key: "stock", label: "Stock", render: (r) => (r.stock === null ? <span className="text-muted">from contents</span> : <span className={r.low ? "mono !text-[#ff8aa0]" : "mono !text-fg"}>{r.stock} {r.low ? "· LOW" : ""}</span>) },
           ]}
         />
+        <Pager basePath="/admin/products" params={{ q: sp.q, status: sp.status }} page={page} pages={pages} total={total} noun="product" />
       </Card>
     </>
   );

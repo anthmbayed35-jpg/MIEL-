@@ -9,7 +9,10 @@ import { useCart } from "./CartProvider";
 import { ProductImage } from "./ProductImage";
 import { Reveal } from "./Reveal";
 
-export function Lineup({ products }: { products: Product[] }) {
+/** The home page shows the first HOME_LINEUP_LIMIT products; a catalogue with many more links to the paginated /products page. */
+export const HOME_LINEUP_LIMIT = 12;
+
+export function Lineup({ products, total, title = true, heading, children }: { products: Product[]; total?: number; title?: boolean; heading?: React.ReactNode; children?: React.ReactNode }) {
   const { add } = useCart();
   return (
     <section id="lineup" className="relative isolate overflow-x-clip">
@@ -20,12 +23,15 @@ export function Lineup({ products }: { products: Product[] }) {
         ]}
       />
       <div className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24">
-        <Reveal>
-          <p className="mono mb-3">THE LINEUP</p>
-          <h2 className="display h-section mb-10 md:mb-14">
-            Pick your <span className="accent">fuel.</span>
-          </h2>
-        </Reveal>
+        {heading}
+        {title && (
+          <Reveal>
+            <p className="mono mb-3">THE LINEUP</p>
+            <h2 className="display h-section mb-10 md:mb-14">
+              Pick your <span className="accent">fuel.</span>
+            </h2>
+          </Reveal>
+        )}
         <ul className="grid gap-6 lg:grid-cols-3">
           {products.map((p, i) => (
             <Reveal as="li" key={p.id} delay={i * 80} className="relative">
@@ -70,6 +76,14 @@ export function Lineup({ products }: { products: Product[] }) {
             </Reveal>
           ))}
         </ul>
+        {total !== undefined && total > products.length && (
+          <div className="mt-10 text-center">
+            <Link href="/products" className="btn">
+              SEE ALL {total} PRODUCTS
+            </Link>
+          </div>
+        )}
+        {children}
       </div>
     </section>
   );

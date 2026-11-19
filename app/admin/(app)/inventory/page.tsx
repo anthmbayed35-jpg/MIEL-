@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { can, requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
+import { inventoryList, inventoryNames } from "@/lib/lists";
+import { Pager } from "@/components/admin/Pager";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, DataTable, Empty, Num, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { addBatch, adjustStock, receiveBatch, setThreshold } from "./actions";
@@ -10,20 +12,20 @@ export const metadata = { title: "Inventory" };
 const REASONS = [["receive", "Received stock"], ["adjustment", "Recount / correction"], ["damaged", "Damaged / expired"], ["sample", "Samples / giveaway"]];
 const DAY = 86_400_000;
 
-export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ item?: string }> }) {
+export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ item?: string; q?: string; stock?: string; page?: string }> }) {
   const admin = await requirePerm("inventory.read");
   const sp = await searchParams;
   const canWrite = can(admin.role, "inventory.write");
   const db = getDb();
-  const inv = must(await db.from("inventory_items").select("*")) as Row[];
-  const products = must(await db.from("products").select("id, name, kind, status")) as Row[];
-  const batches = (must(await db.from("batches").select("*")) as Row[]).sort((a, b) => String(a.expiry_date ?? "9").localeCompare(String(b.expiry_date ?? "9")));
+  const list = inventoryList({ q: sp.q, stock: sp.stock, page: Number(sp.page) || 1 });
+  const names = inventoryNames(); // every stock item, names only (batch form, history)
+  const batches = (must(await db.from("batches").select("*").limit(500)) as Row[]).sort((a, b) => String(a.expiry_date ?? "9").localeCompare(String(b.expiry_date ?? "9")));
   let mq = db.from("stock_movements").select("*").order("created_at", { ascending: false }).limit(40);
   if (sp.item) mq = mq.eq("inventory_item_id", sp.item);
   const moves = must(await mq) as Row[];
 
-  const name = (itemId: string) => products.find((p) => p.id === inv.find((i) => i.id === itemId)?.product_id)?.name ?? "—";
-  const rows = inv.map((i) => ({ id: i.id, i, product: products.find((p) => p.id === i.product_id) })).filter((r) => r.product);
+  const name = (itemId: string) => names.get(itemId) ?? "—";
+  const rows = list.rows;
   // Server Component: runs once per request, so reading the clock here is correct.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
@@ -47,6 +49,11 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
 
       <Card>
         <SectionTitle>Stock</SectionTitle>
+        <form className="mb-5 grid gap-3 md:grid-cols-[2fr_1fr_auto]" role="search">
+          <input name="q" defaultValue={sp.q} placeholder="Search product or SKU" className="a-input" aria-label="Search stock" />
+          <select name="stock" defaultValue={sp.stock ?? ""} className="a-input" aria-label="Stock level"><option value="">All stock levels</option><option value="low">Low or out</option><option value="out">Out of stock</option></select>
+          <div className="flex gap-2"><button className="pill-btn pill-light">Apply</button><Link href="/admin/inventory" className="pill-btn pill-glass">Reset</Link></div>
+        </form>
         <div className="hidden md:block">
           <table className="a-table">
             <thead><tr><th>Product</th><th>SKU</th><th>On hand</th><th>Low-stock at</th><th>Status</th>{canWrite && <th>Adjust</th>}</tr></thead>
@@ -106,6 +113,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           ))}
         </ul>
         {rows.length === 0 && <Empty title="No stock records." hint="Create a product and it gets a stock record automatically." />}
+        <Pager basePath="/admin/inventory" params={{ q: sp.q, stock: sp.stock, item: sp.item }} page={list.page} pages={list.pages} total={list.total} noun="item" />
       </Card>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -129,7 +137,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           />
           {canWrite && (
             <ActionForm action={addBatch} resetOnSuccess className="mt-5 grid gap-3 sm:grid-cols-2">
-              <select name="item" required className="a-input" aria-label="Product">{rows.map(({ i, product }) => <option key={i.id} value={i.id}>{product!.name}</option>)}</select>
+              <select name="item" required className="a-input" aria-label="Product">{[...names].map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
               <input name="lot" required placeholder="Lot number" className="a-input" />
               <input name="expiry" type="date" className="a-input" aria-label="Expiry date" />
               <input name="qty" type="number" min="1" required placeholder="Quantity" className="a-input" />
