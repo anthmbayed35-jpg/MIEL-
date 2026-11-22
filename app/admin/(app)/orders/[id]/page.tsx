@@ -7,6 +7,7 @@ import { waLink } from "@/lib/phone";
 import { NEXT_STATUS, ORDER_STATUSES, STATUS_LABEL, type OrderStatus } from "@/lib/status";
 import { Card, KV, Money, PageHeader, PayBadge, PillLink, SectionTitle, StatusBadge } from "@/components/admin/ui";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
+import { getEngine } from "@/lib/db";
 import { addComment, cancelOrder, changeStatus, returnOrder, saveDelivery, toggleCod } from "../actions";
 
 export const metadata = { title: "Order" };
@@ -19,6 +20,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const d = await orderDetail(id);
   if (!d) notFound();
   const { order: o, items, events, customer, partner, partners, orderCount } = d;
+  const affiliate = o.affiliate_id ? (getEngine().sqlite.prepare("SELECT id, name FROM affiliates WHERE id = ?").get(o.affiliate_id) as { id: string; name: string } | undefined) : undefined;
   const status = o.status as OrderStatus;
   const next = NEXT_STATUS[status];
   const closed = ["cancelled", "returned"].includes(status);
@@ -80,6 +82,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <dl className="mt-3 border-t border-white/10 pt-3">
               <KV k="Subtotal"><Money value={Number(o.subtotal)} className="text-[16px]" /></KV>
               {Number(o.discount_total) > 0 && <KV k={`Discount ${o.discount_code ?? ""}`}><span className="text-acid">−${Number(o.discount_total).toFixed(2)}</span></KV>}
+              {affiliate && (
+                <KV k="Affiliate">
+                  <Link href={`/admin/affiliates/${affiliate.id}`} className="text-fg underline underline-offset-4">{affiliate.name} · {o.code_used}</Link>
+                  <span className="block text-[14px] text-body">Commission ${Number(o.commission_amount).toFixed(2)} · {o.commission_status}</span>
+                </KV>
+              )}
               <KV k={`Delivery ${o.region ? `(${o.region})` : ""}`}>{Number(o.shipping_fee) ? `$${Number(o.shipping_fee).toFixed(2)}` : "Free"}</KV>
               <div className="flex items-center justify-between border-t border-white/10 pt-3">
                 <span className="mono !text-fg">TOTAL · CASH ON DELIVERY</span>

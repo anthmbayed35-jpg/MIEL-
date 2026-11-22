@@ -28,10 +28,16 @@ export const MARKETING_TABS: SubItem[] = [
   { href: "/admin/marketing", label: "Overview", perm: "marketing.manage" },
   { href: "/admin/marketing/discounts", label: "Discounts", perm: "discounts.manage" },
   { href: "/admin/marketing/content", label: "Content", perm: "content.manage" },
+  { href: "/admin/affiliates", label: "Affiliates", perm: "affiliates.read" },
 ];
 export const SETTINGS_TABS: SubItem[] = [
   { href: "/admin/settings", label: "Store", perm: "settings.read" },
   { href: "/admin/settings/shipping", label: "Shipping & delivery", perm: "shipping.manage" },
   { href: "/admin/settings/team", label: "Team", perm: "team.manage" },
   { href: "/admin/settings/activity", label: "Activity log", perm: "audit.read" },
+];
+
+export const AFFILIATE_TABS: SubItem[] = [
+  { href: "/admin/affiliates", label: "Affiliates", perm: "affiliates.read" },
+  { href: "/admin/affiliates/applications", label: "Applications", perm: "affiliates.read" },
 ];

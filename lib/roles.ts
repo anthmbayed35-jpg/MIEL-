@@ -20,6 +20,9 @@ export const PERMS = {
   "discounts.manage": ["owner", "manager"],
   "shipping.manage": ["owner", "manager"],
   "marketing.manage": ["owner", "manager"],
+  /** Influencer affiliates: view, create/edit, record payouts, handle applications, export. */
+  "affiliates.read": ["owner", "manager"],
+  "affiliates.manage": ["owner", "manager"],
   "analytics.read": ["owner", "manager"],
   "content.manage": ["owner", "manager"],
   "audit.read": ["owner", "manager"],

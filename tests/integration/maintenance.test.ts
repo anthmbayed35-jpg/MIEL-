@@ -130,7 +130,7 @@ describe("the maintenance page", () => {
     maintenance();
     expect(robots()).toEqual({ rules: { userAgent: "*", disallow: "/" } });
     delete process.env.SITE_MODE;
-    expect(robots()).toMatchObject({ rules: { allow: "/", disallow: ["/admin", "/api"] }, sitemap: expect.stringContaining("/sitemap.xml") });
+    expect(robots()).toMatchObject({ rules: { allow: "/", disallow: ["/admin", "/api", "/partner"] }, sitemap: expect.stringContaining("/sitemap.xml") });
   });
 });
 

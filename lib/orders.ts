@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adjustStock } from "./db/core";
 import { getEngine, type Row } from "./db";
 import { publish } from "./events";
+import { affiliateDiscountCents, commissionCents } from "./affiliate-math";
 import { normalizeLebanesePhone } from "./phone";
 import { inMaintenance } from "./site-mode";
 import type { OrderStatus } from "./status";
@@ -25,6 +26,8 @@ export type Quote = {
   code?: string;
   codeMessage?: string;
   freeDelivery: boolean;
+  /** Set when the code is an influencer's affiliate code (percent values are x100: 15% = 1500). */
+  affiliate?: { id: string; code: string; discountPercentX100: number; commissionPercentX100: number; phone: string };
 };
 
 const q1 = (table: string) => getEngine().from(table);
@@ -56,11 +59,26 @@ export function quoteSync(input: { items: LineInput[]; region?: string; code?: s
   let code: string | undefined;
   let codeMessage: string | undefined;
   let freeDelivery = false;
+  let affiliate: Quote["affiliate"];
   if (input.code?.trim()) {
     const c = input.code.trim().toUpperCase();
     const d = (one(q1("discounts").select("*").eq("code", c).execute()) as Row[])[0];
     const now = new Date().toISOString();
-    if (!d || !d.active) codeMessage = "That code isn't valid.";
+    const aff = d
+      ? undefined
+      : (getEngine().sqlite
+          .prepare("SELECT id, code, status, phone, customer_discount_percent_x100 AS pct, commission_rate_x100 AS rate FROM affiliates WHERE code = ?")
+          .get(c) as { id: string; code: string; status: string; phone: string; pct: number; rate: number } | undefined);
+    if (aff) {
+      // an influencer's code: valid only while the affiliate is active; the follower discount is a share of the PRODUCTS subtotal
+      if (aff.status !== "active") codeMessage = "That code isn't valid.";
+      else {
+        discountC = affiliateDiscountCents(subtotalC, aff.pct);
+        code = aff.code;
+        affiliate = { id: aff.id, code: aff.code, discountPercentX100: aff.pct, commissionPercentX100: aff.rate, phone: aff.phone };
+        codeMessage = discountC ? `Code applied: ${aff.pct / 100}% off your products.` : "Code applied.";
+      }
+    } else if (!d || !d.active) codeMessage = "That code isn't valid.";
     else if (d.starts_at && now < d.starts_at) codeMessage = "That code isn't active yet.";
     else if (d.ends_at && now > d.ends_at) codeMessage = "That code has expired.";
     else if (d.usage_limit != null && d.used_count >= d.usage_limit) codeMessage = "That code has been fully used.";
@@ -83,7 +101,7 @@ export function quoteSync(input: { items: LineInput[]; region?: string; code?: s
   if (freeDelivery) shippingC = 0;
   return {
     ok: true, lines, subtotal: dollars(subtotalC), discount: dollars(discountC), shipping: dollars(shippingC),
-    total: dollars(Math.max(0, subtotalC - discountC) + shippingC), zone, code, codeMessage, freeDelivery,
+    total: dollars(Math.max(0, subtotalC - discountC) + shippingC), zone, code, codeMessage, freeDelivery, affiliate,
   };
 }
 
@@ -201,6 +219,7 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
 
     let customer = (one(q1("customers").select("*").eq("phone", phone).execute()) as Row[])[0];
     if (customer?.blocked) throw new Error("We can't take this order online. Please contact us on WhatsApp.");
+    if (q.affiliate && normalizeLebanesePhone(q.affiliate.phone) === phone) throw new Error("You can't use your own affiliate code.");
     if (!customer) {
       customer = one(
         q1("customers").insert({ name: input.customer.name.trim(), phone, email: input.customer.email ?? null, tags: [], notes: "", blocked: false, is_demo: !!input.demo, ...(input.createdAt ? { created_at: input.createdAt } : {}) }).select().single().execute(),
@@ -209,12 +228,19 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
 
     const number = (e.sqlite.prepare("UPDATE counters SET value = value + 1 WHERE name = 'order_number' RETURNING value").get() as { value: number }).value;
     const status: OrderStatus = input.draft ? "draft" : "new";
+    // affiliate attribution (never for a TEST order): the commission is fixed now, on the discounted products subtotal, and starts pending
+    const aff = q.affiliate && !testBy ? q.affiliate : null;
+    const subtotalC = cents(q.subtotal);
+    const discountC = cents(q.discount);
     const stamp = input.createdAt ?? new Date().toISOString();
     const order = one(
       q1("orders").insert({
         order_number: number, customer_id: customer.id, status, payment_method: "cod", payment_status: "pending",
         subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: q.total, cod_collected: false,
-        discount_code: q.code ?? null, region: input.region, address: input.customer.address.trim(), customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
+        discount_code: q.code ?? null,
+        affiliate_id: aff?.id ?? null, code_used: aff?.code ?? null, discount_amount: aff ? q.discount : 0,
+        commission_amount: aff ? dollars(commissionCents(subtotalC, discountC, aff.commissionPercentX100)) : 0, commission_status: aff ? "pending" : null,
+        region: input.region, address: input.customer.address.trim(), customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
         delivery_partner_id: null, tracking_number: "", source: input.source,
         utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
         stock_deducted: false, is_demo: !!input.demo, is_test: !!testBy, created_at: stamp, updated_at: stamp,
@@ -225,7 +251,7 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
     if (!input.draft) {
       deductStockSync(order.id, number, q.lines, input.actor, !!input.demo);
       one(q1("orders").update({ stock_deducted: true }).eq("id", order.id).execute());
-      if (q.code) {
+      if (q.code && !q.affiliate) {
         // guarded: if two customers race for the last use of a code, only one wins
         const used = e.sqlite.prepare("UPDATE discounts SET used_count = used_count + 1, version = version + 1 WHERE code = ? AND (usage_limit IS NULL OR used_count < usage_limit) RETURNING id").get(q.code);
         if (!used) throw new Error("That code has been fully used.");
@@ -263,6 +289,8 @@ export async function setOrderStatus(orderId: string, to: OrderStatus, actor: st
       deductStockSync(orderId, o.order_number, items.map((i) => ({ productId: i.product_id, qty: i.qty })), actor, !!o.is_demo);
       patch.stock_deducted = true;
     }
+    // a cancelled or returned order earns no commission (unless it was already paid out)
+    if ((to === "cancelled" || to === "returned") && (o.commission_status === "pending" || o.commission_status === "approved")) patch.commission_status = "void";
     if (to === "cancelled") {
       patch.cancel_reason = opts.reason!.trim();
       restoreStockSync(orderId, o.order_number, "cancel_restore", actor);

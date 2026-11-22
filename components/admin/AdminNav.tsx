@@ -20,6 +20,7 @@ const MAIN: Item[] = [
 ];
 
 const MORE_EXTRA: Item[] = [
+  { href: "/admin/affiliates", label: "Affiliates", perm: "affiliates.read", icon: "" },
   { href: "/admin/marketing/discounts", label: "Discounts", perm: "discounts.manage", icon: "" },
   { href: "/admin/marketing/content", label: "Content", perm: "content.manage", icon: "" },
   { href: "/admin/settings/shipping", label: "Shipping", perm: "shipping.manage", icon: "" },

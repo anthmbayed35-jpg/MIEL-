@@ -19,7 +19,7 @@ const VIEWPORTS = [
   { name: "desktop-1440", width: 1440, height: 900 },
 ] as const;
 
-const STORE = ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping"];
+const STORE = ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping", "/ambassadors"];
 
 /** Admin pages found on disk, with dynamic segments filled with real ids from the database. */
 function adminPages(): string[] {
@@ -39,10 +39,13 @@ function adminPages(): string[] {
   const order = one<{ id: string }>("SELECT id FROM orders ORDER BY created_at DESC LIMIT 1")?.id ?? "none";
   const product = one<{ id: string }>("SELECT id FROM products LIMIT 1")?.id ?? "none";
   const customer = one<{ id: string }>("SELECT id FROM customers LIMIT 1")?.id ?? "none";
-  const fill = (u: string) => (u === "/admin/orders/[id]" ? `/admin/orders/${order}` : u === "/admin/products/[id]" ? `/admin/products/${product}` : u === "/admin/customers/[id]" ? `/admin/customers/${customer}` : u);
+  const affiliate = one<{ id: string }>("SELECT id FROM affiliates LIMIT 1")?.id ?? "none";
+  const fill = (u: string) => (u === "/admin/affiliates/[id]" ? `/admin/affiliates/${affiliate}` : u === "/admin/orders/[id]" ? `/admin/orders/${order}` : u === "/admin/products/[id]" ? `/admin/products/${product}` : u === "/admin/customers/[id]" ? `/admin/customers/${customer}` : u);
   const skip = new Set(["/admin/login", "/admin/forgot", "/admin/set-password", "/admin/mfa", "/admin/print"]); // sign-in pages have their own tests; /admin/print needs ids (visited below)
   const urls = out.map(fill).filter((u) => !skip.has(u));
-  urls.push(`/admin/print?type=packing&ids=${order}`, `/admin/print?type=invoice&ids=${order}`, "/admin/orders?status=delivered", "/admin/orders?q=E2E");
+  const token = one<{ private_token: string }>("SELECT private_token FROM affiliates LIMIT 1")?.private_token;
+  if (token) urls.push(`/partner/${token}`);
+  urls.push("/admin/affiliates?status=active", `/admin/print?type=packing&ids=${order}`, `/admin/print?type=invoice&ids=${order}`, "/admin/orders?status=delivered", "/admin/orders?q=E2E");
   return [...new Set(urls)].sort();
 }
 

@@ -170,6 +170,11 @@ export function Footer({ store, policies }: { store: StoreSettings; policies?: P
             </a>
           </li>
           <li>
+            <Link href="/ambassadors" className="link text-[18px]">
+              Ambassadors
+            </Link>
+          </li>
+          <li>
             <a href={`https://wa.me/${store.whatsapp}`} target="_blank" rel="noopener noreferrer" className="link text-[18px]">
               WhatsApp us
             </a>
