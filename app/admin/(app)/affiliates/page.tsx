@@ -15,7 +15,8 @@ const statusClass = (s: string) => (s === "active" ? "st-delivered" : s === "pau
 export default async function AffiliatesPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const admin = await requirePerm("affiliates.read");
   const sp = await searchParams;
-  const rows = listAffiliates({ q: sp.q, status: sp.status });
+  // the private partner link is a credential: it never goes into the list (not even as hidden data for the browser)
+  const rows = listAffiliates({ q: sp.q, status: sp.status }).map(({ private_token: _t, notes: _n, email: _e, phone: _p, ...rest }) => rest);
   const o = overview();
   const month = new Date().toISOString().slice(0, 7);
 
@@ -32,9 +33,10 @@ export default async function AffiliatesPage({ searchParams }: { searchParams: P
       )}
 
       <section aria-label="Overview" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
-        <Card><p className="a-label">Affiliate sales</p><Money value={usd(o.sales_cents)} className="text-[30px] leading-none" decimals={false} /><p className="mt-2 text-[14px] text-body">{o.orders} order{o.orders === 1 ? "" : "s"}, after discount</p></Card>
+        <Card><p className="a-label">Affiliate sales</p><Money value={usd(o.sales_cents)} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">{o.orders} order{o.orders === 1 ? "" : "s"}, after discount</p></Card>
         <Card><p className="a-label">Commission owed</p><Money value={usd(o.owed_cents)} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">pending + approved</p></Card>
         <Card><p className="a-label">Ready to pay</p><Money value={usd(o.payable_cents)} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">approved, unpaid</p></Card>
+        {o.corrections_cents > 0 && <Card><p className="a-label">Corrections owed back</p><Money value={usd(o.corrections_cents)} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">returned after being paid</p></Card>}
         <Card><p className="a-label">Active affiliates</p><Num value={o.active} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">{usd(o.paid_cents) ? `$${usd(o.paid_cents).toFixed(2)} paid out so far` : "nothing paid out yet"}</p></Card>
       </section>
 
@@ -49,7 +51,7 @@ export default async function AffiliatesPage({ searchParams }: { searchParams: P
                 <li key={t.id}>
                   <Link href={`/admin/affiliates/${t.id}`} className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-2 text-[16px] hover:bg-white/5">
                     <span><span className="mono !text-body mr-3">{i + 1}</span><span className="text-fg">{t.name}</span> <span className="mono !text-[13px]">{t.code}</span></span>
-                    <span className="text-fg">${usd(t.sales_cents).toFixed(0)} <span className="text-[14px] text-body">· {t.orders} orders</span></span>
+                    <span className="text-fg">${usd(t.sales_cents).toFixed(2)} <span className="text-[14px] text-body">· {t.orders} orders</span></span>
                   </Link>
                 </li>
               ))}
@@ -83,7 +85,7 @@ export default async function AffiliatesPage({ searchParams }: { searchParams: P
             { key: "code", label: "Code", render: (a) => <span className="mono !text-[15px] !text-fg">{a.code}</span> },
             { key: "tier", label: "Tier", render: (a) => TIER_RULES[a.tier].label },
             { key: "orders", label: "Orders", render: (a) => a.orders },
-            { key: "sales", label: "Sales", render: (a) => <Money value={usd(a.sales_cents)} className="text-[18px]" decimals={false} /> },
+            { key: "sales", label: "Sales", render: (a) => <Money value={usd(a.sales_cents)} className="text-[18px]" /> },
             { key: "pend", label: "Pending", render: (a) => <Money value={usd(a.pending_cents)} className="text-[17px]" /> },
             { key: "appr", label: "Approved", render: (a) => <Money value={usd(a.approved_cents)} className="text-[17px]" /> },
             { key: "paid", label: "Paid", render: (a) => <Money value={usd(a.paid_cents)} className="text-[17px]" /> },

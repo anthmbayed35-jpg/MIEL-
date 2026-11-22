@@ -29,7 +29,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHeader
-        eyebrow={`Placed ${new Date(o.created_at).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })} · ${o.source}`}
+        eyebrow={`Placed ${new Date(o.created_at).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })} · ${o.source}`}
         title={`Order #${o.order_number}`}
         actions={
           <>
@@ -84,7 +84,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               {Number(o.discount_total) > 0 && <KV k={`Discount ${o.discount_code ?? ""}`}><span className="text-acid">−${Number(o.discount_total).toFixed(2)}</span></KV>}
               {affiliate && (
                 <KV k="Affiliate">
-                  <Link href={`/admin/affiliates/${affiliate.id}`} className="text-fg underline underline-offset-4">{affiliate.name} · {o.code_used}</Link>
+                  <Link href={`/admin/affiliates/${affiliate.id}`} className="inline-flex min-h-12 items-center text-fg underline underline-offset-4">{affiliate.name} · {o.code_used}</Link>
                   <span className="block text-[14px] text-body">Commission ${Number(o.commission_amount).toFixed(2)} · {o.commission_status}</span>
                 </KV>
               )}
@@ -112,7 +112,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                   <span className="absolute -left-[31px] top-1.5 h-3 w-3 rounded-full" style={{ background: dot[e.type] ?? "#8a857d" }} aria-hidden />
                   <p className={`text-[15px] ${e.type === "comment" ? "rounded-2xl bg-[#fcd34d]/10 px-3 py-2 text-fg" : "text-fg"}`}>{e.message}</p>
                   <p className="mt-0.5 text-[12px] text-muted">
-                    {e.actor || "system"} · {new Date(e.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {e.actor || "system"} · {new Date(e.created_at).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </li>
               ))}

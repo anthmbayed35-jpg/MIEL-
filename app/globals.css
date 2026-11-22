@@ -200,11 +200,11 @@ body {
 .icon-btn:hover { background: rgba(218, 252, 105, 0.1); border-color: var(--color-acid); }
 .badge {
   position: absolute; top: -4px; right: -4px;
-  min-width: 22px; height: 22px; padding: 0 5px;
+  min-width: 24px; height: 24px; padding: 0 5px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 999px;
   background: var(--color-acid); color: #000;
-  font-family: var(--font-space-mono); font-weight: 700; font-size: 12px;
+  font-family: var(--font-space-mono); font-weight: 700; font-size: 13px;
 }
 
 /* Glow blobs: radial gradients, animate transform only */

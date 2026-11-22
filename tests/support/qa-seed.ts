@@ -10,14 +10,18 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { closeEngine, getEngine } from "../../lib/db/core";
+import { affiliateDiscountCents, commissionCents } from "../../lib/affiliate-math";
+import { TIER_RULES, type AffiliateTier } from "../../config/affiliates";
 import { hashPassword } from "../../lib/passwords";
 import { seedBase } from "../../lib/seed";
 import { E2E_PASSWORD, USERS } from "./e2e-env";
 
-export async function qaSeed(dir: string, opts: { orders?: number; customers?: number; products?: number } = {}) {
+export async function qaSeed(dir: string, opts: { orders?: number; customers?: number; products?: number; affiliates?: number; affiliateOrders?: number } = {}) {
   const nOrders = opts.orders ?? 5000;
   const nCustomers = opts.customers ?? 2000;
   const nProducts = opts.products ?? 200;
+  const nAffiliates = opts.affiliates ?? 20;
+  const nAffOrders = Math.min(opts.affiliateOrders ?? 500, nOrders);
   process.env.DATABASE_PATH = path.join(dir, "db", "miel.db");
   const e = getEngine();
   const db = e.sqlite;
@@ -31,6 +35,10 @@ export async function qaSeed(dir: string, opts: { orders?: number; customers?: n
   const hash = await hashPassword(E2E_PASSWORD);
   const insUser = db.prepare("INSERT OR IGNORE INTO admin_users (id, email, name, role, active, password_hash) VALUES (?,?,?,?,1,?)");
   for (const u of Object.values(USERS)) insUser.run(u.id, u.email, u.name, u.role, hash);
+  // two throwaway members in the middle of the forced steps, so the QA can visit /admin/change-password and /admin/mfa for real
+  const insFlow = db.prepare("INSERT OR IGNORE INTO admin_users (id, email, name, role, active, password_hash, must_change_password, must_enroll_mfa, temp_password_expires_at) VALUES (?,?,?,?,1,?,?,?,?)");
+  insFlow.run("00000000-0000-4000-8000-0000000000b1", "qa.change@e2e.test", "QA Must Change", "staff", hash, 1, 1, new Date(Date.now() + 48 * 3_600_000).toISOString());
+  insFlow.run("00000000-0000-4000-8000-0000000000b2", "qa.mfa@e2e.test", "QA Must Enroll", "staff", hash, 0, 1, null);
 
   db.transaction(() => {
     // ---- products + inventory
@@ -81,10 +89,24 @@ export async function qaSeed(dir: string, opts: { orders?: number; customers?: n
     }
     const zones = db.prepare("SELECT name, fee_cents FROM shipping_zones").all() as { name: string; fee_cents: number }[];
 
+    // ---- affiliates: all three tiers, active / paused / ended, their private tokens
+    const TIERS: AffiliateTier[] = ["seed", "athlete", "ambassador"];
+    const insAff = db.prepare("INSERT INTO affiliates (id, name, instagram_handle, phone, email, code, tier, commission_rate_x100, customer_discount_percent_x100, status, payout_method, notes, private_token, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    const affiliates = Array.from({ length: nAffiliates }, (_, i) => {
+      const tier = TIERS[i < Math.ceil(nAffiliates * 0.4) ? 0 : i < Math.ceil(nAffiliates * 0.75) ? 1 : 2];
+      const status = i % 5 === 3 ? "paused" : i % 10 === 9 ? "ended" : "active";
+      const a = { id: uuid(), code: `QAAFF${String(i).padStart(2, "0")}`, tier, status, rate: TIER_RULES[tier].commissionPercent * 100, pct: i % 7 === 3 ? 750 : i % 7 === 5 ? 1250 : 1000, name: `${pick(first)} ${pick(last)} Aff${i}` };
+      insAff.run(a.id, a.name, `aff.${i}`, `+96170${String(900000 + i)}`, `aff${i}@qa.test`, a.code, tier, a.rate, a.pct, status, pick(["Whish money", "Cash", "Bank transfer"]), "", crypto.randomBytes(24).toString("base64url"), iso(now - 300 * 86_400_000));
+      return a;
+    });
+    const affEvery = nAffiliates && nAffOrders ? Math.max(1, Math.floor(nOrders / nAffOrders)) : 0;
+    let affAssigned = 0;
+    const affOrders: { id: string; aff: (typeof affiliates)[number]; commission: number; status: string; deliveredAt: string | null; old: boolean }[] = [];
+
     // ---- orders (+ items, events, stock movements)
     const insOrder = db.prepare(
       `INSERT INTO orders (id, order_number, customer_id, status, payment_status, subtotal_cents, discount_total_cents, shipping_fee_cents, total_cents, cod_amount_due_cents, cod_collected,
-        region, address, source, utm_source, stock_deducted, delivery_partner_id, delivered_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        region, address, source, utm_source, stock_deducted, delivery_partner_id, delivered_at, created_at, updated_at, affiliate_id, code_used, discount_code, discount_amount_cents, commission_amount_cents, commission_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     );
     const insItem = db.prepare("INSERT INTO order_items (id, order_id, product_id, name, unit_price_cents, qty) VALUES (?,?,?,?,?,?)");
     const insEvent = db.prepare("INSERT INTO order_events (id, order_id, type, message, from_status, to_status, actor, created_at) VALUES (?,?,?,?,?,?,?,?)");
@@ -98,14 +120,20 @@ export async function qaSeed(dir: string, opts: { orders?: number; customers?: n
       const lines = Array.from({ length: 1 + Math.floor(rnd() * 3) }, () => ({ p: pick(singles), qty: 1 + Math.floor(rnd() * 3) }));
       const sub = lines.reduce((s, l) => s + l.p.price * l.qty, 0);
       const zone = pick(zones);
-      const disc = rnd() < 0.2 ? Math.round(sub * 0.1) : 0;
+      const isAff = affEvery > 0 && n % affEvery === 0 && affAssigned < nAffOrders && status !== "draft";
+      const aff = isAff ? affiliates[affAssigned % nAffiliates] : null;
+      if (isAff) affAssigned++;
+      const disc = aff ? affiliateDiscountCents(sub, aff.pct) : rnd() < 0.2 ? Math.round(sub * 0.1) : 0;
+      const commission = aff ? commissionCents(sub, disc, aff.rate) : 0;
       const total = sub - disc + zone.fee_cents;
       const collected = status === "delivered" && rnd() < 0.8;
       insOrder.run(
         id, 1001 + n, pick(customers), status, collected ? "collected" : status === "returned" ? "refunded" : "pending", sub, disc, zone.fee_cents, total, total, collected ? 1 : 0,
         zone.name, "QA street 1", pick(["web", "web", "web", "whatsapp", "manual"]), pick([null, "instagram", "facebook"]), 0, status === "delivered" && rnd() < 0.6 ? pick(partners) : null,
         status === "delivered" ? iso(at + 2 * 86_400_000) : null, iso(at), iso(at),
+        aff?.id ?? null, aff?.code ?? null, aff?.code ?? (disc ? "QAOFF" : null), aff ? disc : 0, commission, aff ? (status === "cancelled" || status === "returned" ? "void" : "pending") : null,
       );
+      if (aff) affOrders.push({ id, aff, commission, status, deliveredAt: status === "delivered" ? iso(at + 2 * 86_400_000) : null, old: at + 2 * 86_400_000 < now - 14 * 86_400_000 });
       for (const l of lines) insItem.run(uuid(), id, l.p.id, l.p.name, l.p.price, l.qty);
       insEvent.run(uuid(), id, "created", "Order placed (seed)", null, "new", "customer", iso(at));
       if (status !== "new") insEvent.run(uuid(), id, "status", `Status: new → ${status}`, "new", status, "seed", iso(at + 3_600_000));
@@ -131,8 +159,54 @@ export async function qaSeed(dir: string, opts: { orders?: number; customers?: n
       insMove.run(uuid(), r.id, receive, "receive", "Opening stock (seed)", null, "seed", iso(now - 400 * 86_400_000));
       setStock.run(receive - sold, r.id);
     }
+
+    // ---- commission lifecycle and payouts (the same rules the app applies: approved 14 days after delivery; paid via payouts; a paid
+    //      commission whose order was returned stays as a correction owed back, deducted by the next payout)
+    const setComm = db.prepare("UPDATE orders SET commission_status = ?, commission_payout_id = ?, commission_correction_payout_id = ? WHERE id = ?");
+    const insPayout = db.prepare("INSERT INTO affiliate_payouts (id, affiliate_id, amount_cents, gross_cents, corrections_cents, method, note, paid_at) VALUES (?,?,?,?,?,?,?,?)");
+    for (const a of affiliates) {
+      const mine = affOrders.filter((o) => o.aff.id === a.id);
+      const approved = mine.filter((o) => o.status === "delivered" && o.old).sort((x, y) => String(x.deliveredAt).localeCompare(String(y.deliveredAt)));
+      for (const o of approved) setComm.run("approved", null, null, o.id);
+      const returnedOld = mine.filter((o) => o.status === "returned" && o.old && rnd() < 0.6); // returned AFTER they were paid
+      const firstBatch = approved.slice(0, Math.ceil(approved.length * 0.6));
+      let p1: string | null = null;
+      if (firstBatch.length + returnedOld.length > 0 && rnd() < 0.85) {
+        p1 = uuid();
+        const gross = [...firstBatch, ...returnedOld].reduce((n, o) => n + o.commission, 0);
+        if (gross > 0) {
+          insPayout.run(p1, a.id, gross, gross, 0, "Whish money", "Seeded payout", iso(now - 25 * 86_400_000));
+          for (const o of firstBatch) setComm.run("paid", p1, null, o.id);
+          for (const o of returnedOld) setComm.run("void", p1, null, o.id); // paid, then returned: owed back
+        } else p1 = null;
+      }
+      const rest = approved.slice(firstBatch.length);
+      if (p1 && rest.length && rnd() < 0.6) {
+        const gross = rest.reduce((n, o) => n + o.commission, 0);
+        const corr = returnedOld.reduce((n, o) => n + o.commission, 0);
+        if (gross - corr > 0) {
+          const p2 = uuid();
+          insPayout.run(p2, a.id, gross - corr, gross, corr, "Whish money", "Seeded payout with a correction", iso(now - 8 * 86_400_000));
+          for (const o of rest) setComm.run("paid", p2, null, o.id);
+          for (const o of returnedOld) setComm.run("void", p1, p2, o.id); // correction settled
+        }
+      }
+    }
+
+    // ---- ambassador applications
+    const insApp = db.prepare("INSERT INTO affiliate_applications (id, name, instagram_handle, tiktok_handle, followers, city, sport, message, status, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)");
+    for (let i = 0; i < 40; i++) insApp.run(uuid(), `${pick(first)} ${pick(last)} Applicant${i}`, `applicant.${i}`, i % 3 ? `tt.applicant${i}` : "", pick(["3k", "12k", "45k", "120k"]), pick(["Beirut", "Jounieh", "Saida", "Tripoli"]), pick(["Running", "CrossFit", "Football", "Cycling"]), "Seeded application.", i < 12 ? "new" : i < 30 ? "approved" : "rejected", iso(now - (i + 1) * 36 * 3_600_000));
+
+    // ---- policy pages (so /policies/<name> exists on the storefront)
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('policies', ?)").run(JSON.stringify({ shipping: "Delivery across Lebanon in 1 to 3 days. Pay cash on delivery.", returns: "Unopened pouches can be returned within 7 days.", privacy: "We use your phone number only to deliver your order.", terms: "Orders are confirmed by phone." }));
+
+    // ---- stock lots with expiry dates for the real products (expired, soon, mid, far)
+    const insBatch = db.prepare("INSERT INTO batches (id, inventory_item_id, lot_number, expiry_date, quantity, status, received_at) VALUES (?,?,?,?,?,?,?)");
+    const day = (d: number) => new Date(now + d * 86_400_000).toISOString().slice(0, 10);
+    for (const r of db.prepare("SELECT i.id, p.slug FROM inventory_items i JOIN products p ON p.id = i.product_id WHERE p.slug IN ('red-burn','gold','creatine')").all() as { id: string; slug: string }[])
+      [-20, 12, 75, 420].forEach((d, k) => insBatch.run(uuid(), r.id, `${r.slug.toUpperCase()}-L${k + 1}`, day(d), 200 + k * 50, k === 3 ? "incoming" : "received", k === 3 ? null : iso(now - 60 * 86_400_000)));
   })();
-  const counts = Object.fromEntries(["products", "inventory_items", "customers", "orders", "order_items", "order_events", "stock_movements", "discounts"].map((t) => [t, (db.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }).n]));
+  const counts = Object.fromEntries(["products", "inventory_items", "customers", "orders", "order_items", "order_events", "stock_movements", "discounts", "affiliates", "affiliate_payouts", "affiliate_applications", "batches"].map((t) => [t, (db.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }).n]));
   db.pragma("wal_checkpoint(TRUNCATE)");
   closeEngine();
   return counts;
@@ -150,7 +224,7 @@ function mulberry(seed: number) {
 }
 
 if (process.argv[1] && /qa-seed\.ts$/.test(process.argv[1].replace(/\\/g, "/"))) {
-  const [dir, o, c, p] = process.argv.slice(2);
+  const [dir, o, c, p, af, ao] = process.argv.slice(2);
   if (!dir) throw new Error("usage: qa-seed.ts <dir> [orders] [customers] [products]");
-  qaSeed(dir, { orders: o ? Number(o) : undefined, customers: c ? Number(c) : undefined, products: p ? Number(p) : undefined }).then((c2) => console.log("qa seed:", JSON.stringify(c2)));
+  qaSeed(dir, { orders: o ? Number(o) : undefined, customers: c ? Number(c) : undefined, products: p ? Number(p) : undefined, affiliates: af ? Number(af) : undefined, affiliateOrders: ao ? Number(ao) : undefined }).then((c2) => console.log("qa seed:", JSON.stringify(c2)));
 }

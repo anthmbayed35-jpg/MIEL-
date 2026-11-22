@@ -34,7 +34,7 @@ export default async function MfaPage() {
             <MfaEnroll />
           </>
         )}
-        <form action={logout} className="mt-6 text-center"><button className="link text-[14px]">Sign out</button></form>
+        <form action={logout} className="mt-6 text-center"><button className="link inline-flex min-h-12 items-center px-3 text-[15px]">Sign out</button></form>
       </div>
     </main>
   );

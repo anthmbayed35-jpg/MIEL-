@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin, can } from "@/lib/auth";
 import { dashboard } from "@/lib/stats";
+import { getEngine } from "@/lib/db";
 import { Card, Delta, Empty, Flash, Money, Num, PillLink, SectionTitle, StatusBadge } from "@/components/admin/ui";
 import { BarChart } from "@/components/admin/BarChart";
 import { ORDER_STATUSES } from "@/lib/status";
@@ -26,6 +27,7 @@ function Kpi({ title, icon, children, foot }: { title: string; icon: string; chi
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const admin = await requireAdmin();
+  const newApplications = can(admin.role, "affiliates.read") ? (getEngine().sqlite.prepare("SELECT COUNT(*) AS n FROM affiliate_applications WHERE status = 'new'").get() as { n: number }).n : 0;
   const sp = await searchParams;
   const d = await dashboard();
   const first = admin.name.split(" ")[0];
@@ -36,6 +38,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   return (
     <>
       <div className="admin-band" aria-hidden />
+      {newApplications > 0 && (
+        <Link href="/admin/affiliates/applications" className="admin-card mb-5 flex min-h-12 items-center justify-between gap-3 !py-3 text-[17px] text-fg">
+          <span>{newApplications} new ambassador application{newApplications === 1 ? "" : "s"}</span>
+          <span className="accent">Review →</span>
+        </Link>
+      )}
       {sp.denied && <Flash error={`Your role doesn't have access to that area (${sp.denied}).`} />}
 
       <section className="relative grid gap-8 pb-10 pt-2 lg:grid-cols-[1fr_440px] lg:items-start">
@@ -55,7 +63,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <div className="admin-card relative !bg-white/12 text-center">
             <div className="flex items-center justify-between">
               <p className="mono !text-body">TODAY&apos;S SALES</p>
-              <p className="mono !text-body">{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+              <p className="mono !text-body">{new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short" })}</p>
             </div>
             <div className="mt-4">
               <Money value={d.today.revenue} className="text-[clamp(2.4rem,2rem+1.6vw,3.25rem)] leading-none" />

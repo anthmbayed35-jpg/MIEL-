@@ -32,7 +32,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             { key: "phone", label: "Phone", render: (c) => <span className="mono !text-body !text-[13px]">{c.phone}</span> },
             { key: "orders", label: "Orders", render: (c) => c.orders },
             { key: "spent", label: "Total spent", render: (c) => <Money value={c.spent} className="text-[18px]" /> },
-            { key: "last", label: "Last order", render: (c) => (c.last ? new Date(c.last).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—") },
+            { key: "last", label: "Last order", render: (c) => (c.last ? new Date(c.last).toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", year: "numeric" }) : "—") },
             { key: "tags", label: "Tags", render: (c) => <span className="flex flex-wrap gap-1">{(c.tags as string[]).map((t) => <span key={t} className="status st-draft">{t}</span>)}</span> },
           ]}
         />

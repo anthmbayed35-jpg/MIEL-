@@ -34,7 +34,7 @@ export default async function SetPasswordPage({ searchParams }: { searchParams: 
           <>
             <h1 className="display text-[28px]">Link expired</h1>
             <p role="alert" className="mt-4 text-[16px] text-body">This link is invalid, was already used, or has expired. Ask for a new invite or password reset.</p>
-            <p className="mt-6 text-[14px]"><Link href="/admin/login" className="link">Back to sign in</Link></p>
+            <p className="mt-6 text-[14px]"><Link href="/admin/login" className="link inline-flex min-h-12 items-center px-2 text-[15px]">Back to sign in</Link></p>
           </>
         )}
       </div>

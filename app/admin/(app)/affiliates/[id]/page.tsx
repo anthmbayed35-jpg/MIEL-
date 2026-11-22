@@ -15,8 +15,10 @@ export const metadata = { title: "Affiliate" };
 export const dynamic = "force-dynamic";
 
 const usd = (c: number) => c / 100;
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
+const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", year: "numeric" }) : "—");
 const commClass: Record<string, string> = { pending: "st-packed", approved: "st-confirmed", paid: "st-delivered", void: "st-cancelled" };
+const commLabel = (o: { commission_status: string | null; commission_payout_id: string | null; commission_correction_payout_id: string | null }) =>
+  o.commission_status === "void" && o.commission_payout_id ? (o.commission_correction_payout_id ? "void · settled" : "void · owed back") : o.commission_status;
 
 export default async function AffiliatePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
   const admin = await requirePerm("affiliates.read");
@@ -48,9 +50,16 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
         </div>
       )}
 
+      {a.corrections_cents > 0 && (
+        <div className="admin-card mb-5 border-[#FF5C7A]/50" role="status">
+          <p className="text-[17px] text-fg">Balance correction: <span className="text-[#FF8AA0]">−${usd(a.corrections_cents).toFixed(2)}</span> is owed back.</p>
+          <p className="mt-1 text-[15px] text-body">Orders were cancelled or returned after their commission had already been paid. The amount is deducted from the next payout{a.approved_cents <= a.corrections_cents ? " (it is more than what is approved now, so it carries forward)" : ""}.</p>
+        </div>
+      )}
+
       <section aria-label="Totals" className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-5">
         <Card><p className="a-label">Orders</p><p className="display text-[30px] leading-none">{a.orders}</p><p className="mt-2 text-[14px] text-body">{a.delivered} delivered</p></Card>
-        <Card><p className="a-label">Sales</p><Money value={usd(a.sales_cents)} className="text-[30px] leading-none" decimals={false} /></Card>
+        <Card><p className="a-label">Sales</p><Money value={usd(a.sales_cents)} className="text-[30px] leading-none" /></Card>
         <Card><p className="a-label">Pending</p><Money value={usd(a.pending_cents)} className="text-[30px] leading-none" /></Card>
         <Card><p className="a-label">Owed now</p><Money value={usd(a.approved_cents)} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">approved, unpaid</p></Card>
         <Card className="col-span-2 lg:col-span-1"><p className="a-label">Paid</p><Money value={usd(a.paid_cents)} className="text-[30px] leading-none" /></Card>
@@ -64,10 +73,10 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
             <input type="hidden" name="id" value={a.id} />
             {a.approved_cents > 0 ? (
               <>
-                <p className="text-[17px] text-fg">Pays every approved commission: <Money value={usd(a.approved_cents)} className="text-[24px]" />. Those orders are marked paid.</p>
+                <p className="text-[17px] text-fg">Pays every approved commission: <Money value={usd(a.approved_cents)} className="text-[24px]" />{a.corrections_cents > 0 && <> minus the correction of <Money value={usd(a.corrections_cents)} className="text-[24px]" /></>}. Those orders are marked paid.</p>
                 <Field label="Method"><input name="method" maxLength={80} defaultValue={a.payout_method} placeholder="Whish money, cash, bank" className="a-input" /></Field>
                 <Field label="Note"><input name="note" maxLength={300} placeholder="e.g. March payout" className="a-input" /></Field>
-                <SubmitButton variant="lime" confirm={`Record a payout of $${usd(a.approved_cents).toFixed(2)} to ${a.name}? It marks those commissions as paid.`}>Record payout of ${usd(a.approved_cents).toFixed(2)}</SubmitButton>
+                <SubmitButton variant="lime" confirm={`Record a payout of $${usd(a.approved_cents - a.corrections_cents).toFixed(2)} to ${a.name}? It marks those commissions as paid.`}>Record payout of ${usd(a.approved_cents - a.corrections_cents).toFixed(2)}</SubmitButton>
               </>
             ) : (
               <p className="text-[16px] text-body">Nothing to pay yet. A commission is approved 14 days after its order is delivered{a.pending_cents > 0 ? `, and $${usd(a.pending_cents).toFixed(2)} is waiting for that` : ""}.</p>
@@ -93,7 +102,7 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
             { key: "st", label: "Status", render: (o) => <StatusBadge status={o.status} /> },
             { key: "sale", label: "Sale", render: (o) => <Money value={usd(o.subtotal_cents - o.discount_amount_cents)} className="text-[17px]" /> },
             { key: "com", label: "Commission", render: (o) => <Money value={usd(o.commission_amount_cents)} className="text-[17px]" /> },
-            { key: "cs", label: "Commission status", render: (o) => (o.commission_status ? <span className={`status ${commClass[o.commission_status]}`}>{o.commission_status}</span> : "—") },
+            { key: "cs", label: "Commission status", render: (o) => (o.commission_status ? <span className={`status ${commClass[o.commission_status]}`}>{commLabel(o)}</span> : "—") },
           ]}
         />
       </Card>
@@ -105,7 +114,9 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
           empty={<Empty title="No payouts yet." />}
           cols={[
             { key: "d", label: "Date", primary: true, render: (p) => day(p.paid_at) },
-            { key: "a", label: "Amount", render: (p) => <Money value={usd(p.amount_cents)} className="text-[18px]" /> },
+            { key: "g", label: "Commissions", render: (p) => <Money value={usd(p.gross_cents)} className="text-[17px]" /> },
+            { key: "c", label: "Corrections", render: (p) => (p.corrections_cents ? <span className="text-[#FF8AA0]">−${usd(p.corrections_cents).toFixed(2)}</span> : "—") },
+            { key: "a", label: "Paid", render: (p) => <Money value={usd(p.amount_cents)} className="text-[18px]" /> },
             { key: "m", label: "Method", render: (p) => p.method || "—" },
             { key: "n", label: "Note", render: (p) => p.note || "—" },
           ]}

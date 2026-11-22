@@ -4,6 +4,7 @@ import { AFFILIATE_STATUSES, COMMISSION_APPROVAL_DAYS, DEFAULT_COMMISSION_PERCEN
 import { isValidCode, normalizeCode } from "./affiliate-math";
 import { getEngine } from "./db";
 import { publish } from "./events";
+import { monthRange } from "./time";
 
 /**
  * Influencer affiliates: data access, commission lifecycle and reporting. Money is integer cents inside the SQL here; the
@@ -125,29 +126,58 @@ export function approveDueCommissions(now = new Date()): number {
   return db().prepare("UPDATE orders SET commission_status = 'approved' WHERE commission_status = 'pending' AND status = 'delivered' AND delivered_at IS NOT NULL AND delivered_at <= ?").run(cutoff).changes;
 }
 
-/** Pays out every approved, unpaid commission of one affiliate in one transaction and records the payout. */
+/**
+ * Pays out every approved, unpaid commission of one affiliate in one transaction and records the payout.
+ * Corrections come off it: a commission that was paid and whose order was LATER cancelled or returned is owed back, shown on the
+ * affiliate's balance, and deducted here (the payout stores gross, corrections and net). If the corrections exceed the approved
+ * amount nothing is paid and the correction carries forward.
+ * Two clicks, two tabs or a retry cannot pay the same commission twice: the whole thing runs under one write lock and every
+ * order is moved from approved to paid with a guarded UPDATE.
+ */
 export function recordPayout(affiliateId: string, o: { method?: string; note?: string }) {
   if (!getAffiliate(affiliateId)) throw new Error("That affiliate no longer exists.");
   const out = getEngine().tx(() => {
     approveDueCommissions(); // never pay on stale statuses
     const due = db().prepare("SELECT id, commission_amount_cents AS c FROM orders WHERE affiliate_id = ? AND commission_status = 'approved' AND commission_payout_id IS NULL").all(affiliateId) as { id: string; c: number }[];
-    const total = due.reduce((n, r) => n + r.c, 0);
-    if (!due.length || total <= 0) throw new Error("Nothing approved to pay out yet. Commissions are approved 14 days after delivery.");
+    const back = db().prepare("SELECT id, commission_amount_cents AS c FROM orders WHERE affiliate_id = ? AND commission_status = 'void' AND commission_payout_id IS NOT NULL AND commission_correction_payout_id IS NULL").all(affiliateId) as { id: string; c: number }[];
+    const gross = due.reduce((n, r) => n + r.c, 0);
+    const corrections = back.reduce((n, r) => n + r.c, 0);
+    if (!due.length || gross <= 0) throw new Error("Nothing approved to pay out yet. Commissions are approved 14 days after delivery.");
+    const net = gross - corrections;
+    if (net <= 0) throw new Error(`Nothing to pay: corrections of $${(corrections / 100).toFixed(2)} (orders returned or cancelled after they were paid) are more than the approved $${(gross / 100).toFixed(2)}. They carry forward.`);
     const id = uuid();
-    db().prepare("INSERT INTO affiliate_payouts (id, affiliate_id, amount_cents, method, note) VALUES (?, ?, ?, ?, ?)").run(id, affiliateId, total, clean(o.method, 80), clean(o.note, 300));
+    db().prepare("INSERT INTO affiliate_payouts (id, affiliate_id, amount_cents, gross_cents, corrections_cents, method, note) VALUES (?, ?, ?, ?, ?, ?, ?)").run(id, affiliateId, net, gross, corrections, clean(o.method, 80), clean(o.note, 300));
     const upd = db().prepare("UPDATE orders SET commission_status = 'paid', commission_payout_id = ? WHERE id = ? AND commission_status = 'approved' AND commission_payout_id IS NULL");
     let n = 0;
     for (const r of due) n += upd.run(id, r.id).changes;
-    if (n !== due.length) throw new Error("Commissions changed while paying. Try again."); // rolls the whole payout back
-    return { id, amountCents: total, orders: n };
+    const settle = db().prepare("UPDATE orders SET commission_correction_payout_id = ? WHERE id = ? AND commission_status = 'void' AND commission_payout_id IS NOT NULL AND commission_correction_payout_id IS NULL");
+    let m = 0;
+    for (const r of back) m += settle.run(id, r.id).changes;
+    if (n !== due.length || m !== back.length) throw new Error("Commissions changed while paying. Try again."); // rolls the whole payout back
+    return { id, amountCents: net, grossCents: gross, correctionsCents: corrections, orders: n };
   });
   publish({ type: "kpi.refresh" });
   return out;
 }
 
+/**
+ * The books must always balance, per affiliate: money paid out = commissions ever paid − corrections already deducted.
+ * Returns the affiliates where they do not (empty = healthy). Used by the QA tests and available to operations.
+ */
+export function checkAffiliateBooks(): { affiliate_id: string; paid_out_cents: number; expected_cents: number }[] {
+  return db().prepare(
+    `SELECT a.id AS affiliate_id,
+            COALESCE((SELECT SUM(amount_cents) FROM affiliate_payouts p WHERE p.affiliate_id = a.id), 0) AS paid_out_cents,
+            COALESCE((SELECT SUM(commission_amount_cents) FROM orders o WHERE o.affiliate_id = a.id AND o.commission_payout_id IS NOT NULL), 0)
+          - COALESCE((SELECT SUM(commission_amount_cents) FROM orders o WHERE o.affiliate_id = a.id AND o.commission_correction_payout_id IS NOT NULL), 0) AS expected_cents
+     FROM affiliates a
+     WHERE paid_out_cents <> expected_cents`,
+  ).all() as { affiliate_id: string; paid_out_cents: number; expected_cents: number }[];
+}
+
 // ---------------------------------------------------------------- reporting
 export type AffiliateStats = AffiliateRow & {
-  orders: number; delivered: number; sales_cents: number; pending_cents: number; approved_cents: number; paid_cents: number; last_order: string | null;
+  orders: number; delivered: number; sales_cents: number; pending_cents: number; approved_cents: number; paid_cents: number; corrections_cents: number; last_order: string | null;
 };
 
 const STATS_SQL = `
@@ -158,6 +188,7 @@ const STATS_SQL = `
     COALESCE(SUM(CASE WHEN o.commission_status = 'pending' THEN o.commission_amount_cents END), 0) AS pending_cents,
     COALESCE(SUM(CASE WHEN o.commission_status = 'approved' THEN o.commission_amount_cents END), 0) AS approved_cents,
     COALESCE(SUM(CASE WHEN o.commission_status = 'paid' THEN o.commission_amount_cents END), 0) AS paid_cents,
+    COALESCE(SUM(CASE WHEN o.commission_status = 'void' AND o.commission_payout_id IS NOT NULL AND o.commission_correction_payout_id IS NULL THEN o.commission_amount_cents END), 0) AS corrections_cents,
     MAX(o.created_at) AS last_order
   FROM affiliates a LEFT JOIN orders o ON o.affiliate_id = a.id`;
 
@@ -185,16 +216,16 @@ export function affiliateStats(id: string): AffiliateStats | undefined {
 
 export type AffiliateOrder = {
   id: string; order_number: number; created_at: string; status: string; delivered_at: string | null; subtotal_cents: number; discount_amount_cents: number;
-  commission_amount_cents: number; commission_status: string | null; code_used: string | null; customer_name: string | null;
+  commission_amount_cents: number; commission_status: string | null; commission_payout_id: string | null; commission_correction_payout_id: string | null; code_used: string | null; customer_name: string | null;
 };
 export function affiliateOrders(id: string, limit = 100): AffiliateOrder[] {
   return db().prepare(
-    `SELECT o.id, o.order_number, o.created_at, o.status, o.delivered_at, o.subtotal_cents, o.discount_amount_cents, o.commission_amount_cents, o.commission_status, o.code_used, c.name AS customer_name
+    `SELECT o.id, o.order_number, o.created_at, o.status, o.delivered_at, o.subtotal_cents, o.discount_amount_cents, o.commission_amount_cents, o.commission_status, o.commission_payout_id, o.commission_correction_payout_id, o.code_used, c.name AS customer_name
      FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.affiliate_id = ? AND o.is_test = 0 AND o.status <> 'draft' ORDER BY o.created_at DESC LIMIT ?`,
   ).all(id, limit) as AffiliateOrder[];
 }
 export const affiliatePayouts = (id: string) =>
-  db().prepare("SELECT id, amount_cents, method, note, paid_at FROM affiliate_payouts WHERE affiliate_id = ? ORDER BY paid_at DESC").all(id) as { id: string; amount_cents: number; method: string; note: string; paid_at: string }[];
+  db().prepare("SELECT id, amount_cents, gross_cents, corrections_cents, method, note, paid_at FROM affiliate_payouts WHERE affiliate_id = ? ORDER BY paid_at DESC, rowid DESC").all(id) as { id: string; amount_cents: number; gross_cents: number; corrections_cents: number; method: string; note: string; paid_at: string }[];
 
 /** "Athlete at 10 delivered orders, Ambassador at 30": the highest tier earned, if it is above the current one. */
 export function suggestedTier(delivered: number, current: AffiliateTier): AffiliateTier | null {
@@ -221,9 +252,10 @@ export function overview() {
             COALESCE(SUM(CASE WHEN ${VALID} THEN 1 END), 0) AS orders,
             COALESCE(SUM(CASE WHEN o.commission_status IN ('pending','approved') THEN o.commission_amount_cents END), 0) AS owed_cents,
             COALESCE(SUM(CASE WHEN o.commission_status = 'approved' THEN o.commission_amount_cents END), 0) AS payable_cents,
-            COALESCE(SUM(CASE WHEN o.commission_status = 'paid' THEN o.commission_amount_cents END), 0) AS paid_cents
+            COALESCE(SUM(CASE WHEN o.commission_status = 'paid' THEN o.commission_amount_cents END), 0) AS paid_cents,
+            COALESCE(SUM(CASE WHEN o.commission_status = 'void' AND o.commission_payout_id IS NOT NULL AND o.commission_correction_payout_id IS NULL THEN o.commission_amount_cents END), 0) AS corrections_cents
      FROM orders o WHERE o.affiliate_id IS NOT NULL`,
-  ).get() as { sales_cents: number; orders: number; owed_cents: number; payable_cents: number; paid_cents: number };
+  ).get() as { sales_cents: number; orders: number; owed_cents: number; payable_cents: number; paid_cents: number; corrections_cents: number };
   const counts = db().prepare("SELECT (SELECT COUNT(*) FROM affiliates WHERE status = 'active') AS active, (SELECT COUNT(*) FROM affiliate_applications WHERE status = 'new') AS applications").get() as { active: number; applications: number };
   const top = db().prepare(
     `SELECT a.id, a.name, a.code, COALESCE(SUM(o.subtotal_cents - o.discount_amount_cents), 0) AS sales_cents, COUNT(o.id) AS orders
@@ -234,18 +266,16 @@ export function overview() {
 
 export type MonthlyRow = {
   order_number: number; created_at: string; status: string; affiliate: string; code: string; subtotal_cents: number; discount_amount_cents: number;
-  commission_amount_cents: number; commission_status: string | null; delivered_at: string | null;
+  commission_amount_cents: number; commission_status: string | null; delivered_at: string | null; correction_owed: number;
 };
-/** Rows for the monthly CSV (month = YYYY-MM, by the order's creation date). */
+/** Rows for the monthly CSV: the month is a calendar month in the STORE'S time zone (Asia/Beirut), by the order's creation time. */
 export function monthlyRows(month: string): MonthlyRow[] {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("Pick a month.");
-  const from = `${month}-01T00:00:00.000Z`;
-  const [y, m] = month.split("-").map(Number);
-  const to = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1)).toISOString();
+  const { from, to } = monthRange(month);
   return db().prepare(
-    `SELECT o.order_number, o.created_at, o.status, a.name AS affiliate, a.code, o.subtotal_cents, o.discount_amount_cents, o.commission_amount_cents, o.commission_status, o.delivered_at
+    `SELECT o.order_number, o.created_at, o.status, a.name AS affiliate, a.code, o.subtotal_cents, o.discount_amount_cents, o.commission_amount_cents, o.commission_status, o.delivered_at,
+            CASE WHEN o.commission_status = 'void' AND o.commission_payout_id IS NOT NULL THEN 1 ELSE 0 END AS correction_owed
      FROM orders o JOIN affiliates a ON a.id = o.affiliate_id WHERE o.is_test = 0 AND o.status <> 'draft' AND o.created_at >= ? AND o.created_at < ? ORDER BY o.created_at`,
-  ).all(from, to) as MonthlyRow[];
+  ).all(from.toISOString(), to.toISOString()) as MonthlyRow[];
 }
 
 // ---------------------------------------------------------------- applications
@@ -266,7 +296,7 @@ export function createApplication(i: ApplicationInput) {
   const v = validateApplication(i);
   const id = uuid();
   db().prepare("INSERT INTO affiliate_applications (id, name, instagram_handle, tiktok_handle, followers, city, sport, message) VALUES (@id, @name, @instagram_handle, @tiktok_handle, @followers, @city, @sport, @message)").run({ ...v, id });
-  publish({ type: "kpi.refresh" });
+  publish({ type: "application.created", id });
   return id;
 }
 

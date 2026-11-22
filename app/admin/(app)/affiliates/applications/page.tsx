@@ -8,7 +8,7 @@ import { approveApplicationAction, rejectApplicationAction } from "../actions";
 export const metadata = { title: "Affiliate applications" };
 export const dynamic = "force-dynamic";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", year: "numeric" });
 const cls: Record<string, string> = { new: "st-new", approved: "st-delivered", rejected: "st-cancelled" };
 
 export default async function ApplicationsPage() {

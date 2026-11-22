@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb, must, type Row } from "./db";
+import { STORE_TZ, startOfDay, zonedMidnight, zonedParts } from "./time";
 
 const DAY = 86_400_000;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -45,24 +46,27 @@ function bucketSeries(sales: Row[], buckets: { start: number; end: number; label
 
 export function buildSeries(orders: Row[], now = new Date()): SeriesSet {
   const sales = orders.filter(isSale);
-  const fmt = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString("en-GB", o);
-  const hourStart = new Date(now); hourStart.setMinutes(0, 0, 0);
-  const sod = new Date(now); sod.setHours(0, 0, 0, 0);
+  // every day, month and hour is in the STORE'S zone (Asia/Beirut), never the server's (a Railway server runs in UTC)
+  const fmt = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString("en-GB", { timeZone: STORE_TZ, ...o });
+  const hourStart = new Date(now); hourStart.setUTCMinutes(0, 0, 0);
+  const hh = (d: Date) => String(zonedParts(d).h).padStart(2, "0");
 
   const day = Array.from({ length: 24 }, (_, i) => {
     const start = +hourStart - (23 - i) * 3_600_000;
     const d = new Date(start);
-    return { start, end: start + 3_600_000, label: String(d.getHours()).padStart(2, "0"), tip: `${fmt(d, { day: "numeric", month: "short" })}, ${String(d.getHours()).padStart(2, "0")}:00` };
+    return { start, end: start + 3_600_000, label: hh(d), tip: `${fmt(d, { day: "numeric", month: "short" })}, ${hh(d)}:00` };
   });
   const dayBuckets = (n: number) =>
     Array.from({ length: n }, (_, i) => {
-      const start = +sod - (n - 1 - i) * DAY;
+      const start = startOfDay(now, -(n - 1 - i));
+      const end = startOfDay(now, -(n - 2 - i));
       const d = new Date(start);
-      return { start, end: start + DAY, label: fmt(d, n <= 7 ? { weekday: "short" } : { day: "numeric" }), tip: `${fmt(d, { weekday: "short", day: "numeric", month: "long", year: "numeric" })}` };
+      return { start, end, label: fmt(d, n <= 7 ? { weekday: "short" } : { day: "numeric" }), tip: `${fmt(d, { weekday: "short", day: "numeric", month: "long", year: "numeric" })}` };
     });
   const year = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    const e = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    const cur = zonedParts(now);
+    const d = zonedMidnight(cur.y, cur.m - (11 - i), 1);
+    const e = zonedMidnight(cur.y, cur.m - (10 - i), 1);
     return { start: +d, end: +e, label: fmt(d, { month: "short" }), tip: fmt(d, { month: "long", year: "numeric" }) };
   });
   return { day: bucketSeries(sales, day), week: bucketSeries(sales, dayBuckets(7)), month: bucketSeries(sales, dayBuckets(30)), year: bucketSeries(sales, year) };
@@ -73,12 +77,11 @@ export type Dashboard = Awaited<ReturnType<typeof dashboard>>;
 export async function dashboard() {
   const d = await loadData();
   const now = Date.now();
-  const sod = new Date(); sod.setHours(0, 0, 0, 0);
+  const T = startOfDay(now); // start of today in the store's zone
   const sales = d.orders.filter(isSale);
-  const T = +sod;
 
-  const todays = between(sales, T, T + DAY);
-  const yest = between(sales, T - DAY, T);
+  const todays = between(sales, T, startOfDay(now, 1));
+  const yest = between(sales, startOfDay(now, -1), T);
   const cur = between(sales, now - 30 * DAY, now + 1);
   const prev = between(sales, now - 60 * DAY, now - 30 * DAY);
   const rev = sum(cur), prevRev = sum(prev);

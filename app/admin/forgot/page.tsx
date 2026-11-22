@@ -19,7 +19,7 @@ export default function ForgotPage() {
             <input name="email" type="email" required autoComplete="username" className="a-input" />
           </label>
           <SubmitButton variant="lime" className="w-full">Send reset link</SubmitButton>
-          <p className="text-center text-[14px]"><Link href="/admin/login" className="link">Back to sign in</Link></p>
+          <p className="text-center text-[14px]"><Link href="/admin/login" className="link inline-flex min-h-12 items-center px-2 text-[15px]">Back to sign in</Link></p>
         </ActionForm>
       </div>
     </main>

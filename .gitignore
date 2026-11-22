@@ -27,3 +27,7 @@ test-results
 
 # large original photos (25 MB PNGs): processed with scripts/ingest-image.mjs, never committed
 incoming-images
+
+# admin QA output (screenshots and raw results): local only
+qa-screenshots
+qa-results

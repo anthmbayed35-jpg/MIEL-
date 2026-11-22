@@ -17,7 +17,7 @@ const sp = (o: Record<string, string> = {}) => Promise.resolve(o);
 /** The big realistic data set: 200 products, 2,000 customers, 5,000 orders. */
 beforeAll(async () => {
   resetState();
-  const counts = await qaSeed(path.join(testDir(), "qa"));
+  const counts = await qaSeed(path.join(testDir(), "qa"), { orders: 5000, customers: 2000, products: 200 });
   expect(counts).toMatchObject({ customers: 2000, orders: 5000 });
   getEngine(); // reopen
   h.user = { id: USERS.owner.id, email: USERS.owner.email };
@@ -36,6 +36,9 @@ const PAGES: [string, () => Promise<any>, Record<string, string>, number][] = [
   ["customers, searched", () => import("@/app/admin/(app)/customers/page"), { q: "Rami" }, 800],
   ["discounts", () => import("@/app/admin/(app)/marketing/discounts/page"), {}, 800],
   ["analytics", () => import("@/app/admin/(app)/analytics/page"), {}, 1500],
+  ["affiliates", () => import("@/app/admin/(app)/affiliates/page"), {}, 800],
+  ["affiliates, searched", () => import("@/app/admin/(app)/affiliates/page"), { q: "Aff1" }, 800],
+  ["affiliate applications", () => import("@/app/admin/(app)/affiliates/applications/page"), {}, 800],
 ];
 
 describe("large database: lists are paginated, aggregated in SQL and fast", () => {

@@ -1,7 +1,10 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { TIER_RULES } from "@/config/affiliates";
 import { affiliateOrders, affiliateStats, getAffiliateByToken } from "@/lib/affiliates";
 import { getCatalog } from "@/lib/catalog";
+import { ipFromHeaders } from "@/lib/client-ip";
+import { rateCount, rateHit, rateLimit } from "@/lib/rate-limit";
 import { Blobs } from "@/components/Blobs";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Sections";
@@ -10,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Your stats", robots: { index: false, follow: false, nocache: true } };
 
 const usd = (c: number) => `$${(c / 100).toFixed(2)}`;
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short" });
 const ORDER_LABEL: Record<string, string> = { new: "Placed", confirmed: "Confirmed", packed: "Packed", out_for_delivery: "On the way", delivered: "Delivered", cancelled: "Cancelled", returned: "Returned" };
 const COMMISSION_LABEL: Record<string, string> = { pending: "Pending", approved: "Approved", paid: "Paid", void: "Void" };
 const COMMISSION_STYLE: Record<string, string> = { pending: "st-packed", approved: "st-confirmed", paid: "st-delivered", void: "st-cancelled" };
@@ -21,8 +24,15 @@ const COMMISSION_STYLE: Record<string, string> = { pending: "st-packed", approve
  */
 export default async function PartnerPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  // rate limited per connection: 20 wrong links a minute lock guessing out, 120 views a minute cap everything else
+  const ip = ipFromHeaders(await headers());
+  if (rateCount(`partner:miss:${ip}`) >= 20) notFound();
   const aff = getAffiliateByToken(token);
-  if (!aff) notFound();
+  if (!aff) {
+    rateHit(`partner:miss:${ip}`, 60_000);
+    notFound();
+  }
+  if (!rateLimit(`partner:view:${ip}`, 120, 60_000)) notFound();
   const s = affiliateStats(aff.id)!;
   const orders = affiliateOrders(aff.id, 50);
   const cat = await getCatalog();
@@ -48,6 +58,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ token:
             <div className={stat}><dt className="mono mb-2">PENDING</dt><dd className="display text-[32px] leading-none">{usd(s.pending_cents)}</dd></div>
             <div className={stat}><dt className="mono mb-2">APPROVED</dt><dd className="display accent text-[32px] leading-none">{usd(s.approved_cents)}</dd></div>
             <div className={`${stat} col-span-2`}><dt className="mono mb-2">PAID OUT</dt><dd className="display text-[32px] leading-none">{usd(s.paid_cents)}</dd></div>
+            {s.corrections_cents > 0 && <div className={`${stat} col-span-2`}><dt className="mono mb-2">ADJUSTMENT</dt><dd className="display text-[32px] leading-none">−{usd(s.corrections_cents)}</dd><dd className="mt-2 text-[15px] text-body">Orders returned or cancelled after being paid. Taken off your next payout.</dd></div>}
           </dl>
           <p className="mt-4 text-[16px] text-body">Commission is pending until the order is delivered, approved 14 days later, then paid with your next payout. Cancelled or returned orders earn nothing.</p>
 

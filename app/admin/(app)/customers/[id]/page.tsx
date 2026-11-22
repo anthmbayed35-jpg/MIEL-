@@ -45,7 +45,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             href={(o) => `/admin/orders/${o.id}`}
             cols={[
               { key: "n", label: "Order", primary: true, render: (o) => <span className="mono !text-[14px] !text-fg">#{o.order_number}</span> },
-              { key: "d", label: "Date", render: (o) => new Date(o.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) },
+              { key: "d", label: "Date", render: (o) => new Date(o.created_at).toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", year: "numeric" }) },
               { key: "t", label: "Total", render: (o) => <Money value={Number(o.total)} className="text-[18px]" /> },
               { key: "p", label: "Payment", render: (o) => (["cancelled"].includes(o.status) ? "—" : <PayBadge collected={o.cod_collected} />) },
               { key: "s", label: "Status", render: (o) => <StatusBadge status={o.status} /> },

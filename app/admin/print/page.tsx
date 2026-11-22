@@ -26,12 +26,12 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
             <div className="flex items-start justify-between border-b-2 border-black pb-4">
               <div>
                 <p className="text-[28px] font-extrabold tracking-tight">MIEL+</p>
-                <p className="text-[12px] uppercase tracking-widest">Honey sports nutrition · Lebanon</p>
+                <p className="text-[13px] uppercase tracking-widest">Honey sports nutrition · Lebanon</p>
               </div>
               <div className="text-right">
                 <p className="text-[22px] font-bold">{invoice ? "INVOICE" : "PACKING SLIP"}</p>
                 <p>Order #{o.order_number}</p>
-                <p>{new Date(o.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+                <p>{new Date(o.created_at).toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "long", year: "numeric" })}</p>
               </div>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-6">
@@ -76,7 +76,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
               </dl>
             )}
             {o.customer_notes && <p className="mt-6 border border-black p-3"><b>Customer note:</b> {o.customer_notes}</p>}
-            <p className="mt-10 text-center text-[12px] uppercase tracking-widest">Fuel the grind. Thank you for ordering from MIEL+.</p>
+            <p className="mt-10 text-center text-[13px] uppercase tracking-widest">Fuel the grind. Thank you for ordering from MIEL+.</p>
           </section>
         ))}
       </div>

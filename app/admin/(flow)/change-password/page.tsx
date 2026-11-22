@@ -27,7 +27,7 @@ export default async function ChangePasswordPage() {
           <label className="block"><span className="a-label">Repeat it</span><input name="confirm" type="password" required minLength={PASSWORD_MIN} autoComplete="new-password" className="a-input" /></label>
           <SubmitButton variant="lime" className="w-full">Save and continue</SubmitButton>
         </ActionForm>
-        <form action={logout} className="mt-6 text-center"><button className="link text-[14px]">Sign out</button></form>
+        <form action={logout} className="mt-6 text-center"><button className="link inline-flex min-h-12 items-center px-3 text-[15px]">Sign out</button></form>
       </div>
     </main>
   );

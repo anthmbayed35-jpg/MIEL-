@@ -7,6 +7,7 @@ export type LiveEvent =
   | { type: "order.created"; orderId: string; number: number; total: number }
   | { type: "order.status"; orderId: string; number: number; status: string }
   | { type: "stock.changed"; itemId?: string }
+  | { type: "application.created"; id: string }
   | { type: "kpi.refresh" };
 
 export type Stamped = LiveEvent & { id: number; at: string };

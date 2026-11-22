@@ -20,7 +20,8 @@
     "check-env": "tsx scripts/check-env.ts",
     "verify": "npm run typecheck && npm run lint && npm run test:unit && npm run test:integration && npm run build && npm run test:e2e",
     "restore": "tsx scripts/restore.ts",
-    "backup": "tsx scripts/backup.ts"
+    "backup": "tsx scripts/backup.ts",
+    "qa:admin": "playwright test -c playwright.qa.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1172.0",

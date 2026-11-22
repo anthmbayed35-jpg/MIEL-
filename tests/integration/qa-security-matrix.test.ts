@@ -10,6 +10,7 @@ import { getEngine } from "../../lib/db/core";
 import { h, ID, resetState } from "../support/state";
 import { seedStore } from "../support/seed";
 import { placeOrder } from "@/lib/orders";
+import { createAffiliate } from "@/lib/affiliates";
 
 const sp = (o: Record<string, string> = {}) => Promise.resolve(o);
 const roles = [
@@ -34,6 +35,9 @@ const PAGES: [string, () => Promise<any>, Perm][] = [
   ["shipping", () => import("@/app/admin/(app)/settings/shipping/page"), "shipping.manage"],
   ["team", () => import("@/app/admin/(app)/settings/team/page"), "team.manage"],
   ["activity", () => import("@/app/admin/(app)/settings/activity/page"), "audit.read"],
+  ["affiliates", () => import("@/app/admin/(app)/affiliates/page"), "affiliates.read"],
+  ["new affiliate", () => import("@/app/admin/(app)/affiliates/new/page"), "affiliates.manage"],
+  ["affiliate applications", () => import("@/app/admin/(app)/affiliates/applications/page"), "affiliates.read"],
 ];
 
 /** route handler, the permission it needs */
@@ -42,16 +46,19 @@ const ROUTES: [string, () => Promise<{ GET: (r: Request) => Promise<Response> }>
   ["customers export", () => import("@/app/admin/(app)/customers/export/route") as any, "exports.run"],
   ["analytics export", () => import("@/app/admin/(app)/analytics/export/route") as any, "analytics.read"],
   ["backup download", () => import("@/app/admin/backup/download/route") as any, "backup.download"],
+  ["affiliates export", () => import("@/app/admin/(app)/affiliates/export/route") as any, "exports.run"],
   ["notifications", () => import("@/app/admin/api/notifications/route") as any, "any"],
   ["search", () => import("@/app/admin/api/search/route") as any, "any"],
 ];
 
 const LEAKS = /password_hash|totp_secret|recovery_codes|\$argon2|temp_password|AUTH_SECRET|BACKUP_ENCRYPTION_KEY|BREVO_API_KEY|SMTP_PASS|sk_live|service_role/i;
 
+let partnerToken = "";
 beforeEach(async () => {
   resetState();
   const S = await seedStore();
   getEngine().sqlite.prepare("UPDATE inventory_items SET on_hand = 50").run();
+  partnerToken = createAffiliate({ name: "Token Holder", code: "TOKEN10" }).private_token;
   placeOrder({ customer: { name: "Rami Test", phone: "03 123456", address: "Hamra, Bldg 5" }, items: [{ productId: S.gold.id, qty: 1 }], region: "Beirut", source: "web", actor: "customer" });
   // the three team accounts really carry secrets in the database
   getEngine().sqlite.prepare("UPDATE admin_users SET password_hash = '$argon2id$v=19$m=1,t=1,p=1$c2FsdA$aGFzaA', totp_secret = 'SECRETSECRETSECRET', recovery_codes = '[\"abc\"]'").run();
@@ -68,6 +75,7 @@ describe("permission matrix: every admin page, every role", () => {
           const out = await run();
           expect(out.length, name).toBeGreaterThan(200);
           expect(out, `${name} as ${role}`).not.toMatch(LEAKS);
+          expect(out, `${name} as ${role}: a private partner link must not appear in a list or form page`).not.toContain(partnerToken);
         } else await expect(run(), `${name} as ${role}`).rejects.toThrow("HTTP_403");
       }
     });

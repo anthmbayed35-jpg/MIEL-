@@ -71,7 +71,7 @@ export async function recordPayoutAction(_p: ActionState, fd: FormData): Promise
     const p = recordPayout(id, { method: text(fd, "method"), note: text(fd, "note") });
     await audit(admin, "affiliate_payout", "affiliate", id, { amount_cents: p.amountCents, orders: p.orders });
     refresh(id);
-    return { ok: `Payout of $${(p.amountCents / 100).toFixed(2)} recorded for ${p.orders} order${p.orders === 1 ? "" : "s"}.` };
+    return { ok: `Payout of $${(p.amountCents / 100).toFixed(2)} recorded for ${p.orders} order${p.orders === 1 ? "" : "s"}${p.correctionsCents ? ` (after a correction of $${(p.correctionsCents / 100).toFixed(2)})` : ""}.` };
   });
 }
 

@@ -24,8 +24,10 @@ export function nextCommissionStatus(
   now: Date,
   approvalDays: number,
 ): CommissionStatus | null {
-  if (!o.commission_status || o.commission_status === "paid" || o.commission_status === "void") return o.commission_status;
+  if (!o.commission_status || o.commission_status === "void") return o.commission_status;
+  // cancelled or returned: void. If it was already paid it stays visible as a correction owed back (see recordPayout)
   if (o.status === "cancelled" || o.status === "returned") return "void";
+  if (o.commission_status === "paid") return "paid";
   if (o.status === "delivered" && o.delivered_at && now.getTime() - new Date(o.delivered_at).getTime() >= approvalDays * 86_400_000) return "approved";
   return o.commission_status;
 }

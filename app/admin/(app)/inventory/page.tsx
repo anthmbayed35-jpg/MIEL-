@@ -154,7 +154,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
             rows={moves}
             empty={<p className="text-[15px] text-body">No movements yet.</p>}
             cols={[
-              { key: "when", label: "When", primary: true, render: (m) => new Date(m.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
+              { key: "when", label: "When", primary: true, render: (m) => new Date(m.created_at).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
               { key: "p", label: "Product", render: (m) => name(m.inventory_item_id) },
               { key: "d", label: "Change", render: (m) => <span className={`mono ${m.delta > 0 ? "!text-[#4ade80]" : "!text-[#ff8aa0]"}`}>{m.delta > 0 ? "+" : ""}{m.delta}</span> },
               { key: "r", label: "Reason", render: (m) => <span className="text-[14px]">{String(m.reason).replace(/_/g, " ")}{m.note ? ` · ${m.note}` : ""}</span> },

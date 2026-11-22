@@ -31,7 +31,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
           rows={rows}
           empty={<Empty title="No activity yet." hint="Important changes (orders, prices, stock, settings, team) are recorded here." />}
           cols={[
-            { key: "when", label: "When", primary: true, render: (r) => new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" }) },
+            { key: "when", label: "When", primary: true, render: (r) => new Date(r.created_at).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" }) },
             { key: "who", label: "Who", render: (r) => <span className="text-[14px]">{r.actor_email}</span> },
             { key: "what", label: "Action", render: (r) => <span className="mono !text-[13px] !text-fg">{r.action}</span> },
             { key: "ent", label: "Area", render: (r) => <span className="text-[14px]">{r.entity}</span> },

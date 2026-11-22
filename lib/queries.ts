@@ -56,4 +56,13 @@ export async function orderDetail(id: string) {
 
 export const mapUrl = (address: string, region: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${address}, ${region}, Lebanon`)}`;
 
-export const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+/**
+ * One CSV cell, quoted. Text that a spreadsheet would run as a formula (starts with = + - @ or a tab / carriage return) gets a
+ * leading apostrophe, so a customer named =HYPERLINK(...) can never execute when the team opens the export (CSV injection).
+ * Real numbers and plain phone-style values (digits, spaces, + - . ( )) are left alone: they cannot execute anything.
+ */
+export const csvCell = (v: unknown) => {
+  let s = String(v ?? "");
+  if (typeof v !== "number" && /^[=+\-@\t\r]/.test(s) && !/^[+-]?[0-9][0-9\s().,-]*$/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+};

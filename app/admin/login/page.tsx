@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <input name="password" type="password" required autoComplete="current-password" className="a-input" />
             </label>
             <SubmitButton variant="lime" className="w-full">Sign in</SubmitButton>
-            <p className="text-center text-[14px]"><Link href="/admin/forgot" className="link">Forgot your password?</Link></p>
+            <p className="text-center text-[14px]"><Link href="/admin/forgot" className="link inline-flex min-h-12 items-center px-2 text-[15px]">Forgot your password?</Link></p>
           </ActionForm>
       </div>
     </main>

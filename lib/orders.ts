@@ -289,8 +289,10 @@ export async function setOrderStatus(orderId: string, to: OrderStatus, actor: st
       deductStockSync(orderId, o.order_number, items.map((i) => ({ productId: i.product_id, qty: i.qty })), actor, !!o.is_demo);
       patch.stock_deducted = true;
     }
-    // a cancelled or returned order earns no commission (unless it was already paid out)
-    if ((to === "cancelled" || to === "returned") && (o.commission_status === "pending" || o.commission_status === "approved")) patch.commission_status = "void";
+    // a cancelled or returned order earns no commission. If it was ALREADY PAID it keeps its payout link, which makes it a visible
+    // correction on the affiliate's balance (deducted from their next payout), never a silent disappearance.
+    const wasPaid = o.commission_status === "paid";
+    if ((to === "cancelled" || to === "returned") && (o.commission_status === "pending" || o.commission_status === "approved" || wasPaid)) patch.commission_status = "void";
     if (to === "cancelled") {
       patch.cancel_reason = opts.reason!.trim();
       restoreStockSync(orderId, o.order_number, "cancel_restore", actor);
@@ -303,6 +305,7 @@ export async function setOrderStatus(orderId: string, to: OrderStatus, actor: st
     const upd = q1("orders").update(patch).eq("id", orderId);
     if (opts.expectedVersion !== undefined) upd.ifVersion(opts.expectedVersion);
     one(upd.execute());
+    if (wasPaid && (to === "cancelled" || to === "returned")) addEventSync(orderId, "commission", `Affiliate commission of ${Number(o.commission_amount).toFixed(2)} was already paid out: a correction of the same amount is recorded on the affiliate's balance.`, actor);
     addEventSync(orderId, "status", opts.message ?? (to === "cancelled" ? `Cancelled: ${opts.reason}` : to === "returned" ? "Marked as returned (stock restored)" : `Status: ${from} → ${to}`), actor, from, to);
     return { ...o, ...patch, changed: true };
   });

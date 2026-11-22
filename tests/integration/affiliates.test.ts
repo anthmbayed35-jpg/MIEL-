@@ -114,7 +114,7 @@ describe("commission lifecycle", () => {
     expect(affiliateStats(order(r.order.id).affiliate_id)).toMatchObject({ orders: 0, sales_cents: 0, pending_cents: 0 }); // void orders earn and count nothing
   });
 
-  it("a commission already paid is not voided afterwards", async () => {
+  it("a commission already paid and then voided stays visible as a correction owed back", async () => {
     const a = rami();
     const { order: o } = buy(1, 1, "RAMI10");
     for (const s of ["confirmed", "delivered"] as const) await setOrderStatus(o.id, s, "t");
@@ -122,7 +122,8 @@ describe("commission lifecycle", () => {
     approveDueCommissions();
     recordPayout(a.id, { method: "Whish", note: "March" });
     await setOrderStatus(o.id, "returned", "t");
-    expect(order(o.id).commission_status).toBe("paid");
+    expect(order(o.id)).toMatchObject({ commission_status: "void", commission_payout_id: expect.any(String), commission_correction_payout_id: null }); // void, but still linked to the payout it was paid in
+    expect(affiliateStats(a.id)).toMatchObject({ corrections_cents: 405, paid_cents: 0 });
   });
 });
 
