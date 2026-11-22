@@ -63,7 +63,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                 return (
                   <tr key={i.id}>
                     <td><Link href={`/admin/inventory?item=${i.id}`} className="display text-[15px] underline-offset-4 hover:underline">{product!.name}</Link></td>
-                    <td><span className="mono !text-body !text-[12px]">{i.sku}</span></td>
+                    <td><span className="mono !text-body !text-[13px]">{i.sku}</span></td>
                     <td><Num value={i.on_hand} className="text-[28px] leading-none" /></td>
                     <td>
                       {canWrite ? (
@@ -98,7 +98,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           {rows.map(({ i, product }) => (
             <li key={i.id} className="admin-card-flat space-y-3 p-4">
               <div className="flex items-center justify-between"><span className="display text-[16px]">{product!.name}</span><Num value={i.on_hand} className="text-[30px] leading-none" /></div>
-              <p className="mono !text-muted !text-[11px]">{i.sku} · LOW AT {i.low_stock_threshold}</p>
+              <p className="mono !text-muted !text-[13px]">{i.sku} · LOW AT {i.low_stock_threshold}</p>
               {canWrite && (
                 <ActionForm action={adjustStock} className="grid grid-cols-2 gap-2">
                   <input type="hidden" name="item" value={i.id} />

@@ -87,12 +87,12 @@ export function CommandPalette() {
                   <span className="block text-[16px] font-semibold text-fg">{h.title}</span>
                   <span className="block text-[13px] text-body">{h.sub}</span>
                 </span>
-                <span className="mono !text-[11px]">{h.type}</span>
+                <span className="mono !text-[13px]">{h.type}</span>
               </button>
             </li>
           ))}
         </ul>
-        <p className="mono !text-muted px-3 pb-1 pt-2 !text-[11px]">↑↓ to move · ENTER to open · ESC to close</p>
+        <p className="mono !text-muted px-3 pb-1 pt-2 !text-[13px]">↑↓ to move · ENTER to open · ESC to close</p>
       </div>
     </div>
   );

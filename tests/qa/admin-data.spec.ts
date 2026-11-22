@@ -35,27 +35,27 @@ const n = (v: unknown) => Number(Object.values(v as object)[0] ?? 0);
 
 test("list totals: orders, customers, products, inventory, discounts", async () => {
   await page.goto("/admin/orders");
-  eq("/admin/orders", "orders count", Number((await text(page, "main")).match(/(\d[\d,]*) orders?/)?.[1].replace(/,/g, "")), n(one("SELECT COUNT(*) FROM orders WHERE status <> 'draft'")));
+  eq("/admin/orders", "orders count", Number((await text(page, "main")).match(/(\d[\d,]*) orders?/i)?.[1].replace(/,/g, "")), n(one("SELECT COUNT(*) FROM orders WHERE status <> 'draft'")));
   const firstRow = (await page.locator("table tbody tr").first().innerText()).replace(/\s+/g, " ");
   const latest = one<{ order_number: number; total_cents: number }>("SELECT order_number, total_cents FROM orders WHERE status <> 'draft' ORDER BY created_at DESC LIMIT 1")!;
   eq("/admin/orders", "newest order number is first", Number(firstRow.match(/#(\d+)/)?.[1]), latest.order_number);
   eq("/admin/orders", "newest order total", cents(firstRow.match(/\$[\d,]+\.\d\d/)?.[0] ?? ""), latest.total_cents);
 
   await page.goto("/admin/customers");
-  const cust = (await text(page, "main")).match(/PAGE 1 \/ (\d+) · (\d[\d,]*) customers?/);
+  const cust = (await text(page, "main")).match(/PAGE 1 \/ (\d+) · (\d[\d,]*) customers?/i);
   eq("/admin/customers", "customer count", Number(cust?.[2].replace(/,/g, "")), n(one("SELECT COUNT(*) FROM customers")));
   eq("/admin/customers", "page count (50 per page)", Number(cust?.[1]), Math.ceil(n(one("SELECT COUNT(*) FROM customers")) / 50));
 
   await page.goto("/admin/products");
-  const prod = (await text(page, "main")).match(/PAGE 1 \/ \d+ · (\d+) products?/);
+  const prod = (await text(page, "main")).match(/PAGE 1 \/ \d+ · (\d+) products?/i);
   eq("/admin/products", "product count", Number(prod?.[1]), n(one("SELECT COUNT(*) FROM products")));
 
   await page.goto("/admin/inventory");
-  const inv = (await text(page, "main")).match(/PAGE 1 \/ \d+ · (\d+) items?/);
+  const inv = (await text(page, "main")).match(/PAGE 1 \/ \d+ · (\d+) items?/i);
   eq("/admin/inventory", "inventory item count", Number(inv?.[1]), n(one("SELECT COUNT(*) FROM inventory_items")));
 
   await page.goto("/admin/marketing/discounts");
-  const disc = (await text(page, "main")).match(/PAGE 1 \/ \d+ · (\d+) codes?/);
+  const disc = (await text(page, "main")).match(/PAGE 1 \/ \d+ · (\d+) codes?/i);
   eq("/admin/marketing/discounts", "discount count", Number(disc?.[1]), n(one("SELECT COUNT(*) FROM discounts")));
   expect(checks.filter((c) => !c.ok)).toEqual([]);
 });

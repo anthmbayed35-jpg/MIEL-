@@ -111,7 +111,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 <li key={e.id} className="relative">
                   <span className="absolute -left-[31px] top-1.5 h-3 w-3 rounded-full" style={{ background: dot[e.type] ?? "#8a857d" }} aria-hidden />
                   <p className={`text-[15px] ${e.type === "comment" ? "rounded-2xl bg-[#fcd34d]/10 px-3 py-2 text-fg" : "text-fg"}`}>{e.message}</p>
-                  <p className="mt-0.5 text-[12px] text-muted">
+                  <p className="mt-0.5 text-[13px] text-muted">
                     {e.actor || "system"} · {new Date(e.created_at).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </li>
@@ -143,7 +143,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <p className="text-[16px] text-fg">{o.address}</p>
             <p className="mt-1 text-[14px] text-body">{o.region}</p>
             <a href={mapUrl(o.address, o.region)} target="_blank" rel="noopener noreferrer" className="link inline-flex min-h-12 items-center text-[15px]">Open in Google Maps ↗</a>
-            {o.customer_notes && <p className="mt-3 rounded-2xl bg-white/6 p-3 text-[15px]"><span className="mono block !text-[11px]">CUSTOMER NOTE</span>{o.customer_notes}</p>}
+            {o.customer_notes && <p className="mt-3 rounded-2xl bg-white/6 p-3 text-[15px]"><span className="mono block !text-[13px]">CUSTOMER NOTE</span>{o.customer_notes}</p>}
             <ActionForm action={saveDelivery} className="mt-4 space-y-3">
               <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
               <label className="block"><span className="a-label">Delivery partner</span>

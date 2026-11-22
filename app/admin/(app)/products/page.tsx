@@ -4,7 +4,8 @@ import { perSachet } from "@/lib/format";
 import { Card, DataTable, Empty, Money, PageHeader, PillLink } from "@/components/admin/ui";
 import { Photo } from "@/components/Photo";
 import { Pager } from "@/components/admin/Pager";
-import { LIST_PAGE_SIZE } from "@/lib/lists";
+/** Products show thumbnails, so a page is smaller than the other lists (faster on a phone). */
+const LIST_PAGE_SIZE = 15;
 import Link from "next/link";
 
 export const metadata = { title: "Products" };
@@ -55,8 +56,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               key: "name", label: "Product", primary: true,
               render: (r) => (
                 <span className="flex items-center gap-3">
-                  <span className="relative block h-14 w-11 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5">
-                    {r.img ? <Photo src={r.img.src} alt="" sizes="64px" className="h-full w-full" /> : <span className="mono flex h-full items-center justify-center !text-[9px] !text-muted">NO IMG</span>}
+                  <span className="relative hidden h-14 w-11 sm:block shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                    {r.img ? <Photo src={r.img.src} alt="" sizes="64px" className="h-full w-full" /> : <span className="mono flex h-full items-center justify-center !text-[13px] !text-muted">NO IMG</span>}
                   </span>
                   <span><span className="display block text-[16px]">{r.p.name}</span><span className="block text-[13px] text-body">{r.p.descriptor}{r.p.kind === "bundle" ? " · bundle" : ""}</span></span>
                 </span>

@@ -51,9 +51,9 @@ export default async function ShippingPage() {
           {recon.filter((r) => r.pendingN + r.collectedN + r.settledN > 0 || r.id).map((r) => (
             <div key={r.id ?? "none"} className="admin-card-flat grid items-center gap-4 p-4 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto]">
               <p className="display text-[16px]">{r.name}</p>
-              <div><p className="mono !text-muted !text-[11px]">PENDING · {r.pendingN}</p><Money value={r.pending} className="text-[22px] leading-none" /></div>
-              <div><p className="mono !text-muted !text-[11px]">COLLECTED, NOT SETTLED · {r.collectedN}</p><Money value={r.collected} className="text-[22px] leading-none" /></div>
-              <div><p className="mono !text-muted !text-[11px]">SETTLED · {r.settledN}</p><Money value={r.settled} className="text-[22px] leading-none" /></div>
+              <div><p className="mono !text-muted !text-[13px]">PENDING · {r.pendingN}</p><Money value={r.pending} className="text-[22px] leading-none" /></div>
+              <div><p className="mono !text-muted !text-[13px]">COLLECTED, NOT SETTLED · {r.collectedN}</p><Money value={r.collected} className="text-[22px] leading-none" /></div>
+              <div><p className="mono !text-muted !text-[13px]">SETTLED · {r.settledN}</p><Money value={r.settled} className="text-[22px] leading-none" /></div>
               <ActionForm action={settlePartner}>
                 <input type="hidden" name="partner" value={r.id ?? ""} />
                 <SubmitButton variant="lime" confirm={`Mark ${r.collectedN} collected orders ($${r.collected.toFixed(2)}) as settled?`} className={r.collectedN ? "" : "opacity-40"}>Settle</SubmitButton>

@@ -54,7 +54,7 @@ export default async function AccountPage() {
                 <li key={s.id} className="admin-card-flat flex flex-wrap items-center justify-between gap-2 p-3 text-[14px]">
                   <span className="text-body">
                     <b className="text-fg">{s.current ? "This browser" : "Other device"}</b> · {s.ip || "unknown IP"} · last active {new Date(s.lastSeenAt).toLocaleString("en-GB", { timeZone: "Asia/Beirut" })}
-                    <br /><span className="text-[12px] text-muted">{s.userAgent.slice(0, 90)}</span>
+                    <br /><span className="text-[13px] text-muted">{s.userAgent.slice(0, 90)}</span>
                   </span>
                   {!s.current && (
                     <ActionForm action={revokeSession}><input type="hidden" name="id" value={s.id} /><SubmitButton variant="glass" className="!min-h-12 md:!min-h-9">Sign out</SubmitButton></ActionForm>

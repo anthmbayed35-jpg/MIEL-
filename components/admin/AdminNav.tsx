@@ -73,13 +73,13 @@ export function BottomTabs({ role }: { role: Role }) {
         {tabs.map((i) => {
           const on = active(path, i.href);
           return (
-            <Link key={i.href} href={i.href} aria-current={on ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[20px] text-[11px] font-medium ${on ? "bg-fg text-black" : "text-body"}`}>
+            <Link key={i.href} href={i.href} aria-current={on ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[20px] text-[13px] font-medium ${on ? "bg-fg text-black" : "text-body"}`}>
               <Icon d={i.icon} />
               {i.label}
             </Link>
           );
         })}
-        <button onClick={() => setMore(true)} aria-haspopup="dialog" className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[20px] text-[11px] font-medium ${moreActive ? "bg-fg text-black" : "text-body"}`}>
+        <button onClick={() => setMore(true)} aria-haspopup="dialog" className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[20px] text-[13px] font-medium ${moreActive ? "bg-fg text-black" : "text-body"}`}>
           <Icon d="M5 12h.01M12 12h.01M19 12h.01" />
           More
         </button>

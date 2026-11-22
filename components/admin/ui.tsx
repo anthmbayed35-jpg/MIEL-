@@ -122,6 +122,8 @@ export type Col<T> = { key: string; label: string; render: (row: T) => React.Rea
 export function DataTable<T extends Record<string, unknown>>({ rows, cols, href, empty }: { rows: T[]; cols: Col<T>[]; href?: (row: T) => string; empty?: React.ReactNode }) {
   if (!rows.length) return <>{empty ?? <Empty title="Nothing here yet." />}</>;
   const linkKey = cols.find((c) => !c.noLink)?.key;
+  // a card that holds a control (a checkbox, a button) must not be one big link: a tap on the control would open the page instead
+  const hasControls = cols.some((c) => c.noLink);
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
@@ -154,13 +156,13 @@ export function DataTable<T extends Record<string, unknown>>({ rows, cols, href,
             <div className="admin-card-flat space-y-2 p-4">
               {cols.map((c) => (
                 <div key={c.key} className={c.primary ? "text-[17px] font-semibold text-fg" : "flex items-center justify-between gap-3 text-[15px]"}>
-                  {!c.primary && <span className="mono !text-muted !text-[11px]">{c.label}</span>}
-                  <span className={c.primary ? "" : "text-right"}>{c.render(r)}</span>
+                  {!c.primary && <span className="mono !text-muted !text-[13px]">{c.label}</span>}
+                  <span className={c.primary ? "" : "text-right"}>{c.primary && hasControls && href ? <Link href={href(r)} className="inline-flex min-h-12 min-w-12 items-center underline-offset-4 hover:underline">{c.render(r)}</Link> : c.render(r)}</span>
                 </div>
               ))}
             </div>
           );
-          return <li key={String(r.id)}>{href ? <Link href={href(r)} className="block rounded-[20px]">{inner}</Link> : inner}</li>;
+          return <li key={String(r.id)}>{href && !hasControls ? <Link href={href(r)} className="block rounded-[20px]">{inner}</Link> : inner}</li>;
         })}
       </ul>
     </>

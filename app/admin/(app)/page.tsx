@@ -142,7 +142,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <div className="mt-2 h-2 rounded-full bg-white/10">
                     <div className="h-2 rounded-full bg-acid" style={{ width: `${(f.revenue / maxFlavor) * 100}%` }} />
                   </div>
-                  <p className="mt-1 text-[12px] text-muted">{f.qty} pouches</p>
+                  <p className="mt-1 text-[13px] text-muted">{f.qty} pouches</p>
                 </li>
               ))}
             </ul>

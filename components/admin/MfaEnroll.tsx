@@ -50,7 +50,7 @@ export function MfaEnroll() {
       <p className="text-[15px] text-body">1. Open an authenticator app (Google Authenticator, 1Password, Authy). 2. Scan this code. 3. Enter the 6-digit code it shows.</p>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={start.qr} alt="Two-factor setup QR code" width={192} height={192} className="rounded-2xl bg-white p-2" />
-      <p className="mono !text-[12px] !text-body break-all">Can&apos;t scan? Secret: {start.secret}</p>
+      <p className="mono !text-[13px] !text-body break-all">Can&apos;t scan? Secret: {start.secret}</p>
       <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,8}" required placeholder="123456" className="a-input !max-w-48 text-center !text-[22px] tracking-[0.3em]" aria-label="6-digit code" />
       {msg?.error && <p role="alert" className="text-[15px] text-[#ff8aa0]">{msg.error}</p>}
       {msg?.ok && <p role="status" className="text-[15px] text-acid">{msg.ok}</p>}

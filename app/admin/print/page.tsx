@@ -36,15 +36,15 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
             </div>
             <div className="mt-5 grid grid-cols-2 gap-6">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest">Deliver to</p>
+                <p className="text-[13px] font-bold uppercase tracking-widest">Deliver to</p>
                 <p className="text-[16px] font-semibold">{customer?.name}</p>
                 <p>{customer?.phone}</p>
                 <p>{o.address}</p>
                 <p>{o.region}</p>
-                <p className="text-[11px] text-neutral-600">{mapUrl(o.address, o.region)}</p>
+                <p className="text-[13px] text-neutral-600">{mapUrl(o.address, o.region)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[11px] font-bold uppercase tracking-widest">Payment</p>
+                <p className="text-[13px] font-bold uppercase tracking-widest">Payment</p>
                 <p className="font-semibold">Cash on delivery</p>
                 {!o.cod_collected && <p className="text-[18px] font-bold">Collect ${Number(o.cod_amount_due).toFixed(2)}</p>}
                 {o.cod_collected && <p>Paid</p>}
@@ -53,7 +53,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
             </div>
             <table className="mt-6 w-full border-collapse">
               <thead>
-                <tr className="border-b-2 border-black text-left text-[11px] uppercase tracking-widest">
+                <tr className="border-b-2 border-black text-left text-[13px] uppercase tracking-widest">
                   <th className="py-2">Item</th><th className="py-2 text-center">Qty</th>{invoice && <><th className="py-2 text-right">Price</th><th className="py-2 text-right">Total</th></>}
                 </tr>
               </thead>

@@ -46,7 +46,7 @@ export default async function MarketingPage() {
           rows={abandoned}
           empty={<Empty title="No abandoned checkouts." hint="When someone starts checkout and leaves, they show up here." />}
           cols={[
-            { key: "n", label: "Customer", primary: true, render: (a) => <span>{a.name || "Unknown"}<span className="mono !text-body ml-2 !text-[12px]">{a.phone}</span></span> },
+            { key: "n", label: "Customer", primary: true, render: (a) => <span>{a.name || "Unknown"}<span className="mono !text-body ml-2 !text-[13px]">{a.phone}</span></span> },
             { key: "i", label: "Cart", render: (a) => (a.items as Row[]).map((i) => `${i.qty}× ${i.name}`).join(", ") },
             { key: "t", label: "Value", render: (a) => <Money value={Number(a.total)} className="text-[18px]" /> },
             { key: "w", label: "When", render: (a) => ago(a.created_at) },

@@ -16,7 +16,11 @@ export default async function AffiliatesPage({ searchParams }: { searchParams: P
   const admin = await requirePerm("affiliates.read");
   const sp = await searchParams;
   // the private partner link is a credential: it never goes into the list (not even as hidden data for the browser)
-  const rows = listAffiliates({ q: sp.q, status: sp.status }).map(({ private_token: _t, notes: _n, email: _e, phone: _p, ...rest }) => rest);
+  const rows = listAffiliates({ q: sp.q, status: sp.status }).map((r) => {
+    const c: Record<string, unknown> = { ...r };
+    for (const k of ["private_token", "notes", "email", "phone"]) delete c[k];
+    return c as unknown as Omit<(typeof r), "private_token" | "notes" | "email" | "phone">;
+  });
   const o = overview();
   const month = new Date().toISOString().slice(0, 7);
 

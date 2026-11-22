@@ -93,7 +93,7 @@ export function BarChart({ series, title = "Overview", fileName = "sales" }: { s
       </div>
 
       <div className="mt-6 flex gap-3">
-        <div className="flex h-[220px] flex-col justify-between pb-6 text-right text-[12px] text-muted sm:h-[260px]" aria-hidden>
+        <div className="flex h-[220px] flex-col justify-between pb-6 text-right text-[13px] text-muted sm:h-[260px]" aria-hidden>
           {ticks.map((t, i) => (
             <span key={i} className="tnum">${compact(t)}</span>
           ))}
@@ -133,7 +133,7 @@ export function BarChart({ series, title = "Overview", fileName = "sales" }: { s
                     <span className="text-muted">.{pd}</span>
                   </span>
                   {p.delta !== null && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-fg px-2 py-0.5 text-[12px] font-bold" style={{ color: p.delta >= 0 ? "#16a34a" : "#e11d48" }}>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-fg px-2 py-0.5 text-[13px] font-bold" style={{ color: p.delta >= 0 ? "#16a34a" : "#e11d48" }}>
                       {p.delta >= 0 ? "↗" : "↘"} {Math.abs(p.delta).toFixed(2)}%
                     </span>
                   )}
@@ -146,7 +146,7 @@ export function BarChart({ series, title = "Overview", fileName = "sales" }: { s
               </div>
             </div>
           </div>
-          <div className="mt-2 flex gap-[3px] text-[11px] text-muted sm:gap-1" aria-hidden>
+          <div className="mt-2 flex gap-[3px] text-[13px] text-muted sm:gap-1" aria-hidden>
             {pts.map((x, i) => {
               const every = Math.ceil(pts.length / (period === "month" ? 6 : 12));
               return (
