@@ -1,7 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { adjustStock } from "./db/core";
-import { getEngine, type Row } from "./db";
+import { friendly, getEngine, type Row } from "./db";
 import { publish } from "./events";
 import { affiliateDiscountCents, commissionCents } from "./affiliate-math";
 import { normalizeLebanesePhone } from "./phone";
@@ -32,7 +32,7 @@ export type Quote = {
 
 const q1 = (table: string) => getEngine().from(table);
 const one = (r: { data: any; error: { message: string } | null }) => {
-  if (r.error) throw new Error(r.error.message);
+  if (r.error) throw new Error(friendly(r.error.message));
   return r.data;
 };
 

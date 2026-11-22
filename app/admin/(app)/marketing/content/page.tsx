@@ -66,8 +66,8 @@ export default async function ContentPage() {
                   <span className={`status ${t.approved ? "st-delivered" : "st-packed"}`}>{t.approved ? "Approved" : "Pending"}</span>
                   <ActionForm action={setTestimonial} className="flex gap-2">
                     <input type="hidden" name="id" value={t.id} />
-                    <SubmitButton variant={t.approved ? "glass" : "lime"} name="act" value={t.approved ? "hide" : "approve"} className="!min-h-10">{t.approved ? "Hide" : "Approve"}</SubmitButton>
-                    {can(admin.role, "data.delete") && <SubmitButton variant="danger" name="act" value="remove" confirm="Remove this testimonial?" className="!min-h-10">Remove</SubmitButton>}
+                    <SubmitButton variant={t.approved ? "glass" : "lime"} name="act" value={t.approved ? "hide" : "approve"} className="!min-h-12 md:!min-h-10">{t.approved ? "Hide" : "Approve"}</SubmitButton>
+                    {can(admin.role, "data.delete") && <SubmitButton variant="danger" name="act" value="remove" confirm="Remove this testimonial?" className="!min-h-12 md:!min-h-10">Remove</SubmitButton>}
                   </ActionForm>
                 </div>
               </li>

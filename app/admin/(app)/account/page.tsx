@@ -57,7 +57,7 @@ export default async function AccountPage() {
                     <br /><span className="text-[12px] text-muted">{s.userAgent.slice(0, 90)}</span>
                   </span>
                   {!s.current && (
-                    <ActionForm action={revokeSession}><input type="hidden" name="id" value={s.id} /><SubmitButton variant="glass" className="!min-h-9">Sign out</SubmitButton></ActionForm>
+                    <ActionForm action={revokeSession}><input type="hidden" name="id" value={s.id} /><SubmitButton variant="glass" className="!min-h-12 md:!min-h-9">Sign out</SubmitButton></ActionForm>
                   )}
                 </li>
               ))}

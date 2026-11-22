@@ -57,7 +57,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <Card>
               <SectionTitle>Details</SectionTitle>
               <ActionForm action={saveCustomer} className="space-y-3">
-                <input type="hidden" name="id" value={c.id} />
+                <input type="hidden" name="id" value={c.id} />{c.version != null && <input type="hidden" name="version" value={c.version} />}
                 <label className="block"><span className="a-label">Name</span><input name="name" defaultValue={c.name} className="a-input" /></label>
                 <label className="block"><span className="a-label">Tags (comma separated)</span><input name="tags" defaultValue={(c.tags as string[]).join(", ")} placeholder="VIP, runner, gym" className="a-input" /></label>
                 <label className="block"><span className="a-label">Private notes</span><textarea name="notes" rows={4} defaultValue={c.notes} className="a-input" /></label>

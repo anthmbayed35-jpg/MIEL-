@@ -10,7 +10,12 @@ export async function listOrders(f: OrderFilters, paginate = true) {
   let q = db.from("orders").select("*", { count: "exact" }).order("created_at", { ascending: false });
   q = f.status ? q.eq("status", f.status) : q.neq("status", "draft");
   if (f.pay === "collected") q = q.eq("cod_collected", true);
-  if (f.pay === "pending") q = q.eq("cod_collected", false);
+  if (f.pay === "pending") {
+    // "COD still to collect" excludes cancelled / returned / draft orders IN THE QUERY (it used to filter after paging, so pages
+    // could come back short and the count was wrong)
+    q = q.eq("cod_collected", false);
+    q = f.status && ["cancelled", "returned", "draft"].includes(f.status) ? q.eq("id", "none") : q.neq("status", "cancelled").neq("status", "returned");
+  }
   if (f.region) q = q.eq("region", f.region);
   if (f.from) q = q.gte("created_at", new Date(f.from).toISOString());
   if (f.to) q = q.lte("created_at", new Date(new Date(f.to).getTime() + 86_399_000).toISOString());
@@ -26,8 +31,7 @@ export async function listOrders(f: OrderFilters, paginate = true) {
   const page = Math.max(1, f.page ?? 1);
   if (paginate) q = q.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   const res = await q;
-  let orders = must(res) as Row[];
-  if (f.pay === "pending") orders = orders.filter((o) => !["cancelled", "returned", "draft"].includes(o.status));
+  const orders = must(res) as Row[];
   const cids = [...new Set(orders.map((o) => o.customer_id).filter(Boolean))];
   const customers = cids.length ? (must(await db.from("customers").select("*").in("id", cids)) as Row[]) : [];
   return {

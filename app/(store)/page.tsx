@@ -2,6 +2,7 @@ import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { ProofStrip } from "@/components/ProofStrip";
 import { Lineup } from "@/components/Lineup";
+import { HOME_LINEUP_LIMIT } from "@/lib/lineup";
 import { FeatureBand } from "@/components/FeatureBand";
 import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer, Testimonials } from "@/components/Sections";
 import { findPhoto } from "@/config/products";
@@ -31,7 +32,7 @@ export default async function Home() {
       <main>
         <Hero products={products} hero={cat.hero} />
         <ProofStrip />
-        <Lineup products={products} />
+        <Lineup products={products.slice(0, HOME_LINEUP_LIMIT)} total={products.length} />
         {[featured, ...products.filter((p) => p !== featured)].filter((p) => p && findPhoto(p, "ingredients")).map((p) => (
           <FeatureBand key={p.slug} product={p} />
         ))}

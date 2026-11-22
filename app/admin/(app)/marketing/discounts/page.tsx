@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
-import { isSale } from "@/lib/stats";
+import { discountUsage, LIST_PAGE_SIZE } from "@/lib/lists";
+import { Pager } from "@/components/admin/Pager";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, DataTable, Empty, Field, Money, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { MARKETING_TABS, SubNav } from "@/components/admin/SubNav";
@@ -14,7 +16,7 @@ const day = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 
 function DiscountForm({ d, products }: { d?: Row; products: Row[] }) {
   return (
     <ActionForm action={saveDiscount} className="space-y-4">
-      {d && <input type="hidden" name="id" value={d.id} />}
+      {d && <><input type="hidden" name="id" value={d.id} /><input type="hidden" name="version" value={d.version} /></>}
       <div className="grid gap-4 md:grid-cols-4">
         <Field label="Code"><input name="code" required defaultValue={d?.code} placeholder="WELCOME10" className="a-input uppercase" /></Field>
         <Field label="Type"><select name="type" defaultValue={d?.type ?? "percent"} className="a-input"><option value="percent">Percent off</option><option value="fixed">Amount off ($)</option><option value="free_delivery">Free delivery</option></select></Field>
@@ -29,7 +31,7 @@ function DiscountForm({ d, products }: { d?: Row; products: Row[] }) {
         <legend className="a-label">Limit to products (none ticked = all products)</legend>
         <div className="flex flex-wrap gap-3">
           {products.map((p) => (
-            <label key={p.id} className="flex min-h-11 items-center gap-2 rounded-full bg-white/8 px-4 text-[15px]"><input type="checkbox" name="products" value={p.id} defaultChecked={(d?.product_ids as string[] | null)?.includes(p.id)} className="h-5 w-5 accent-[#DAFC69]" />{p.name}</label>
+            <label key={p.id} className="flex min-h-12 items-center gap-2 rounded-full bg-white/8 px-4 text-[15px]"><input type="checkbox" name="products" value={p.id} defaultChecked={(d?.product_ids as string[] | null)?.includes(p.id)} className="h-5 w-5 accent-[#DAFC69]" />{p.name}</label>
           ))}
         </div>
       </fieldset>
@@ -38,16 +40,18 @@ function DiscountForm({ d, products }: { d?: Row; products: Row[] }) {
   );
 }
 
-export default async function DiscountsPage() {
+export default async function DiscountsPage({ searchParams }: { searchParams: Promise<{ page?: string; edit?: string }> }) {
   const admin = await requirePerm("discounts.manage");
   const db = getDb();
-  const discounts = (must(await db.from("discounts").select("*").order("created_at", { ascending: false })) as Row[]);
-  const products = must(await db.from("products").select("id, name").eq("status", "active")) as Row[];
-  const orders = (must(await db.from("orders").select("*")) as Row[]).filter(isSale);
-  const usage = (code: string) => {
-    const os = orders.filter((o) => o.discount_code === code);
-    return { orders: os.length, revenue: os.reduce((n, o) => n + Number(o.total), 0), given: os.reduce((n, o) => n + Number(o.discount_total), 0) };
-  };
+  const sp = await searchParams;
+  const dres = await db.from("discounts").select("*", { count: "exact" }).order("created_at", { ascending: false }).limit(1);
+  const total = dres.count ?? 0;
+  const pages = Math.max(1, Math.ceil(total / LIST_PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(sp.page) || 1), pages);
+  const discounts = must(await db.from("discounts").select("*").order("created_at", { ascending: false }).range((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE - 1)) as Row[];
+  const products = must(await db.from("products").select("id, name").eq("status", "active").limit(300)) as Row[];
+  const used = discountUsage(); // one grouped query, not every order loaded into memory
+  const usage = (code: string) => used.get(code.toUpperCase()) ?? { orders: 0, revenue: 0, given: 0 };
   const rows = discounts.map((d): Row & { u: ReturnType<typeof usage> } => ({ ...d, u: usage(d.code) }));
 
   return (
@@ -71,25 +75,33 @@ export default async function DiscountsPage() {
               render: (d) => (
                 <ActionForm action={toggleDiscount} className="contents">
                   <input type="hidden" name="id" value={d.id} /><input type="hidden" name="active" value={d.active ? "0" : "1"} />
-                  <SubmitButton variant={d.active ? "glass" : "lime"} className="!min-h-10">{d.active ? "Active · disable" : "Disabled · enable"}</SubmitButton>
+                  <SubmitButton variant={d.active ? "glass" : "lime"} className="!min-h-12 md:!min-h-10">{d.active ? "Active · disable" : "Disabled · enable"}</SubmitButton>
                 </ActionForm>
               ),
             },
           ]}
         />
+        <Pager basePath="/admin/marketing/discounts" params={{}} page={page} pages={pages} total={total} noun="code" />
       </Card>
 
       <div className="mt-5 grid gap-5">
         <Card><SectionTitle>Create a discount</SectionTitle><DiscountForm products={products} /></Card>
-        {discounts.map((d) => (
-          <details key={d.id} className="admin-card group">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden">
+        {/* Only the discount being edited gets its form (each form lists every product: one per row made the page megabytes). */}
+        {discounts.map((d) =>
+          d.id === sp.edit ? (
+            <details key={d.id} open id="edit" className="admin-card group">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden">
+                <span className="text-[17px] font-semibold text-fg">Edit {d.code} <span className="mono !text-body ml-2">{label(d)}</span></span>
+              </summary>
+              <div className="mt-4"><DiscountForm d={d} products={products} /></div>
+            </details>
+          ) : (
+            <Link key={d.id} href={`/admin/marketing/discounts?${new URLSearchParams({ ...(page > 1 ? { page: String(page) } : {}), edit: d.id })}#edit`} className="admin-card flex min-h-14 items-center justify-between">
               <span className="text-[17px] font-semibold text-fg">Edit {d.code} <span className="mono !text-body ml-2">{label(d)}</span></span>
-              <span aria-hidden className="display accent text-[28px] transition-transform group-open:rotate-45">+</span>
-            </summary>
-            <div className="mt-4"><DiscountForm d={d} products={products} /></div>
-          </details>
-        ))}
+              <span aria-hidden className="display accent text-[28px]">+</span>
+            </Link>
+          ),
+        )}
       </div>
     </>
   );

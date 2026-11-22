@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
+import { formVersion, guarded, orFail } from "@/lib/version";
 import { addEvent, createOrder, setOrderStatus } from "@/lib/orders";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/status";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -22,7 +23,7 @@ export async function changeStatus(_p: ActionState, fd: FormData): Promise<Actio
   const to = String(fd.get("to")) as OrderStatus;
   if (!ORDER_STATUSES.includes(to)) return { error: "Unknown status." };
   try {
-    await setOrderStatus(id, to, admin.email, { reason: String(fd.get("reason") ?? "") });
+    await setOrderStatus(id, to, admin.email, { reason: String(fd.get("reason") ?? ""), expectedVersion: formVersion(fd) });
     await audit(admin, "order_status", "order", id, { to });
     done(id);
     return { ok: `Status changed to ${to.replace(/_/g, " ")}.` };
@@ -50,12 +51,16 @@ export async function bulkStatus(ids: string[], to: OrderStatus): Promise<Action
 }
 
 export async function toggleCod(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => toggleCodImpl(_p, fd));
+}
+
+async function toggleCodImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("orders.write");
   const id = String(fd.get("id"));
   const collected = fd.get("collected") === "1";
   const o = must(await getDb().from("orders").select("*").eq("id", id).single()) as Row;
   if (["cancelled", "draft"].includes(o.status)) return { error: "This order can't take payment." };
-  must(await getDb().from("orders").update({ cod_collected: collected, payment_status: collected ? "collected" : "pending", cod_settled_at: collected ? o.cod_settled_at : null, updated_at: new Date().toISOString() }).eq("id", id));
+  must(await guarded(getDb().from("orders").update({ cod_collected: collected, payment_status: collected ? "collected" : "pending", cod_settled_at: collected ? o.cod_settled_at : null, updated_at: new Date().toISOString() }).eq("id", id), fd));
   await addEvent(id, "payment", collected ? `COD collected: $${Number(o.cod_amount_due).toFixed(2)}` : "COD marked as not collected", admin.email);
   await audit(admin, collected ? "cod_collected" : "cod_uncollected", "order", id);
   done(id);
@@ -63,11 +68,15 @@ export async function toggleCod(_p: ActionState, fd: FormData): Promise<ActionSt
 }
 
 export async function saveDelivery(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => saveDeliveryImpl(_p, fd));
+}
+
+async function saveDeliveryImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("orders.write");
   const id = String(fd.get("id"));
   const partner = String(fd.get("partner") ?? "") || null;
   const tracking = String(fd.get("tracking") ?? "").trim().slice(0, 80);
-  must(await getDb().from("orders").update({ delivery_partner_id: partner, tracking_number: tracking, updated_at: new Date().toISOString() }).eq("id", id));
+  must(await guarded(getDb().from("orders").update({ delivery_partner_id: partner, tracking_number: tracking, updated_at: new Date().toISOString() }).eq("id", id), fd));
   await addEvent(id, "delivery", `Delivery updated${tracking ? `: tracking ${tracking}` : ""}`, admin.email);
   await audit(admin, "order_delivery", "order", id, { partner, tracking });
   done(id);
@@ -75,6 +84,10 @@ export async function saveDelivery(_p: ActionState, fd: FormData): Promise<Actio
 }
 
 export async function addComment(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => addCommentImpl(_p, fd));
+}
+
+async function addCommentImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("orders.write");
   const id = String(fd.get("id"));
   const text = String(fd.get("text") ?? "").trim();
@@ -88,7 +101,7 @@ export async function cancelOrder(_p: ActionState, fd: FormData): Promise<Action
   const admin = await requirePerm("orders.write");
   const id = String(fd.get("id"));
   try {
-    await setOrderStatus(id, "cancelled", admin.email, { reason: String(fd.get("reason") ?? "") });
+    await setOrderStatus(id, "cancelled", admin.email, { reason: String(fd.get("reason") ?? ""), expectedVersion: formVersion(fd) });
     await audit(admin, "order_cancel", "order", id, { reason: fd.get("reason") });
     done(id);
     return { ok: "Order cancelled and stock restored." };
@@ -105,7 +118,7 @@ export async function returnOrder(_p: ActionState, fd: FormData): Promise<Action
   try {
     const before = must(await getDb().from("orders").select("*").eq("id", id).single()) as Row;
     if (before.status !== "delivered") return { error: "Only delivered orders can be returned." };
-    await setOrderStatus(id, "returned", admin.email, { message: `Returned${note ? `: ${note}` : ""} (stock restored)` });
+    await setOrderStatus(id, "returned", admin.email, { message: `Returned${note ? `: ${note}` : ""} (stock restored)`, expectedVersion: formVersion(fd) });
     if (before.cod_collected) await addEvent(id, "refund", `Refund due to customer: $${Number(before.total).toFixed(2)}`, admin.email);
     await audit(admin, "order_return", "order", id, { note });
     done(id);

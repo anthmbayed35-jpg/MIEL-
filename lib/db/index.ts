@@ -22,6 +22,12 @@ export { getEngine };
 
 /** Throw on an error result, otherwise return data. */
 export function must<T = any>(res: Result<T>): T {
-  if (res.error) throw new Error(res.error.message);
+  if (res.error) throw new Error(friendly(res.error.message));
   return res.data;
+}
+
+/** A person never sees driver wording: a missing or stale id reads as "no longer exists". Other messages (unique, version) keep their wording. */
+export function friendly(message: string): string {
+  if (/multiple \(or no\) rows|no rows|foreign key/i.test(message)) return "That record no longer exists. Reload the page and try again.";
+  return message;
 }

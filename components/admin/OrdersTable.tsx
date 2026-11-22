@@ -46,7 +46,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
     {
       key: "sel", label: "Select", noLink: true, className: "w-12",
       render: (r) => (
-        <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select order ${r.number}`} className="h-6 w-6 accent-[#DAFC69]" />
+        <label className="-m-3 flex h-12 w-12 items-center justify-center"><input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select order ${r.number}`} className="h-6 w-6 accent-[#DAFC69]" /></label>
       ),
     },
   ];
@@ -73,7 +73,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
       )}
       {msg && <p role="status" className={`mb-4 rounded-2xl border px-4 py-3 text-[15px] ${msg.error ? "border-[#FF5C7A]/50 bg-[#FF5C7A]/10" : "border-acid/40 bg-acid/10"}`}>{msg.error ?? msg.ok}</p>}
       {rows.length > 0 && (
-        <label className="mb-3 flex min-h-10 w-fit items-center gap-3 px-1 text-[14px] text-body">
+        <label className="mb-3 flex min-h-12 w-fit items-center gap-3 px-1 text-[14px] text-body">
           <input type="checkbox" checked={all} onChange={() => setSel(all ? new Set() : new Set(rows.map((r) => r.id)))} className="h-6 w-6 accent-[#DAFC69]" />
           Select all on this page
         </label>

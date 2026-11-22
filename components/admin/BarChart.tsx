@@ -78,7 +78,7 @@ export function BarChart({ series, title = "Overview", fileName = "sales" }: { s
                   setPeriod(x.id);
                   setSel(null);
                 }}
-                className={`min-h-10 rounded-full px-4 text-[14px] font-medium ${period === x.id ? "bg-fg text-black" : "text-body"}`}
+                className={`min-h-12 rounded-full px-4 text-[14px] font-medium ${period === x.id ? "bg-fg text-black" : "text-body"}`}
               >
                 {x.label}
               </button>

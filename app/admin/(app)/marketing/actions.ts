@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { guarded } from "@/lib/version";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
@@ -28,7 +29,7 @@ export async function saveDiscount(_p: ActionState, fd: FormData): Promise<Actio
     active: fd.get("active") === "on",
   };
   try {
-    if (id) must(await db.from("discounts").update(row).eq("id", id));
+    if (id) must(await guarded(db.from("discounts").update(row).eq("id", id), fd));
     else must(await db.from("discounts").insert({ ...row, used_count: 0, is_demo: false }));
   } catch (e) {
     return { error: /duplicate|unique/i.test((e as Error).message) ? "That code already exists." : (e as Error).message };

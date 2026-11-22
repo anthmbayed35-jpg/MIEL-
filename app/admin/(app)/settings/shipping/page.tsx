@@ -10,7 +10,7 @@ export const metadata = { title: "Shipping & delivery" };
 function ZoneForm({ z }: { z?: Row }) {
   return (
     <ActionForm action={saveZone} resetOnSuccess={!z} className="grid items-end gap-3 md:grid-cols-[1.3fr_100px_130px_1.3fr_auto_auto]">
-      {z && <input type="hidden" name="id" value={z.id} />}
+      {z && <><input type="hidden" name="id" value={z.id} /><input type="hidden" name="version" value={z.version} /></>}
       <Field label="Zone"><input name="name" required defaultValue={z?.name} placeholder="Beirut" className="a-input" /></Field>
       <Field label="Fee ($)"><input name="fee" type="number" step="0.01" min="0" required defaultValue={z?.fee ?? 3} className="a-input" /></Field>
       <Field label="Free over ($)"><input name="free_over" type="number" step="0.01" min="0" defaultValue={z?.free_over ?? ""} placeholder="none" className="a-input" /></Field>
@@ -80,7 +80,7 @@ export default async function ShippingPage() {
         <div className="space-y-4">
           {partners.map((p) => (
             <ActionForm key={p.id} action={savePartner} className="grid items-end gap-3 md:grid-cols-[1.2fr_1fr_1.5fr_auto_auto]">
-              <input type="hidden" name="id" value={p.id} />
+              <input type="hidden" name="id" value={p.id} /><input type="hidden" name="version" value={p.version} />
               <Field label="Name"><input name="name" required defaultValue={p.name} className="a-input" /></Field>
               <Field label="Phone"><input name="phone" defaultValue={p.phone} className="a-input" /></Field>
               <Field label="Notes"><input name="notes" defaultValue={p.notes} className="a-input" /></Field>
