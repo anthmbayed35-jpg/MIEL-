@@ -1,5 +1,6 @@
 import { can, requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
+import { versionIn } from "@/lib/versioned";
 import { DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO } from "@/config/content";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, Field, PageHeader, SectionTitle } from "@/components/admin/ui";
@@ -25,6 +26,7 @@ export default async function ContentPage() {
         <Card>
           <SectionTitle>Announcement bar</SectionTitle>
           <ActionForm action={saveAnnouncement} className="space-y-4">
+            <input type="hidden" name="version" value={versionIn(rows as never, "announcement")} />
             <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="enabled" defaultChecked={ann.enabled} className="h-6 w-6 accent-[#DAFC69]" /> Show the bar at the top of the store</label>
             <Field label="Text"><input name="text" defaultValue={ann.text} maxLength={160} className="a-input" /></Field>
             <Field label="Link (optional)"><input name="link" defaultValue={ann.link} placeholder="/#lineup" className="a-input" /></Field>
@@ -35,6 +37,7 @@ export default async function ContentPage() {
         <Card>
           <SectionTitle>Home hero text</SectionTitle>
           <ActionForm action={saveHero} className="space-y-4">
+            <input type="hidden" name="version" value={versionIn(rows as never, "hero")} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Headline, line 1"><input name="headline1" defaultValue={hero.headline1} maxLength={40} className="a-input" /></Field>
               <Field label="Line 2 (yellow)"><input name="headline2" defaultValue={hero.headline2} maxLength={40} className="a-input" /></Field>
@@ -47,6 +50,7 @@ export default async function ContentPage() {
         <Card className="lg:col-span-2">
           <SectionTitle>Home page FAQ</SectionTitle>
           <ActionForm action={saveFaq} className="space-y-4">
+            <input type="hidden" name="version" value={versionIn(rows as never, "faq")} />
             <Field label="One per line: Question | Answer"><textarea name="faq" rows={9} defaultValue={faq.map((f) => `${f.q} | ${f.a}`).join("\n")} className="a-input" /></Field>
             <SubmitButton variant="lime">Save FAQ</SubmitButton>
           </ActionForm>

@@ -5,7 +5,7 @@
  *   npm run purge-demo -- --confirm    backs everything up to /backups/<timestamp>/*.csv, then deletes
  *
  * HOW DEMO ROWS ARE IDENTIFIED: only rows with is_demo = true (orders, customers, stock_movements, discounts,
- * abandoned_checkouts, events, delivery_partners, batches). Their child rows (order_items, order_events) are
+ * abandoned_checkouts, events, delivery_partners; batches have no flag, so the generator's "DEMO-..." lot numbers identify them). Their child rows (order_items, order_events) are
  * removed with their orders. Nothing is ever matched by name, date or guess.
  *
  * AMBIGUOUS rows are LISTED AND SKIPPED, never deleted:
@@ -13,12 +13,14 @@
  *   - a demo discount / delivery partner used by a real order
  * Resolve those by hand, then re-run.
  *
- * Stock: the quantities added or taken by demo stock movements are reversed (never below zero).
+ * Stock: the quantities added or taken by demo stock movements are reversed (never below zero), and each change is logged as a
+ * stock movement with reason "demo_purge" (lib/demo-stock.ts), so the stock ledger still balances afterwards.
  * Afterwards, if no orders remain, the order counter is reset so the first real order is #1001.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { getEngine } from "../lib/db/core";
+import { reverseDemoStock } from "../lib/demo-stock";
 import { assertEnv } from "../lib/env";
 
 type Row = Record<string, any>;
@@ -51,7 +53,8 @@ async function main() {
   const moves = await get("stock_movements", (q) => q.eq("is_demo", true));
   const abandoned = await get("abandoned_checkouts", (q) => q.eq("is_demo", true));
   const evts = await get("events", (q) => q.eq("is_demo", true));
-  const batches = await get("batches", (q) => q.eq("is_demo", true));
+  // batches have no is_demo column: the demo generator gives its lots a "DEMO-" lot number (scripts/seed-demo.ts), the only marker there is
+  const batches = await get("batches", (q) => q.like("lot_number", "DEMO-%"));
 
   // Ambiguity checks
   const realCustomerIds = new Set(realOrders.map((o) => o.customer_id));
@@ -88,14 +91,9 @@ async function main() {
   for (const [t, rows] of Object.entries(plan)) if (rows.length) fs.writeFileSync(path.join(dir, `${t}.csv`), csv(rows));
   console.log(`\nBackup written to ${dir}`);
 
-  // 2. Reverse demo stock movements on inventory
-  const per = new Map<string, number>();
-  for (const m of moves) per.set(m.inventory_item_id, (per.get(m.inventory_item_id) ?? 0) + m.delta);
-  for (const [item, delta] of per) {
-    const cur = (await get("inventory_items", (q) => q.eq("id", item)))[0]?.on_hand ?? 0;
-    const next = Math.max(0, cur - delta);
-    if (cur - delta < 0) console.log(`  note: stock for item ${item} would go negative (${cur - delta}); set to 0`);
-    await db.from("inventory_items").update({ on_hand: next }).eq("id", item);
+  // 2. Reverse demo stock movements on inventory. Every stock change leaves a movement (reason "demo_purge") so the ledger stays balanced.
+  for (const r of reverseDemoStock(db.sqlite, moves as { inventory_item_id: string; delta: number }[])) {
+    if (r.clamped) console.log(`  note: stock for item ${r.item} would go negative (${r.before - r.demoTotal}); set to 0`);
   }
 
   // 3. Delete (children first)

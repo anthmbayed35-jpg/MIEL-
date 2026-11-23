@@ -5,7 +5,7 @@ Branch `admin-qa`. A page that was not tested is marked **NOT TESTED**, never PA
 <!-- BEGIN:summary -->
 ## Summary
 
-**Result: every admin page, route and action in the inventory was visited or exercised, and the final run is green.** Final state: `npm run verify` passes (160 unit, 330 integration, 142 end-to-end tests) and the dedicated admin QA (`npm run qa:admin`, 22 tests) passes. The admin QA found real bugs along the way; they are listed with their proof in section 4 and all but the items under "Remaining" are fixed.
+**Result: every admin page, route and action in the inventory was visited or exercised, and the final run is green.** Final state: `npm run verify` passes (160 unit, 348 integration, 142 end-to-end tests) and the dedicated admin QA (`npm run qa:admin`, 22 tests) passes. The admin QA found real bugs along the way; they are listed with their proof in section 4 and all but the items under "Remaining" are fixed.
 
 | What | Result |
 |---|---|
@@ -452,9 +452,9 @@ Severity: **High** = wrong money or data, or a feature unusable; **Medium** = wr
 | 14 | Text under 13px on a phone on 23 admin pages (bell badge, table labels, breadcrumbs, print slips, thumbnails placeholder) | Low | Fixed | QA crawl (every page at 375px) |
 | 15 | Mobile load on the products list was the slowest admin page (2.1 s on the emulated profile) | Low | Fixed (15 per page, thumbnails not downloaded on phones); now 1855 ms | `tests/qa/admin-perf.spec.ts` |
 | 16 | Affiliate tables and pager text are upper-cased by CSS, which broke three of my own QA checks | n/a | Test defects, fixed in the tests (not product bugs) | n/a |
-| 17 | Baseline mobile cost: every admin page needs about 320 KB of shared script and styles, so every page sits at roughly 1.85 to 1.94 s on the emulated slow phone (1.6 Mbit/s), only about 3% under the 2 s target | Low | **Remaining** (passes today with a narrow margin; real phones and networks vary) | `admin-perf.spec.ts` (all 25 under 2000 ms) |
-| 18 | Settings and page-content forms (store details, policies, announcement, hero, FAQ) have no stale-save check; the last save wins | Low | **Remaining** (one owner edits them) | n/a |
-| 19 | `scripts/purge-demo.ts` changes stock directly without a stock movement (staging-only tool) | Low | **Remaining** | n/a |
+| 17 | Baseline mobile cost: every admin page needs about 320 KB of shared script and styles, so under the emulated slow phone (1.6 Mbit/s, 4x CPU) every page sits close to the 2 s target: 1.85 to 1.94 s on a quiet machine, 2.0 to 2.4 s on the same machine when it was busier (re-measured with the previously green code, which gave the same slower numbers, so it is the machine and not a regression) | Low | **Remaining**: the target is met only with a narrow margin and the `admin-perf.spec.ts` budget check is sensitive to how busy the test machine is. Real phones and networks vary | `tests/qa/admin-perf.spec.ts` (passed 25 of 25 on a quiet machine) |
+| 18 | Settings and page-content forms (store details, notifications, policies, security, tracking ids, announcement bar, hero text, FAQ) had no stale-save check: the last save won silently | Low | Fixed (each form carries the record's version; a save from an out-of-date form is refused with "This was changed elsewhere since you opened it. Reload the page..." and writes nothing; check and write in one transaction; testimonials merge by id from a fresh read, so two tabs cannot overwrite each other) | `tests/integration/stale-save.test.ts` (all 8 forms in a two-tab scenario, garbage versions, 3 simultaneous saves: one wins, rendered forms carry the current version) |
+| 19 | `npm run purge-demo` crashed immediately ("unknown column batches.is_demo": lots have no demo flag) and, when it did run, changed stock without a stock movement | Medium | Fixed (demo lots are matched by the generator's `DEMO-` lot number; stock is reversed by `lib/demo-stock.ts`, which logs a `demo_purge` movement per item and keeps on_hand equal to the ledger, also when stock is clamped at zero) | `tests/integration/demo-purge.test.ts` (the function, and the real script run on a copy of the large database: demo rows gone, ledger balanced, CSV backup written) |
 | 20 | The live-alert bus lives in one process: with more than one replica the bell would only see its own instance's events (polling still catches up within 30 s) | Low | **Remaining** by design (Railway runs one replica) | n/a |
 | 21 | One Playwright worker crash on Windows (exit code 3221226505) once in a verify run; not reproducible, not application code | Low | **Remaining** (infrastructure flake) | n/a |
 
@@ -479,7 +479,7 @@ Behaviour confirmed, no defect: `/maintenance` answers 404 while the storefront 
 ## 6. Commands that were run
 
 ```bash
-npm run verify                              # typecheck, lint (0 warnings), 160 unit, 330 integration, build, 142 end-to-end: all pass
+npm run verify                              # typecheck, lint (0 warnings), 160 unit, 348 integration, build, 142 end-to-end: all pass
 npm run build && npm run qa:admin           # the admin QA on a production build and the large temporary database: 22 of 22 pass
 npx tsx tests/qa/make-report.ts             # fills the generated tables of this report from the raw results
 npx tsx tests/support/qa-inventory.ts       # the route inventory of step 1

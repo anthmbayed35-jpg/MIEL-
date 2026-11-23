@@ -31,3 +31,9 @@ incoming-images
 # admin QA output (screenshots and raw results): local only
 qa-screenshots
 qa-results
+
+# scratch and debug files from local tooling: never commit
+/.p.cjs
+/.dbg.cjs
+/.qa-*.cjs
+/.scratch*

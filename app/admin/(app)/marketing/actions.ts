@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guarded } from "@/lib/version";
+import { guarded, orFail } from "@/lib/version";
+import { saveVersioned } from "@/lib/versioned";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
@@ -61,46 +62,65 @@ export async function markContacted(_p: ActionState, fd: FormData): Promise<Acti
 
 /* ---------- tracking ids ---------- */
 export async function saveTracking(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => saveTrackingImpl(_p, fd));
+}
+
+async function saveTrackingImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("marketing.manage");
   const meta = String(fd.get("meta_pixel_id") ?? "").trim();
   const ga4 = String(fd.get("ga4_id") ?? "").trim();
   if (meta && !/^\d{6,20}$/.test(meta)) return { error: "Meta Pixel ID is numbers only (e.g. 123456789012345)." };
   if (ga4 && !/^G-[A-Z0-9]{4,14}$/.test(ga4)) return { error: "GA4 ID looks like G-XXXXXXXXXX." };
-  must(await getDb().from("settings").upsert({ key: "tracking", value: { meta_pixel_id: meta, ga4_id: ga4 }, updated_at: new Date().toISOString() }, { onConflict: "key" }));
+  saveVersioned("settings", "tracking", { meta_pixel_id: meta, ga4_id: ga4 }, fd);
+  revalidatePath("/admin/marketing");
   await audit(admin, "tracking_update", "settings", "tracking", { meta: !!meta, ga4: !!ga4 });
   store();
   return { ok: "Saved. The IDs are added to the storefront." };
 }
 
 /* ---------- content ---------- */
-async function putContent(key: string, value: unknown) {
-  must(await getDb().from("pages_content").upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" }));
+/** Saves page content only if it is still the version the form was opened on (see lib/versioned.ts). */
+function putContent(key: string, value: unknown, fd?: FormData) {
+  saveVersioned("pages_content", key, value, fd);
+  revalidatePath("/admin/marketing/content"); // the open form must pick up the new version
 }
 
 export async function saveAnnouncement(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => saveAnnouncementImpl(_p, fd));
+}
+
+async function saveAnnouncementImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("content.manage");
-  await putContent("announcement", { enabled: fd.get("enabled") === "on", text: String(fd.get("text") ?? "").slice(0, 160), link: String(fd.get("link") ?? "").slice(0, 300) });
+  putContent("announcement", { enabled: fd.get("enabled") === "on", text: String(fd.get("text") ?? "").slice(0, 160), link: String(fd.get("link") ?? "").slice(0, 300) }, fd);
   await audit(admin, "content_announcement", "content", "announcement");
   store();
   return { ok: "Announcement bar saved." };
 }
 
 export async function saveHero(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => saveHeroImpl(_p, fd));
+}
+
+async function saveHeroImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("content.manage");
-  await putContent("hero", { headline1: String(fd.get("headline1") ?? "").slice(0, 40), headline2: String(fd.get("headline2") ?? "").slice(0, 40), sub: String(fd.get("sub") ?? "").slice(0, 200) });
+  putContent("hero", { headline1: String(fd.get("headline1") ?? "").slice(0, 40), headline2: String(fd.get("headline2") ?? "").slice(0, 40), sub: String(fd.get("sub") ?? "").slice(0, 200) }, fd);
   await audit(admin, "content_hero", "content", "hero");
   store();
   return { ok: "Home hero text saved." };
 }
 
 export async function saveFaq(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(() => saveFaqImpl(_p, fd));
+}
+
+async function saveFaqImpl(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("content.manage");
   const items = String(fd.get("faq") ?? "").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
     const i = l.indexOf("|");
     return { q: (i === -1 ? l : l.slice(0, i)).trim(), a: i === -1 ? "" : l.slice(i + 1).trim() };
   });
   if (!items.length) return { error: "Add at least one question." };
-  await putContent("faq", items);
+  putContent("faq", items, fd);
   await audit(admin, "content_faq", "content", "faq", { count: items.length });
   store();
   return { ok: `${items.length} FAQ items saved.` };
@@ -118,7 +138,7 @@ export async function addTestimonial(_p: ActionState, fd: FormData): Promise<Act
   if (!text || !name) return { error: "Add the name and the quote." };
   const list = await testimonials();
   list.push({ id: crypto.randomUUID(), name: name.slice(0, 60), text: text.slice(0, 400), rating: Math.min(5, Math.max(1, Number(fd.get("rating")) || 5)), approved: false });
-  await putContent("testimonials", list);
+  putContent("testimonials", list); // merged by id from a fresh read, so two tabs never overwrite each other
   await audit(admin, "testimonial_add", "content", name);
   revalidatePath("/admin/marketing/content");
   return { ok: "Added as pending. Approve it to show it on the store." };
@@ -132,7 +152,7 @@ export async function setTestimonial(_p: ActionState, fd: FormData): Promise<Act
   let list = await testimonials();
   if (act === "remove") list = list.filter((t) => t.id !== id);
   else list = list.map((t) => (t.id === id ? { ...t, approved: act === "approve" } : t));
-  await putContent("testimonials", list);
+  putContent("testimonials", list); // merged by id from a fresh read, so two tabs never overwrite each other
   await audit(admin, `testimonial_${act}`, "content", id);
   store();
   revalidatePath("/admin/marketing/content");

@@ -1,6 +1,7 @@
 import { requirePerm } from "@/lib/auth";
 import { lastBackupAgeHours, listBackups } from "@/lib/backup";
 import { getDb, must, type Row } from "@/lib/db";
+import { versionIn } from "@/lib/versioned";
 import { DEFAULT_NOTIFICATIONS, DEFAULT_POLICIES, DEFAULT_STORE } from "@/config/content";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, Field, PageHeader, SectionTitle } from "@/components/admin/ui";
@@ -34,6 +35,7 @@ export default async function SettingsPage() {
           <SectionTitle>Store details</SectionTitle>
           {lock(
             <ActionForm action={saveStore} className="space-y-4">
+              <input type="hidden" name="version" value={versionIn(rows as never, "store")} />
               <Field label="Store name"><input name="name" defaultValue={store.name} className="a-input" /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Contact email"><input name="email" type="email" defaultValue={store.email} className="a-input" /></Field>
@@ -72,6 +74,7 @@ export default async function SettingsPage() {
             <SectionTitle>New-order alerts</SectionTitle>
             {lock(
               <ActionForm action={saveNotifications} className="space-y-4">
+              <input type="hidden" name="version" value={versionIn(rows as never, "notifications")} />
                 <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="email_on_new_order" defaultChecked={notif.email_on_new_order} className="h-6 w-6 accent-[#DAFC69]" />Email me when an order arrives</label>
                 <Field label="Email address" hint="Sent through the server mail settings (MAIL_FROM and Brevo or SMTP, see docs/OPERATIONS.md)."><input name="email" type="email" defaultValue={notif.email} className="a-input" /></Field>
                 <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="whatsapp_on_new_order" defaultChecked={notif.whatsapp_on_new_order} className="h-6 w-6 accent-[#DAFC69]" />Show a &ldquo;Send to team on WhatsApp&rdquo; button on new orders</label>
@@ -99,6 +102,7 @@ export default async function SettingsPage() {
           <p className="mb-4 text-[14px] text-body">Plain text (blank lines make paragraphs). Published at <span className="mono">/policies/shipping</span>, <span className="mono">/returns</span>, <span className="mono">/privacy</span>, <span className="mono">/terms</span> once they have text.</p>
           {lock(
             <ActionForm action={savePolicies} className="grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="version" value={versionIn(rows as never, "policies")} />
               <Field label="Shipping policy"><textarea name="shipping" rows={5} defaultValue={pol.shipping} className="a-input" /></Field>
               <Field label="Returns & refunds"><textarea name="returns" rows={5} defaultValue={pol.returns} className="a-input" /></Field>
               <Field label="Privacy policy"><textarea name="privacy" rows={5} defaultValue={pol.privacy} className="a-input" /></Field>
@@ -112,6 +116,7 @@ export default async function SettingsPage() {
           <SectionTitle>Security</SectionTitle>
           {lock(
             <ActionForm action={saveSecurity} className="space-y-4">
+              <input type="hidden" name="version" value={versionIn(rows as never, "security")} />
               <label className="flex min-h-12 items-center gap-3 text-[16px] text-fg"><input type="checkbox" name="require_2fa" defaultChecked={security.require_2fa} className="h-6 w-6 accent-[#DAFC69]" />Require two-factor authentication for everyone on the team</label>
               <p className="-mt-2 text-[13px] text-muted">People without it are asked to set it up (authenticator app) the next time they open the admin. Sessions end after 12 hours of inactivity.</p>
               <SubmitButton variant="lime">Save security settings</SubmitButton>

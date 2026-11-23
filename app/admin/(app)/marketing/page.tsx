@@ -1,5 +1,6 @@
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
+import { currentVersion } from "@/lib/versioned";
 import { abandonedMessage } from "@/lib/messages";
 import { waLink } from "@/lib/phone";
 import { isSale } from "@/lib/stats";
@@ -84,6 +85,7 @@ export default async function MarketingPage() {
           <SectionTitle>Pixel & analytics IDs</SectionTitle>
           <p className="mb-4 text-[14px] text-body">Paste your IDs and they are added to every storefront page. Leave empty to turn off.</p>
           <ActionForm action={saveTracking} className="space-y-4">
+            <input type="hidden" name="version" value={currentVersion("settings", "tracking")} />
             <Field label="Meta Pixel ID" hint="Numbers only"><input name="meta_pixel_id" defaultValue={tracking.meta_pixel_id} inputMode="numeric" placeholder="123456789012345" className="a-input" /></Field>
             <Field label="Google Analytics 4 ID" hint="Looks like G-XXXXXXXXXX"><input name="ga4_id" defaultValue={tracking.ga4_id} placeholder="G-XXXXXXXXXX" className="a-input" /></Field>
             <SubmitButton variant="lime">Save IDs</SubmitButton>
