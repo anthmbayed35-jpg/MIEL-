@@ -83,11 +83,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <KV k="Subtotal"><Money value={Number(o.subtotal)} className="text-[16px]" /></KV>
               {Number(o.discount_total) > 0 && <KV k={`Discount ${o.discount_code ?? ""}`}><span className="text-acid">−${Number(o.discount_total).toFixed(2)}</span></KV>}
               {affiliate && (
-                <KV k="Affiliate">
+                <KV k="Ambassador">
                   <Link href={`/admin/affiliates/${affiliate.id}`} className="inline-flex min-h-12 items-center text-fg underline underline-offset-4">{affiliate.name} · {o.code_used}</Link>
-                  <span className="block text-[14px] text-body">Commission ${Number(o.commission_amount).toFixed(2)} · {o.commission_status}</span>
+                  <span className="block text-[14px] text-body">Commission ${Number(o.commission_amount).toFixed(2)} · {o.commission_status} · via {o.attribution === "link" ? "personal link" : "code"}</span>
                 </KV>
               )}
+              {o.heard_from && <KV k="Heard about us from">{String(o.heard_from)}</KV>}
               <KV k={`Delivery ${o.region ? `(${o.region})` : ""}`}>{Number(o.shipping_fee) ? `$${Number(o.shipping_fee).toFixed(2)}` : "Free"}</KV>
               <div className="flex items-center justify-between border-t border-white/10 pt-3">
                 <span className="mono !text-fg">TOTAL · CASH ON DELIVERY</span>

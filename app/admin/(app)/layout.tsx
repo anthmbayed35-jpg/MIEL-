@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { can, requireAdmin } from "@/lib/auth";
-import { newApplicationCount } from "@/lib/affiliates";
 import { BottomTabs, TopNav } from "@/components/admin/AdminNav";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { logout } from "../login/actions";
 import { SearchButton } from "@/components/admin/SearchButton";
 import { StatusBanners } from "@/components/admin/StatusBanners";
+import { needsAction } from "@/lib/ambassador/admin";
 
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
   // the number of new ambassador applications shows as a badge on the Affiliates menu item (refreshed with every page and live update)
-  const badges: Record<string, number> = can(admin.role, "affiliates.read") ? { "/admin/affiliates": newApplicationCount() } : {};
+  const badges: Record<string, number> = can(admin.role, "affiliates.read") ? { "/admin/affiliates": needsAction().total } : {};
 
   return (
     <div className="relative min-h-screen pb-32 lg:pb-12">

@@ -22,7 +22,7 @@ function Badge({ n }: { n?: number }) {
 const MAIN: Item[] = [
   { href: "/admin", label: "Dashboard", icon: "M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z" },
   { href: "/admin/orders", label: "Orders", perm: "orders.read", icon: "M6 2h12l2 5H4l2-5Zm-2 7h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9Zm5 3v2h6v-2H9Z" },
-  { href: "/admin/affiliates", label: "Affiliates", perm: "affiliates.read", icon: "M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 2c-2.7 0-6 1.3-6 4v2h12v-2c0-2.7-3.3-4-6-4Zm8 0c-.3 0-.6 0-1 .1 1.2.9 2 2.2 2 3.9v2h5v-2c0-2.7-3.3-4-6-4Z" },
+  { href: "/admin/affiliates", label: "Ambassadors", perm: "affiliates.read", icon: "M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 2c-2.7 0-6 1.3-6 4v2h12v-2c0-2.7-3.3-4-6-4Zm8 0c-.3 0-.6 0-1 .1 1.2.9 2 2.2 2 3.9v2h5v-2c0-2.7-3.3-4-6-4Z" },
   { href: "/admin/products", label: "Products", perm: "products.read", icon: "M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3L18.5 8 12 11.7 5.5 8 12 4.3ZM5 9.7l6 3.4v6.7l-6-3.3V9.7Zm14 0v6.8l-6 3.3v-6.7l6-3.4Z" },
   { href: "/admin/customers", label: "Customers", perm: "customers.read", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z" },
   { href: "/admin/inventory", label: "Inventory", perm: "inventory.read", icon: "M3 7l9-4 9 4v10l-9 4-9-4V7Zm9 2 6-2.7M12 9v11M12 9 6 6.3" },

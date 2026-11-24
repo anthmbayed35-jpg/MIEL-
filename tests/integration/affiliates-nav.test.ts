@@ -36,37 +36,37 @@ describe("the Affiliates menu item", () => {
   it("sits right after Orders in the main navigation, for owner and manager, with the new-application badge", () => {
     for (const role of ["owner", "manager"] as const) {
       const items = links(renderToStaticMarkup(createElement(TopNav, { role, badges: { "/admin/affiliates": 3 } })));
-      expect(items.slice(0, 3).map((i) => i.text.replace(/\d+$/, "")), role).toEqual(["Dashboard", "Orders", "Affiliates"]);
+      expect(items.slice(0, 3).map((i) => i.text.replace(/\d+$/, "")), role).toEqual(["Dashboard", "Orders", "Ambassadors"]);
       expect(items[2].href).toBe("/admin/affiliates");
-      expect(items[2].text).toBe("Affiliates3");
+      expect(items[2].text).toBe("Ambassadors3");
     }
   });
 
   it("staff do not get it, and still get four tabs on a phone", () => {
     const top = links(renderToStaticMarkup(createElement(TopNav, { role: "staff", badges: {} }))).map((i) => i.text);
-    expect(top).not.toContain("Affiliates");
+    expect(top).not.toContain("Ambassadors");
     const tabs = renderToStaticMarkup(createElement(BottomTabs, { role: "staff", badges: {} }));
-    expect(tabs).not.toContain("Affiliates");
+    expect(tabs).not.toContain("Ambassadors");
     expect(tabs).toContain("Dashboard");
     expect(tabs).toContain("Customers"); // the fourth tab is not lost because a section is hidden
   });
 
   it("appears in the phone tab bar (owner and manager), before Products, with its badge", () => {
     const html = renderToStaticMarkup(createElement(BottomTabs, { role: "manager", badges: { "/admin/affiliates": 2 } }));
-    expect(html.indexOf("Orders")).toBeLessThan(html.indexOf("Affiliates"));
-    expect(html.indexOf("Affiliates")).toBeLessThan(html.indexOf("Products"));
+    expect(html.indexOf("Orders")).toBeLessThan(html.indexOf("Ambassadors"));
+    expect(html.indexOf("Ambassadors")).toBeLessThan(html.indexOf("Products"));
     expect(html).toContain('aria-label="2 new"');
   });
 
-  it("the section has four tabs, the badge is on Applications, and an affiliate's own page keeps the Affiliates tab lit", () => {
+  it("the section has nine tabs, the badge is on Applications, and an affiliate's own page keeps the Affiliates tab lit", () => {
     const tabs = affiliateTabs(4);
-    expect(tabs.map((t) => t.label)).toEqual(["Overview", "Affiliates", "Payouts", "Applications"]);
-    expect(tabs.map((t) => t.href)).toEqual(["/admin/affiliates", "/admin/affiliates/list", "/admin/affiliates/payouts", "/admin/affiliates/applications"]);
+    expect(tabs.map((t) => t.label)).toEqual(["Overview", "Ambassadors", "Applications", "Payouts", "Missions", "Kits", "Content", "Reports", "Settings"]);
+    expect(tabs.map((t) => t.href)).toEqual(["/admin/affiliates", "/admin/affiliates/list", "/admin/affiliates/applications", "/admin/affiliates/payouts", "/admin/affiliates/missions", "/admin/affiliates/kits", "/admin/affiliates/content", "/admin/affiliates/reports", "/admin/affiliates/settings"]);
     expect(tabs.find((t) => t.label === "Applications")?.badge).toBe(4);
     expect(tabs.find((t) => t.label === "Overview")?.badge).toBeFalsy();
     const also = new RegExp(tabs[1].also!);
     expect(also.test("/admin/affiliates/3f2c1a9e-aaaa-4bbb-8ccc-0123456789ab")).toBe(true);
-    for (const p of ["/admin/affiliates", "/admin/affiliates/list", "/admin/affiliates/payouts", "/admin/affiliates/payouts/export", "/admin/affiliates/applications"]) expect(also.test(p), p).toBe(false);
+    for (const p of ["/admin/affiliates", "/admin/affiliates/list", "/admin/affiliates/payouts", "/admin/affiliates/payouts/export", "/admin/affiliates/applications", "/admin/affiliates/missions", "/admin/affiliates/reports/export"]) expect(also.test(p), p).toBe(false);
   });
 
   it("the count is the number of new applications only", () => {
@@ -180,7 +180,7 @@ describe("orders: affiliate on the list, the filter and the export", () => {
     const html = renderToStaticMarkup((await mod.default({ searchParams: Promise.resolve({}) })) as never);
     expect(html).toContain("Rami Khoury");
     expect(html).toContain("RAMI10 · −$6.00 · commission $8.10 (pending)");
-    expect(html).toContain('aria-label="Affiliate"');
+    expect(html).toContain('aria-label="Ambassador"');
     expect(html).toContain("Rami Khoury (RAMI10)");
     const filtered = renderToStaticMarkup((await mod.default({ searchParams: Promise.resolve({ affiliate: "nope" }) })) as never);
     expect(filtered).toContain("No orders match.");

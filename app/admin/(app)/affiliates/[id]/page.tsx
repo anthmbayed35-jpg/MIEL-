@@ -11,7 +11,8 @@ import { CopyField } from "@/components/admin/CopyField";
 import { SubNav } from "@/components/admin/SubNav";
 import { affiliateTabs } from "@/lib/admin-tabs";
 import { Card, DataTable, Empty, Field, Flash, Money, PageHeader, SectionTitle, StatusBadge } from "@/components/admin/ui";
-import { recordPayoutAction, upgradeTierAction } from "../actions";
+import { createInviteAction, recordPayoutAction, upgradeTierAction } from "../actions";
+import { ambassadorExtras } from "@/lib/ambassador/admin";
 
 export const metadata = { title: "Affiliate" };
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
   const orders = affiliateOrders(id);
   const payouts = affiliatePayouts(id);
   const suggest = suggestedTier(a.delivered, a.tier);
-  const link = absoluteUrl(`/partner/${a.private_token}`);
+  const x = ambassadorExtras(id);
   const refLink = absoluteUrl(`/?ref=${a.code}`); // the personal link: opens the shop and fills in the code at checkout
 
   return (
@@ -91,8 +92,26 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
           <div className="space-y-5">
             <CopyField label="Code" value={a.code} note={`${a.customer_discount_percent_x100 / 100}% off for their followers, ${a.commission_rate_x100 / 100}% commission for them.`} button="Copy code" />
             <CopyField label="Personal link to share (adds the code at checkout)" value={refLink} />
-            <CopyField label="Private stats page for the affiliate (read only)" value={link} note="Anyone with this link sees their code, orders and commission, nothing else. Do not post it publicly." />
           </div>
+        </Card>
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <Card>
+          <SectionTitle>Portal access</SectionTitle>
+          <p className="text-[16px] text-body">{x.hasPassword ? `Has a password. Last login: ${x.lastLogin ? day(x.lastLogin) : "never"}.` : "Has not set a password yet: send the invite link."}</p>
+          <p className="mt-1 text-[15px] text-body">Terms: {x.termsVersion ? `version ${x.termsVersion} on ${day(x.termsAt)}` : "not accepted yet"} · Rules read: {x.rulesRead ? day(x.rulesRead) : "no"}</p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <ActionForm action={createInviteAction} className="contents"><input type="hidden" name="id" value={a.id} /><input type="hidden" name="kind" value="invite" /><SubmitButton variant="lime">New invite link</SubmitButton></ActionForm>
+            <ActionForm action={createInviteAction} className="contents"><input type="hidden" name="id" value={a.id} /><input type="hidden" name="kind" value="reset" /><SubmitButton variant="glass">Password reset link</SubmitButton></ActionForm>
+          </div>
+        </Card>
+        <Card>
+          <SectionTitle>Activity</SectionTitle>
+          <p className="text-[16px] text-fg">Link visits: {x.clicks.total} <span className="text-body">({x.clicks.month} this month)</span></p>
+          <p className="mt-1 text-[16px] text-fg">Mission bonuses: <span className="text-body">${usd(x.bonus.open).toFixed(2)} unpaid, ${usd(x.bonus.paid).toFixed(2)} paid</span></p>
+          <p className="mt-3 text-[15px] text-body">Missions: {x.missions.length ? x.missions.map((m) => `${m.title} (${m.status})`).join(", ") : "none yet"}</p>
+          <p className="mt-1 text-[15px] text-body">Kits: {x.kits.length ? x.kits.map((k) => `${k.kind} ${k.status}`).join(", ") : "none yet"}</p>
         </Card>
       </div>
 

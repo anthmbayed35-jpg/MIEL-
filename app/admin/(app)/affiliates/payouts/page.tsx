@@ -6,6 +6,9 @@ import { affiliateTabs } from "@/lib/admin-tabs";
 import { Card, DataTable, Empty, Money, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { can } from "@/lib/auth";
 import { localStamp } from "@/lib/time";
+import { listPayoutRequests } from "@/lib/ambassador/admin";
+import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
+import { rejectPayoutRequestAction } from "../program/actions";
 
 export const metadata = { title: "Affiliate payouts" };
 export const dynamic = "force-dynamic";
@@ -17,6 +20,7 @@ const LIMIT = 300;
 export default async function PayoutsPage() {
   const admin = await requirePerm("affiliates.read");
   const rows = listPayouts({ limit: LIMIT });
+  const requests = listPayoutRequests();
   const total = rows.reduce((n, r) => n + r.amount_cents, 0);
   const month = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Beirut" }).slice(0, 7);
 
@@ -24,6 +28,38 @@ export default async function PayoutsPage() {
     <>
       <PageHeader eyebrow="Money paid to influencers" title="Payouts" />
       <SubNav items={affiliateTabs(newApplicationCount())} role={admin.role} />
+
+      <Card className="mb-5">
+        <SectionTitle>Payout requests</SectionTitle>
+        {requests.length === 0 ? (
+          <p className="text-[16px] text-body">No requests. Ambassadors ask from their portal once their approved balance reaches the minimum.</p>
+        ) : (
+          <ul className="space-y-4">
+            {requests.map((r) => (
+              <li key={r.id} className="rounded-2xl bg-white/5 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <Link href={`/admin/affiliates/${r.affiliate_id}`} className="text-[18px] font-semibold text-fg underline underline-offset-4">{r.name}</Link> <span className="mono !text-[13px]">{r.code}</span>
+                    <p className="mt-1 text-[15px] text-body">Asked for <span className="text-fg">${usd(r.amount_cents).toFixed(2)}</span> on {localStamp(r.created_at).slice(0, 10)} · {r.payout_method || "no method"}{r.payout_details ? `: ${r.payout_details}` : ""}</p>
+                    {r.note && <p className="mt-1 text-[14px] text-body">Note: {r.note}</p>}
+                  </div>
+                  <span className={`status ${r.status === "requested" ? "st-packed" : r.status === "paid" ? "st-delivered" : "st-cancelled"}`}>{r.status}</span>
+                </div>
+                {r.status === "requested" && (
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <Link href={`/admin/affiliates/${r.affiliate_id}#payout`} className="pill-btn pill-lime">Pay on their page</Link>
+                    <ActionForm action={rejectPayoutRequestAction} className="flex flex-1 flex-col gap-2 sm:flex-row">
+                      <input type="hidden" name="id" value={r.id} />
+                      <input name="note" required maxLength={300} placeholder="Reason, shown to them" className="a-input" aria-label="Reason" />
+                      <SubmitButton variant="glass" confirm={`Decline ${r.name}'s request?`}>Decline</SubmitButton>
+                    </ActionForm>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <div className="mb-5 grid gap-5 lg:grid-cols-[2fr_1fr]">
         <Card>

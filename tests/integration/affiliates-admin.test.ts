@@ -108,7 +108,8 @@ describe("admin pages, roles and export", () => {
     expect(list).toMatch(/aria-label="1 new"/);
     const detail = await html(() => import("@/app/admin/(app)/affiliates/[id]/page"), { params: Promise.resolve({ id: a.id }) });
     expect(detail).toContain("Record payout");
-    expect(detail).toContain(`/partner/${a.private_token}`);
+    expect(detail).toContain("Portal access");
+    expect(detail).not.toContain("/partner/");
     expect(detail).toContain("/?ref=RAMI10"); // the personal link
     expect(detail).toContain("Copy code");
     expect(detail).not.toMatch(/NaN|undefined|\[object Object\]/);

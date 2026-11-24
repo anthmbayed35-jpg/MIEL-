@@ -30,7 +30,7 @@ export const MARKETING_TABS: SubItem[] = [
   { href: "/admin/marketing", label: "Overview", perm: "marketing.manage" },
   { href: "/admin/marketing/discounts", label: "Discounts", perm: "discounts.manage" },
   { href: "/admin/marketing/content", label: "Content", perm: "content.manage" },
-  { href: "/admin/affiliates", label: "Affiliates", perm: "affiliates.read" },
+  { href: "/admin/affiliates", label: "Ambassadors", perm: "affiliates.read" },
 ];
 export const SETTINGS_TABS: SubItem[] = [
   { href: "/admin/settings", label: "Store", perm: "settings.read" },

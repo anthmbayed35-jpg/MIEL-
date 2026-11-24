@@ -340,7 +340,7 @@ export function createApplication(i: ApplicationInput) {
   return id;
 }
 
-type ApplicationRow = ApplicationInput & { id: string; name: string; status: string; created_at: string };
+export type ApplicationRow = ApplicationInput & { id: string; name: string; status: string; created_at: string; terms_version?: number | null; admin_notes?: string };
 export const listApplications = (status?: string) =>
   db().prepare(`SELECT * FROM affiliate_applications ${status ? "WHERE status = ?" : ""} ORDER BY (status = 'new') DESC, created_at DESC LIMIT 200`).all(...(status ? [status] : [])) as ApplicationRow[];
 

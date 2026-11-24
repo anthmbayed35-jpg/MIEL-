@@ -3,9 +3,10 @@ import { requirePerm } from "@/lib/auth";
 import { newApplicationCount, overview, topThisMonth } from "@/lib/affiliates";
 import { SubNav } from "@/components/admin/SubNav";
 import { affiliateTabs } from "@/lib/admin-tabs";
+import { needsAction } from "@/lib/ambassador/admin";
 import { Card, Money, Num, PageHeader, PillLink, SectionTitle } from "@/components/admin/ui";
 
-export const metadata = { title: "Affiliates" };
+export const metadata = { title: "Ambassadors" };
 export const dynamic = "force-dynamic";
 
 const usd = (cents: number) => cents / 100;
@@ -15,21 +16,38 @@ export default async function AffiliatesOverviewPage() {
   const admin = await requirePerm("affiliates.read");
   const o = overview();
   const apps = newApplicationCount();
+  const needs = needsAction();
   const top = topThisMonth(5);
   const month = new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Beirut", month: "long", year: "numeric" });
   const pending = o.owed_cents - o.payable_cents; // owed = pending + approved
 
   return (
     <>
-      <PageHeader eyebrow="Influencer codes" title="Affiliates" actions={<PillLink href="/admin/affiliates/new" variant="lime">Add affiliate</PillLink>} />
+      <PageHeader eyebrow="Ambassador program" title="Ambassadors" actions={<PillLink href="/admin/affiliates/new" variant="lime">Add ambassador</PillLink>} />
       <SubNav items={affiliateTabs(apps)} role={admin.role} />
 
-      {apps > 0 && (
-        <Link href="/admin/affiliates/applications" className="admin-card mb-5 flex min-h-12 items-center justify-between gap-3 !py-3 text-[17px] text-fg">
-          <span>{apps} new application{apps === 1 ? "" : "s"} waiting</span>
-          <span className="accent">Review →</span>
-        </Link>
-      )}
+      <Card className="mb-5">
+        <SectionTitle>Needs action</SectionTitle>
+        {needs.total === 0 ? (
+          <p className="text-[16px] text-body">Nothing waiting. All caught up.</p>
+        ) : (
+          <ul className="space-y-1">
+            {([
+              [needs.applications, "new application", "/admin/affiliates/applications"],
+              [needs.payoutRequests, "payout request", "/admin/affiliates/payouts"],
+              [needs.proofs, "mission proof to review", "/admin/affiliates/missions"],
+              [needs.kits, "kit or pouch to send", "/admin/affiliates/kits"],
+            ] as const).filter(([n]) => n > 0).map(([n, label, href]) => (
+              <li key={href}>
+                <Link href={href} className="flex min-h-12 items-center justify-between gap-3 rounded-xl px-2 text-[17px] text-fg hover:bg-white/5">
+                  <span>{n} {label}{n === 1 ? "" : "s"}</span>
+                  <span className="accent">Open →</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <section aria-label="Overview" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
         <Card><p className="a-label">Affiliate sales</p><Money value={usd(o.sales_cents)} className="text-[30px] leading-none" /><p className="mt-2 text-[14px] text-body">{o.orders} order{o.orders === 1 ? "" : "s"}, after discount</p></Card>

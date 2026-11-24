@@ -49,7 +49,7 @@ const num = (v: unknown, min: number, max: number, fallback: number) => {
 /** Merge what is stored over the defaults, field by field, and never trust the shape of the stored value. */
 export function mergeProgram(stored: unknown): Program {
   const d = defaultProgram();
-  const s = (stored && typeof stored === "object" ? stored : {}) as Record<string, any>;
+  const s = (stored && typeof stored === "object" ? stored : {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const tiers = { ...d.tiers };
   for (const t of AFFILIATE_TIERS) {
     const x = s.tiers?.[t];

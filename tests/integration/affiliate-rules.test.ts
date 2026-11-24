@@ -1,6 +1,4 @@
 import crypto from "node:crypto";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async () => (await import("../support/mocks")).navigationMock);
@@ -8,7 +6,6 @@ vi.mock("next/headers", async () => (await import("../support/mocks")).headersMo
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 import { closeEngine, getEngine } from "../../lib/db/core";
-import { CartProvider } from "@/components/CartProvider";
 import {
   affiliateOrders, affiliateStats, approveDueCommissions, checkAffiliateBooks, createAffiliate, getAffiliateByToken, listAffiliates, monthlyRows, overview, recordPayout, upgradeTier,
 } from "@/lib/affiliates";

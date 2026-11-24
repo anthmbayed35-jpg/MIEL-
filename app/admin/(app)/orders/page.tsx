@@ -59,8 +59,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
             {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
           </select>
           {affiliates.length > 0 && (
-            <select name="affiliate" defaultValue={sp.affiliate ?? ""} className="a-input" aria-label="Affiliate">
-              <option value="">All affiliates</option>
+            <select name="affiliate" defaultValue={sp.affiliate ?? ""} className="a-input" aria-label="Ambassador">
+              <option value="">All ambassadors</option>
               {affiliates.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.code})</option>)}
             </select>
           )}
