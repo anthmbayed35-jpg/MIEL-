@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adjustStock } from "./db/core";
 import { friendly, getEngine, type Row } from "./db";
 import { publish } from "./events";
+import { notifyAmbassador } from "./ambassador/notify";
 import { affiliateDiscountCents, commissionCents } from "./affiliate-math";
 import { normalizeLebanesePhone } from "./phone";
 import { inMaintenance } from "./site-mode";
@@ -178,6 +179,10 @@ export type CreateOrderInput = {
   idempotencyKey?: string;
   /** Set ONLY by the checkout action for a signed-in admin who explicitly confirmed a TEST order while the storefront is hidden. */
   test?: { by: string };
+  /** How the customer reached the code: typed it (code) or arrived through an ambassador's personal link (link). Only a label: the discount and the commission come from the code. */
+  attribution?: "code" | "link";
+  /** The optional "How did you hear about us?" answer from checkout. */
+  heardFrom?: string;
 };
 
 export type PlacedOrder = { order: Row; customer: Row; quote: Quote; replayed?: boolean };
@@ -237,7 +242,8 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
       q1("orders").insert({
         order_number: number, customer_id: customer.id, status, payment_method: "cod", payment_status: "pending",
         subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: q.total, cod_collected: false,
-        discount_code: q.code ?? null,
+        discount_code: q.code ?? null, attribution: aff ? (input.attribution === "link" ? "link" : "code") : null,
+        heard_from: input.heardFrom?.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80) || null,
         affiliate_id: aff?.id ?? null, code_used: aff?.code ?? null, discount_amount: aff ? q.discount : 0,
         commission_amount: aff ? dollars(commissionCents(subtotalC, discountC, aff.commissionPercentX100)) : 0, commission_status: aff ? "pending" : null,
         region: input.region, address: input.customer.address.trim(), customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
@@ -246,6 +252,7 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
         stock_deducted: false, is_demo: !!input.demo, is_test: !!testBy, created_at: stamp, updated_at: stamp,
       }).select().single().execute(),
     ) as Row;
+    if (aff && status !== "draft") notifyAmbassador(e.sqlite, aff.id, "sale", `New order #${number}`, `Commission ${(commissionCents(subtotalC, discountC, aff.commissionPercentX100) / 100).toFixed(2)}, pending until delivery.`, "/ambassador/sales");
     one(q1("order_items").insert(q.lines.map((l) => ({ order_id: order.id, product_id: l.productId, name: l.name, unit_price: l.unitPrice, qty: l.qty }))).execute());
 
     if (!input.draft) {

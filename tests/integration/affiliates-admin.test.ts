@@ -205,6 +205,9 @@ describe("public pages and the application form", () => {
     expect(out).toContain("SEND APPLICATION");
     expect(out).toContain("Athlete");
     // the only place those words may appear is the rule that forbids them
-    expect(out.replace(/No (medical or health|health or medical) claims[^<]*/g, "")).not.toMatch(/health|cure|immune|medical|treats/i);
+    const claims = [...out.matchAll(/health|cure|immune|medical|treats/gi)]
+      .filter((m) => !/\b(no|never|not)\b/i.test(out.slice(Math.max(0, (m.index ?? 0) - 60), m.index))) // a mention that follows "no" / "never" is the rule forbidding it
+      .map((m) => out.slice(Math.max(0, (m.index ?? 0) - 30), (m.index ?? 0) + 30));
+    expect(claims).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { AFFILIATE_STATUSES, TIER_RULES, type AffiliateTier } from "@/config/affiliates";
 import { getProgram, type TierSetting } from "./program";
+import { notifyAmbassador } from "./ambassador/notify";
 import { isValidCode, normalizeCode } from "./affiliate-math";
 import { getEngine } from "./db";
 import { publish } from "./events";
@@ -125,7 +126,9 @@ export const getAffiliateByToken = (token: string) =>
 export function approveDueCommissions(now = new Date(), holdDays?: number): number {
   const program = getProgram();
   const cutoff = new Date(now.getTime() - (holdDays ?? program.holdDays) * 86_400_000).toISOString();
+  const due = db().prepare("SELECT affiliate_id, COUNT(*) AS n, SUM(commission_amount_cents) AS c FROM orders WHERE commission_status = 'pending' AND status = 'delivered' AND delivered_at IS NOT NULL AND delivered_at <= ? GROUP BY affiliate_id").all(cutoff) as { affiliate_id: string; n: number; c: number }[];
   const n = db().prepare("UPDATE orders SET commission_status = 'approved' WHERE commission_status = 'pending' AND status = 'delivered' AND delivered_at IS NOT NULL AND delivered_at <= ?").run(cutoff).changes;
+  for (const d of due) notifyAmbassador(db(), d.affiliate_id, "commission", `${(d.c / 100).toFixed(2)} commission approved`, `${d.n} order${d.n === 1 ? "" : "s"} delivered and past the hold period.`, "/ambassador/sales");
   if (program.autoUpgrade) autoUpgradeTiers();
   return n;
 }
@@ -162,9 +165,11 @@ export function recordPayout(affiliateId: string, o: { method?: string; note?: s
     approveDueCommissions(); // never pay on stale statuses
     const due = db().prepare("SELECT id, commission_amount_cents AS c FROM orders WHERE affiliate_id = ? AND commission_status = 'approved' AND commission_payout_id IS NULL").all(affiliateId) as { id: string; c: number }[];
     const back = db().prepare("SELECT id, commission_amount_cents AS c FROM orders WHERE affiliate_id = ? AND commission_status = 'void' AND commission_payout_id IS NOT NULL AND commission_correction_payout_id IS NULL").all(affiliateId) as { id: string; c: number }[];
-    const gross = due.reduce((n, r) => n + r.c, 0);
+    const bonuses = db().prepare("SELECT id, amount_cents AS c FROM affiliate_bonuses WHERE affiliate_id = ? AND payout_id IS NULL").all(affiliateId) as { id: string; c: number }[];
+    const bonusTotal = bonuses.reduce((n, r) => n + r.c, 0);
+    const gross = due.reduce((n, r) => n + r.c, 0) + bonusTotal; // approved commissions plus approved mission bonuses
     const corrections = back.reduce((n, r) => n + r.c, 0);
-    if (!due.length || gross <= 0) throw new Error("Nothing approved to pay out yet. Commissions are approved 14 days after delivery.");
+    if ((!due.length && !bonuses.length) || gross <= 0) throw new Error("Nothing approved to pay out yet. Commissions are approved 14 days after delivery.");
     const net = gross - corrections;
     if (net <= 0) throw new Error(`Nothing to pay: corrections of $${(corrections / 100).toFixed(2)} (orders returned or cancelled after they were paid) are more than the approved $${(gross / 100).toFixed(2)}. They carry forward.`);
     const id = uuid();
@@ -175,8 +180,14 @@ export function recordPayout(affiliateId: string, o: { method?: string; note?: s
     const settle = db().prepare("UPDATE orders SET commission_correction_payout_id = ? WHERE id = ? AND commission_status = 'void' AND commission_payout_id IS NOT NULL AND commission_correction_payout_id IS NULL");
     let m = 0;
     for (const r of back) m += settle.run(id, r.id).changes;
-    if (n !== due.length || m !== back.length) throw new Error("Commissions changed while paying. Try again."); // rolls the whole payout back
-    return { id, amountCents: net, grossCents: gross, correctionsCents: corrections, orders: n };
+    const payBonus = db().prepare("UPDATE affiliate_bonuses SET payout_id = ? WHERE id = ? AND payout_id IS NULL");
+    let b = 0;
+    for (const r of bonuses) b += payBonus.run(id, r.id).changes;
+    if (n !== due.length || m !== back.length || b !== bonuses.length) throw new Error("Commissions changed while paying. Try again."); // rolls the whole payout back
+    // the ambassador's open payout request is answered by this payout, and they are told
+    db().prepare("UPDATE payout_requests SET status = 'paid', payout_id = ?, decided_at = ? WHERE affiliate_id = ? AND status = 'requested'").run(id, new Date().toISOString(), affiliateId);
+    notifyAmbassador(db(), affiliateId, "payout", `Payout of ${(net / 100).toFixed(2)} sent`, [clean(o.method, 80), clean(o.note, 120)].filter(Boolean).join(" · "), "/ambassador/payouts");
+    return { id, amountCents: net, grossCents: gross, correctionsCents: corrections, bonusCents: bonusTotal, orders: n };
   });
   publish({ type: "kpi.refresh" });
   return out;
@@ -191,6 +202,7 @@ export function checkAffiliateBooks(): { affiliate_id: string; paid_out_cents: n
     `SELECT a.id AS affiliate_id,
             COALESCE((SELECT SUM(amount_cents) FROM affiliate_payouts p WHERE p.affiliate_id = a.id), 0) AS paid_out_cents,
             COALESCE((SELECT SUM(commission_amount_cents) FROM orders o WHERE o.affiliate_id = a.id AND o.commission_payout_id IS NOT NULL), 0)
+          + COALESCE((SELECT SUM(amount_cents) FROM affiliate_bonuses b WHERE b.affiliate_id = a.id AND b.payout_id IS NOT NULL), 0)
           - COALESCE((SELECT SUM(commission_amount_cents) FROM orders o WHERE o.affiliate_id = a.id AND o.commission_correction_payout_id IS NOT NULL), 0) AS expected_cents
      FROM affiliates a
      WHERE paid_out_cents <> expected_cents`,
@@ -265,6 +277,7 @@ export function upgradeTier(id: string, to: AffiliateTier): AffiliateRow {
   if (!(to in tiers) || to === a.tier || a.delivered < tiers[to].minDelivered || ["seed", "athlete", "ambassador"].indexOf(to) < ["seed", "athlete", "ambassador"].indexOf(a.tier))
     throw new Error("This affiliate has not reached that tier yet.");
   db().prepare("UPDATE affiliates SET tier = ?, commission_rate_x100 = ?, version = version + 1 WHERE id = ?").run(to, Math.round(tiers[to].commissionPercent * 100), id);
+  notifyAmbassador(db(), id, "tier", `You reached ${tiers[to].label}`, `Your commission is now ${tiers[to].commissionPercent}% on new orders.`, "/ambassador");
   return getAffiliate(id)!;
 }
 
@@ -338,13 +351,13 @@ export function approveApplication(id: string): AffiliateRow {
     if (!a) throw new Error("That application no longer exists.");
     if (a.status !== "new") throw new Error(`This application was already ${a.status}.`);
     const details = [a.tiktok_handle && `TikTok @${a.tiktok_handle}`, a.followers && `${a.followers} followers`, a.city, a.sport].filter(Boolean).join(" · ");
-    const aff = createAffiliate({ name: a.name, instagram_handle: a.instagram_handle ?? "", code: generateCode(a.name), notes: [details, a.message].filter(Boolean).join("\n") });
-    db().prepare("UPDATE affiliate_applications SET status = 'approved' WHERE id = ?").run(id);
+    const aff = createAffiliate({ name: a.name, instagram_handle: a.instagram_handle ?? "", phone: a.phone ?? "", email: a.email ?? "", code: generateCode(a.name), notes: [details, a.message].filter(Boolean).join("\n") });
+    db().prepare("UPDATE affiliate_applications SET status = 'approved', affiliate_id = ?, decided_at = ? WHERE id = ?").run(aff.id, new Date().toISOString(), id);
     return aff;
   });
 }
 export function rejectApplication(id: string) {
-  const r = db().prepare("UPDATE affiliate_applications SET status = 'rejected' WHERE id = ? AND status = 'new'").run(id);
+  const r = db().prepare("UPDATE affiliate_applications SET status = 'rejected', decided_at = ? WHERE id = ? AND status = 'new'").run(new Date().toISOString(), id);
   if (!r.changes) throw new Error("This application was already handled.");
 }
 

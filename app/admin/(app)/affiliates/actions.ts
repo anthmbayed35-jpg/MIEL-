@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AFFILIATE_TIERS, type AffiliateTier } from "@/config/affiliates";
 import { audit } from "@/lib/audit";
-import { approveApplication, createAffiliate, generateCode, recordPayout, rejectApplication, updateAffiliate, upgradeTier, type AffiliateInput } from "@/lib/affiliates";
+import { createAffiliate, generateCode, recordPayout, rejectApplication, updateAffiliate, upgradeTier, type AffiliateInput } from "@/lib/affiliates";
+import { approveAndInvite, inviteFor, type Invite } from "@/lib/ambassador/onboarding";
 import { requirePerm } from "@/lib/auth";
 import { formVersion, orFail } from "@/lib/version";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -71,17 +72,38 @@ export async function recordPayoutAction(_p: ActionState, fd: FormData): Promise
     const p = recordPayout(id, { method: text(fd, "method"), note: text(fd, "note") });
     await audit(admin, "affiliate_payout", "affiliate", id, { amount_cents: p.amountCents, orders: p.orders });
     refresh(id);
-    return { ok: `Payout of $${(p.amountCents / 100).toFixed(2)} recorded for ${p.orders} order${p.orders === 1 ? "" : "s"}${p.correctionsCents ? ` (after a correction of $${(p.correctionsCents / 100).toFixed(2)})` : ""}.` };
+    return { ok: `Payout of $${(p.amountCents / 100).toFixed(2)} recorded for ${p.orders} order${p.orders === 1 ? "" : "s"}${p.bonusCents ? ` and ${(p.bonusCents / 100).toFixed(2)} of bonuses` : ""}${p.correctionsCents ? ` (after a correction of $${(p.correctionsCents / 100).toFixed(2)})` : ""}.` };
   });
+}
+
+/** What the team sees after an invite or reset link is made: the link to copy, the WhatsApp button, and whether an email went out. */
+function inviteState(prefix: string, inv: Invite, kind: "invite" | "reset"): ActionState {
+  const days = kind === "invite" ? "7 days" : "24 hours";
+  return {
+    ok: `${prefix}${inv.emailed ? " The link was also emailed." : ""}`,
+    copy: { label: kind === "invite" ? "Invite link" : "Password reset link", value: inv.url, note: `Works once and expires in ${days}. Send it to ${inv.affiliate.name} yourself (WhatsApp button below, or copy it).`, button: "Copy link" },
+    links: inv.whatsappUrl ? [{ label: "Send on WhatsApp", href: inv.whatsappUrl }] : undefined,
+  };
 }
 
 export async function approveApplicationAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   return orFail(async () => {
     const admin = await requirePerm("affiliates.manage");
-    const a = approveApplication(text(fd, "id"));
-    await audit(admin, "affiliate_application_approve", "affiliate_application", text(fd, "id"), { affiliate: a.id, code: a.code });
-    refresh(a.id);
-    return { ok: `Approved. Code ${a.code} created, open it to adjust the rates.` };
+    const inv = await approveAndInvite(text(fd, "id"));
+    await audit(admin, "affiliate_application_approve", "affiliate_application", text(fd, "id"), { affiliate: inv.affiliate.id, code: inv.affiliate.code });
+    refresh(inv.affiliate.id);
+    return inviteState(`Approved. Code ${inv.affiliate.code} created.`, inv, "invite");
+  });
+}
+
+/** A fresh invite (7 days) or password reset link (24 hours) for an existing ambassador. Older unused links stop working. */
+export async function createInviteAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(async () => {
+    const admin = await requirePerm("affiliates.manage");
+    const kind = text(fd, "kind") === "reset" ? "reset" : "invite";
+    const inv = await inviteFor(text(fd, "id"), kind);
+    await audit(admin, kind === "invite" ? "ambassador_invite" : "ambassador_reset_link", "affiliate", inv.affiliate.id);
+    return inviteState(kind === "invite" ? "New invite link made." : "Password reset link made.", inv, kind);
   });
 }
 

@@ -30,7 +30,7 @@ const MATRIX: Record<string, Min> = {
   // marketing & content
   "marketing/actions::saveDiscount": "manager", "marketing/actions::toggleDiscount": "manager", "marketing/actions::markContacted": "manager",
   "affiliates/actions::saveAffiliate": "manager", "affiliates/actions::suggestCode": "manager", "affiliates/actions::upgradeTierAction": "manager",
-  "affiliates/actions::recordPayoutAction": "manager", "affiliates/actions::approveApplicationAction": "manager", "affiliates/actions::rejectApplicationAction": "manager",
+  "affiliates/actions::recordPayoutAction": "manager", "affiliates/actions::createInviteAction": "manager", "affiliates/actions::approveApplicationAction": "manager", "affiliates/actions::rejectApplicationAction": "manager",
   "marketing/actions::saveTracking": "manager", "marketing/actions::saveAnnouncement": "manager", "marketing/actions::saveHero": "manager",
   "marketing/actions::saveFaq": "manager", "marketing/actions::addTestimonial": "manager", "marketing/actions::setTestimonial": "manager",
   // shipping

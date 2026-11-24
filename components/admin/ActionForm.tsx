@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Flash } from "./ui";
 
 /** `copy`: a one-time link the owner must hand over by hand (shown while email is not configured). */
-export type ActionState = { ok?: string; error?: string; copy?: { label: string; value: string; note?: string; button?: string } } | null;
+export type ActionState = { ok?: string; error?: string; copy?: { label: string; value: string; note?: string; button?: string }; links?: { label: string; href: string }[] } | null;
 
 function CopyBox({ label, value, note, button }: { label: string; value: string; note?: string; button?: string }) {
   const [done, setDone] = useState(false);
@@ -60,6 +60,13 @@ export function ActionForm({
     >
       <Flash msg={state?.ok} error={state?.error} />
       {state?.copy && <CopyBox label={state.copy.label} value={state.copy.value} note={state.copy.note} button={state.copy.button} />}
+      {state?.links && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {state.links.map((l) => (
+            <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="pill-btn pill-glass">{l.label}</a>
+          ))}
+        </div>
+      )}
       {children}
     </form>
   );

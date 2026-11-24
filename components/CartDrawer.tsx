@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { decodeRef, encodeRef, parseRef, REF_KEY } from "@/lib/ref";
+import { decodeRefEntry, encodeRef, parseRef, REF_KEY } from "@/lib/ref";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
 import { getUtm, trackEvent } from "@/lib/track-client";
@@ -28,13 +28,24 @@ export function CartDrawer() {
   const [error, setError] = useState("");
   const [region, setRegion] = useState("");
   const [code, setCode] = useState("");
-  // An affiliate's personal link (/?ref=CODE): remember the code and put it in the discount field. The server still checks it.
+  const [fromLink, setFromLink] = useState(false); // the code was filled in from an ambassador's personal link and not edited since
+  // An ambassador's personal link (/?ref=CODE): remember the code (cookie and browser storage, 30 days), count the visit once a day
+  // (a number, no personal data) and put the code in the discount field. The server still checks it. A code typed by hand wins.
   useEffect(() => {
     try {
-      const fromLink = parseRef(window.location.search);
-      if (fromLink) localStorage.setItem(REF_KEY, encodeRef(fromLink));
-      const c = fromLink ?? decodeRef(localStorage.getItem(REF_KEY));
-      if (c) setCode((cur) => cur || c);
+      const fromUrl = parseRef(window.location.search);
+      const stored = decodeRefEntry(localStorage.getItem(REF_KEY));
+      if (fromUrl) {
+        const today = new Date().toISOString().slice(0, 10);
+        const counted = stored?.code === fromUrl && stored.countedDay === today;
+        localStorage.setItem(REF_KEY, encodeRef(fromUrl, Date.now(), today));
+        if (!counted) void fetch("/api/ref", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: fromUrl }), keepalive: true }).catch(() => {});
+      }
+      const c = fromUrl ?? stored?.code ?? null;
+      if (c) {
+        setCode((cur) => cur || c);
+        setFromLink(true);
+      }
     } catch {
       /* storage blocked: the customer can still type the code */
     }
@@ -125,6 +136,8 @@ export function CartDrawer() {
       },
       region,
       code,
+      attribution: fromLink ? "link" : "code",
+      heardFrom: String(fd.get("heard_from") ?? ""),
       utm: getUtm(),
       website: String(fd.get("website") ?? ""),
       confirmation: preview && testOk ? TEST_ORDER_CONFIRMATION : undefined,
@@ -239,8 +252,12 @@ export function CartDrawer() {
                 <textarea id="notes" name="notes" rows={2} className={field} placeholder="Anything we should know" />
               </div>
               <div>
+                <label htmlFor="heard_from" className={label}>How did you hear about us? (optional)</label>
+                <input id="heard_from" name="heard_from" maxLength={80} className={field} placeholder="Instagram, a friend, my gym…" />
+              </div>
+              <div>
                 <label htmlFor="code" className={label}>Discount code (optional)</label>
-                <input id="code" className={field} placeholder="CODE" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoCapitalize="characters" />
+                <input id="code" className={field} placeholder="CODE" value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setFromLink(false); }} autoCapitalize="characters" />
                 {shown?.codeMessage && <p className={`mt-2 text-[15px] ${shown.discount || shown.freeDelivery ? "text-acid" : ""}`}>{shown.codeMessage}</p>}
               </div>
               {/* honeypot: real people never see or fill this */}

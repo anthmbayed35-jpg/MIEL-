@@ -58,6 +58,8 @@ export async function placeOrder(input: {
   utm?: { source?: string; medium?: string; campaign?: string };
   website?: string; // honeypot
   idempotencyKey?: string;
+  attribution?: "code" | "link";
+  heardFrom?: string;
   /** Preview only: the exact confirmation text, sent when the admin ticked "this is a test order". */
   confirmation?: string;
 }): Promise<PlaceResult> {
@@ -116,6 +118,8 @@ export async function placeOrder(input: {
       utm: input.utm,
       actor: "customer",
       idempotencyKey: input.idempotencyKey,
+      attribution: input.attribution === "link" ? "link" : "code",
+      heardFrom: String(input.heardFrom ?? "").slice(0, 80),
       test,
     });
     // Mark any abandoned checkout for this phone as recovered

@@ -14,8 +14,8 @@ export function parseRef(search: string): string | null {
   return v && CODE.test(v.trim()) ? v.trim().toUpperCase() : null;
 }
 
-/** What is stored: the code and when it was saved. */
-export const encodeRef = (code: string, now = Date.now()) => JSON.stringify({ code, at: now });
+/** What is stored: the code, when it was saved and the day a visit through the link was last counted. */
+export const encodeRef = (code: string, now = Date.now(), countedDay?: string) => JSON.stringify({ code, at: now, countedDay });
 
 /** The stored code if it is well formed and younger than REF_DAYS, otherwise null. Garbage in storage never throws. */
 export function decodeRef(raw: string | null, now = Date.now()): string | null {
@@ -27,5 +27,17 @@ export function decodeRef(raw: string | null, now = Date.now()): string | null {
     return v.code.toUpperCase();
   } catch {
     return null;
+  }
+}
+
+/** The stored entry (code and the day it was last counted), or null when missing, malformed or older than REF_DAYS. */
+export function decodeRefEntry(raw: string | null, now = Date.now()): { code: string; countedDay?: string } | null {
+  const code = decodeRef(raw, now);
+  if (!code) return null;
+  try {
+    const v = JSON.parse(raw as string) as { countedDay?: unknown };
+    return { code, countedDay: typeof v.countedDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.countedDay) ? v.countedDay : undefined };
+  } catch {
+    return { code };
   }
 }
