@@ -43,8 +43,6 @@ function adminPages(): string[] {
   const fill = (u: string) => (u === "/admin/affiliates/[id]" ? `/admin/affiliates/${affiliate}` : u === "/admin/orders/[id]" ? `/admin/orders/${order}` : u === "/admin/products/[id]" ? `/admin/products/${product}` : u === "/admin/customers/[id]" ? `/admin/customers/${customer}` : u);
   const skip = new Set(["/admin/login", "/admin/forgot", "/admin/set-password", "/admin/mfa", "/admin/print"]); // sign-in pages have their own tests; /admin/print needs ids (visited below)
   const urls = out.map(fill).filter((u) => !skip.has(u));
-  const token = one<{ private_token: string }>("SELECT private_token FROM affiliates LIMIT 1")?.private_token;
-  if (token) urls.push(`/partner/${token}`);
   urls.push("/admin/affiliates/list?status=active", `/admin/print?type=packing&ids=${order}`, `/admin/print?type=invoice&ids=${order}`, "/admin/orders?status=delivered", "/admin/orders?q=E2E");
   return [...new Set(urls)].sort();
 }

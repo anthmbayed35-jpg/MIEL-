@@ -39,7 +39,7 @@ export default async function PayoutsPage() {
               <li key={r.id} className="rounded-2xl bg-white/5 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <Link href={`/admin/affiliates/${r.affiliate_id}`} className="text-[18px] font-semibold text-fg underline underline-offset-4">{r.name}</Link> <span className="mono !text-[13px]">{r.code}</span>
+                    <Link href={`/admin/affiliates/${r.affiliate_id}`} className="inline-flex min-h-12 items-center text-[18px] font-semibold text-fg underline underline-offset-4">{r.name}</Link> <span className="mono !text-[13px]">{r.code}</span>
                     <p className="mt-1 text-[15px] text-body">Asked for <span className="text-fg">${usd(r.amount_cents).toFixed(2)}</span> on {localStamp(r.created_at).slice(0, 10)} · {r.payout_method || "no method"}{r.payout_details ? `: ${r.payout_details}` : ""}</p>
                     {r.note && <p className="mt-1 text-[14px] text-body">Note: {r.note}</p>}
                   </div>

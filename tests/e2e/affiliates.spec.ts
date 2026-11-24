@@ -173,26 +173,20 @@ test("/ambassadors on a phone: the application is saved with spam protection, th
   await admin.goto("/admin/affiliates/applications");
   const card = admin.locator("li", { hasText: "Karim Daher" });
   await expect(card).toContainText("@karim.lifts");
-  await card.getByRole("button", { name: /Approve and create affiliate/ }).click();
+  await card.getByRole("button", { name: /Approve and send invite/ }).click();
   await expect(admin.getByText(/Approved. Code KARIM\d\d created/)).toBeVisible();
   expect(one("SELECT code FROM affiliates WHERE name = 'Karim Daher'")).toMatchObject({ code: expect.stringMatching(/^KARIM\d\d$/) });
 });
 
-test("the private stats page: code, orders and commission, no customer data, not indexable, 404 for a wrong link", async ({ browser }) => {
+test("the old private stats link only redirects to the ambassador login, and shows nothing", async ({ browser }) => {
   const page = await (await ctxFor(browser)).newPage();
-  const res = await page.goto(`/partner/${state.token}`);
-  expect(res?.status()).toBe(200);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Nour Haddad");
-  await expect(page.getByText(state.code, { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("PAID OUT")).toBeVisible();
-  const body = await page.locator("body").innerText();
-  for (const secret of ["Affiliate Shopper", "424 242", "Hamra"]) expect(body).not.toContain(secret);
-  expect(await page.locator('meta[name="robots"]').getAttribute("content")).toMatch(/noindex/);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
-  expect((await page.goto(`/partner/${"a".repeat(32)}`))?.status()).toBe(404);
-  expect((await page.goto("/partner/not-a-token"))?.status()).toBe(404);
+  for (const t of [state.token, "a".repeat(32), "not-a-token"]) {
+    await page.goto(`/partner/${t}`);
+    await expect(page).toHaveURL(/\/ambassador\/login$/);
+    expect(await page.locator("body").innerText()).not.toContain("Nour Haddad");
+  }
   const robots = await page.request.get("/robots.txt");
-  expect(await robots.text()).toContain("Disallow: /partner");
+  expect(await robots.text()).toContain("Disallow: /ambassador/");
 });
 
 test("admin affiliate pages need a sign-in and a role", async ({ browser, request }) => {

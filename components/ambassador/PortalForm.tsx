@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useState, type ReactNode } from "react";
 import type { PortalState } from "@/app/ambassador/actions";
 
 export const field = "w-full min-h-14 bg-white/5 border border-white/15 px-4 py-3 text-fg text-[18px] placeholder:text-body/60 focus:border-acid focus:outline-none rounded-[14px]";
@@ -19,7 +19,15 @@ function Feedback({ state }: { state: PortalState }) {
 export function PortalForm({ action, children, submit, className = "" }: { action: (s: PortalState, fd: FormData) => Promise<PortalState>; children: ReactNode; submit: string; className?: string }) {
   const [state, act, pending] = useActionState(action, null);
   return (
-    <form action={act} className={`space-y-5 ${className}`}>
+    <form
+      // submitted by hand (not as a form action) so a refused attempt keeps what the person typed (React would reset the fields)
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        startTransition(() => act(fd));
+      }}
+      className={`space-y-5 ${className}`}
+    >
       <Feedback state={state} />
       {children}
       <button type="submit" disabled={pending} className="btn">{pending ? "…" : submit}</button>

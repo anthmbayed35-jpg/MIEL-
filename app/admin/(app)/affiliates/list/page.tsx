@@ -25,7 +25,7 @@ export default async function AffiliatesListPage({ searchParams }: { searchParam
 
   return (
     <>
-      <PageHeader eyebrow="Influencer codes" title="Affiliates" actions={<PillLink href="/admin/affiliates/new" variant="lime">Add affiliate</PillLink>} />
+      <PageHeader eyebrow="Influencer codes" title="Ambassadors" actions={<PillLink href="/admin/affiliates/new" variant="lime">Add ambassador</PillLink>} />
       <SubNav items={affiliateTabs(newApplicationCount())} role={admin.role} />
       <Card>
         <form className="mb-5 grid gap-3 md:grid-cols-[2fr_1fr_auto]" role="search">
@@ -38,7 +38,7 @@ export default async function AffiliatesListPage({ searchParams }: { searchParam
         <DataTable
           rows={rows}
           href={(a) => `/admin/affiliates/${a.id}`}
-          empty={<Empty title={sp.q || sp.status ? "No affiliates match." : "No affiliates yet."} hint={`Add one, or approve an application. New affiliates start on ${TIER_RULES.seed.label} at ${DEFAULT_COMMISSION_PERCENT}% commission.`} action={<PillLink href="/admin/affiliates/new" variant="lime">Add affiliate</PillLink>} />}
+          empty={<Empty title={sp.q || sp.status ? "No affiliates match." : "No affiliates yet."} hint={`Add one, or approve an application. New affiliates start on ${TIER_RULES.seed.label} at ${DEFAULT_COMMISSION_PERCENT}% commission.`} action={<PillLink href="/admin/affiliates/new" variant="lime">Add ambassador</PillLink>} />}
           cols={[
             { key: "name", label: "Affiliate", primary: true, render: (a) => a.name },
             { key: "ig", label: "Instagram", render: (a) => (a.instagram_handle ? `@${a.instagram_handle}` : "—") },

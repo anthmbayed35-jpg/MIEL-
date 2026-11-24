@@ -30,7 +30,7 @@ export default async function KitsPage() {
               <li key={k.id} className="rounded-2xl bg-white/5 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-[17px] text-fg"><Link href={`/admin/affiliates/${k.affiliate_id}`} className="underline underline-offset-4">{k.name}</Link> <span className="mono !text-[13px]">{k.code}</span></p>
+                    <p className="text-[17px] text-fg"><Link href={`/admin/affiliates/${k.affiliate_id}`} className="inline-flex min-h-12 items-center underline underline-offset-4">{k.name}</Link> <span className="mono !text-[13px]">{k.code}</span></p>
                     <p className="text-[15px] text-body">{k.kind === "starter" ? "Starter kit" : "Monthly pouch"} · asked {day(k.created_at)}{k.phone ? ` · ${k.phone}` : ""}</p>
                   </div>
                   <span className={`status ${k.status === "delivered" ? "st-delivered" : k.status === "shipped" ? "st-out_for_delivery" : "st-packed"}`}>{k.status}</span>

@@ -3,8 +3,8 @@ import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { exec, one } from "../support/e2e-db";
 
 /**
- * The Affiliates section of the admin: the menu item (after Orders, highlighted, with the new-application badge), its four pages
- * (Overview, Affiliates, Payouts, Applications), the personal link (?ref=CODE) and the orders list, on a desktop and on a 375px phone.
+ * The Ambassadors section of the admin: the menu item (after Orders, highlighted, with the new-application badge), its four pages
+ * (Overview, Ambassadors, Payouts, Applications), the personal link (?ref=CODE) and the orders list, on a desktop and on a 375px phone.
  */
 test.describe.configure({ mode: "serial" });
 
@@ -32,7 +32,7 @@ test("setup: an affiliate with an order, and two new applications", async () => 
   expect(one<{ n: number }>("SELECT COUNT(*) n FROM affiliate_applications WHERE status = 'new'")!.n).toBeGreaterThanOrEqual(2);
 });
 
-test("desktop: Affiliates sits after Orders, is highlighted on every page of the section, and its four pages load", async ({ browser }) => {
+test("desktop: Ambassadors sits after Orders, is highlighted on every page of the section, and its four pages load", async ({ browser }) => {
   const ctx = await ctxFor(browser, 1440, 900);
   const page = await ctx.newPage();
   const bad: string[] = [];
@@ -41,28 +41,28 @@ test("desktop: Affiliates sits after Orders, is highlighted on every page of the
   await signIn(page);
   const nav = page.getByRole("navigation", { name: "Admin", exact: true });
   const names = (await nav.getByRole("link").allInnerTexts()).map((t) => t.replace(/\d+$/, "").trim());
-  expect(names.slice(0, 3)).toEqual(["Dashboard", "Orders", "Affiliates"]);
-  const badge = nav.getByRole("link", { name: /Affiliates/ }).locator('[aria-label$="new"]');
+  expect(names.slice(0, 3)).toEqual(["Dashboard", "Orders", "Ambassadors"]);
+  const badge = nav.getByRole("link", { name: /Ambassadors/ }).locator('[aria-label$="new"]');
   const waiting = one<{ n: number }>("SELECT COUNT(*) n FROM affiliate_applications WHERE status = 'new'")!.n;
   await expect(badge).toHaveText(String(waiting));
 
-  await nav.getByRole("link", { name: /Affiliates/ }).click();
+  await nav.getByRole("link", { name: /Ambassadors/ }).click();
   await expect(page).toHaveURL(/\/admin\/affiliates$/);
-  await expect(nav.getByRole("link", { name: /Affiliates/ })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("heading", { level: 1, name: "Affiliates" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: /Ambassadors/ })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { level: 1, name: "Ambassadors" })).toBeVisible();
   for (const card of ["Affiliate sales", "Commission pending", "Commission approved", "Commission paid"]) await expect(page.getByText(card, { exact: true })).toBeVisible();
   await expect(page.getByText(/Top 5 this month/)).toBeVisible();
 
   const section = page.getByRole("navigation", { name: "Section" });
-  await expect(section.getByRole("link")).toHaveCount(4);
-  expect((await section.getByRole("link").allInnerTexts()).map((t) => t.replace(/\d+$/, "").trim())).toEqual(["Overview", "Affiliates", "Payouts", "Applications"]);
+  await expect(section.getByRole("link")).toHaveCount(9);
+  expect((await section.getByRole("link").allInnerTexts()).map((t) => t.replace(/\d+$/, "").trim())).toEqual(["Overview", "Ambassadors", "Applications", "Payouts", "Missions", "Kits", "Content", "Reports", "Settings"]);
   await expect(section.getByRole("link", { name: /Applications/ }).locator('[aria-label$="new"]')).toHaveText(String(waiting));
 
-  // Affiliates: search, status filter, the Add affiliate button, a row opens the affiliate
-  await section.getByRole("link", { name: "Affiliates" }).click();
+  // Ambassadors: search, status filter, the Add affiliate button, a row opens the affiliate
+  await section.getByRole("link", { name: "Ambassadors" }).click();
   await expect(page).toHaveURL(/\/admin\/affiliates\/list$/);
-  await expect(nav.getByRole("link", { name: /Affiliates/ })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("link", { name: "Add affiliate" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: /Ambassadors/ })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Add ambassador" })).toBeVisible();
   await page.locator("input[name=q]").fill("NAVTEST");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page.locator("table tbody tr")).toHaveCount(1);
@@ -76,13 +76,12 @@ test("desktop: Affiliates sits after Orders, is highlighted on every page of the
   await page.goto("/admin/affiliates/list?q=NAVTEST");
   await page.getByRole("link", { name: "Nav Tester" }).first().click();
   await expect(page).toHaveURL(new RegExp(`/admin/affiliates/${affiliateId}$`));
-  await expect(section.getByRole("link", { name: "Affiliates" })).toHaveAttribute("aria-current", "page"); // the tab stays lit on an affiliate's own page
+  await expect(section.getByRole("link", { name: "Ambassadors" })).toHaveAttribute("aria-current", "page"); // the tab stays lit on an affiliate's own page
 
   // the affiliate page: details, code and links with copy buttons, orders, commission, payouts, record payout
   await expect(page.getByRole("heading", { level: 1, name: "Nav Tester" })).toBeVisible();
   const base = new URL(page.url()).origin;
   await expect(page.getByRole("textbox", { name: "Personal link to share (adds the code at checkout)" })).toHaveValue(new RegExp(`/\\?ref=${CODE}$`));
-  await expect(page.getByRole("textbox", { name: /Private stats page/ })).toHaveValue(/\/partner\//);
   await page.getByRole("button", { name: "Copy code" }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(CODE);
   await expect(page.getByRole("button", { name: "Copy link" }).first()).toBeVisible();
@@ -97,7 +96,7 @@ test("desktop: Affiliates sits after Orders, is highlighted on every page of the
   await section.getByRole("link", { name: /Applications/ }).click();
   await expect(page).toHaveURL(/\/admin\/affiliates\/applications$/);
   await expect(page.getByText("Nav Applicant 1")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Approve and create affiliate/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Approve and send invite/ }).first()).toBeVisible();
   expect(bad).toEqual([]);
   await ctx.close();
 });
@@ -112,23 +111,23 @@ test("rejecting an application updates the badge", async ({ browser }) => {
   await page.locator("li", { hasText: "Nav Applicant 2" }).getByRole("button", { name: "Reject" }).click();
   await expect.poll(() => one<{ n: number }>("SELECT COUNT(*) n FROM affiliate_applications WHERE status = 'new'")!.n, { timeout: 15_000 }).toBe(before - 1);
   await page.goto("/admin/affiliates");
-  await expect(page.getByRole("navigation", { name: "Admin", exact: true }).getByRole("link", { name: /Affiliates/ }).locator('[aria-label$="new"]')).toHaveText(String(before - 1));
+  await expect(page.getByRole("navigation", { name: "Admin", exact: true }).getByRole("link", { name: /Ambassadors/ }).locator('[aria-label$="new"]')).toHaveText(String(before - 1));
   await ctx.close();
 });
 
-test("phone (375px): Affiliates is in the tab bar after Orders, every page fits the screen and every control is at least 48px", async ({ browser }) => {
+test("phone (375px): Ambassadors is in the tab bar after Orders, every page fits the screen and every control is at least 48px", async ({ browser }) => {
   const ctx = await ctxFor(browser, 375, 812);
   const page = await ctx.newPage();
   await signIn(page);
   const tabs = page.getByRole("navigation", { name: "Admin sections" });
-  // on a phone the badge sits above the label ("1\nAffiliates"), so drop a leading number as well as a trailing one
+  // on a phone the badge sits above the label ("1\nAmbassadors"), so drop a leading number as well as a trailing one
   const names = (await tabs.getByRole("link").allInnerTexts()).map((t) => t.replace(/^\d+\s+/, "").replace(/\d+$/, "").trim());
-  expect(names.slice(0, 3)).toEqual(["Dashboard", "Orders", "Affiliates"]);
+  expect(names.slice(0, 3)).toEqual(["Dashboard", "Orders", "Ambassadors"]);
   for (const link of await tabs.getByRole("link").all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
-  await expect(tabs.getByRole("link", { name: /Affiliates/ }).locator('[aria-label$="new"]')).toBeVisible();
-  await tabs.getByRole("link", { name: /Affiliates/ }).click();
+  await expect(tabs.getByRole("link", { name: /Ambassadors/ }).locator('[aria-label$="new"]')).toBeVisible();
+  await tabs.getByRole("link", { name: /Ambassadors/ }).click();
   await expect(page).toHaveURL(/\/admin\/affiliates$/);
-  await expect(tabs.getByRole("link", { name: /Affiliates/ })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: /Ambassadors/ })).toHaveAttribute("aria-current", "page");
 
   const urls = ["/admin/affiliates", "/admin/affiliates/list", "/admin/affiliates/list?q=NAVTEST", "/admin/affiliates/new", `/admin/affiliates/${affiliateId}`, "/admin/affiliates/payouts", "/admin/affiliates/applications", "/admin/orders"];
   for (const u of urls) {
@@ -155,12 +154,12 @@ test("phone (375px): Affiliates is in the tab bar after Orders, every page fits 
   await ctx.close();
 });
 
-test("staff do not see the Affiliates item and cannot open its pages", async ({ browser }) => {
+test("staff do not see the Ambassadors item and cannot open its pages", async ({ browser }) => {
   const ctx = await ctxFor(browser, 1440, 900);
   const page = await ctx.newPage();
   await signIn(page, USERS.staff.email);
   const nav = page.getByRole("navigation", { name: "Admin", exact: true });
-  await expect(nav.getByRole("link", { name: /Affiliates/ })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: /Ambassadors/ })).toHaveCount(0);
   for (const u of ["/admin/affiliates", "/admin/affiliates/list", "/admin/affiliates/payouts", "/admin/affiliates/applications", "/admin/affiliates/new"]) expect((await page.goto(u))?.status(), u).toBe(403);
   expect((await page.request.get("/admin/affiliates/payouts/export?month=2026-01")).status()).toBe(403);
   await ctx.close();

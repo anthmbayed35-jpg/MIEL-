@@ -30,11 +30,11 @@ export default async function MissionsAdminPage() {
           <ul className="space-y-4">
             {proofs.map((s) => (
               <li key={s.id} className="rounded-2xl bg-white/5 p-4">
-                <p className="text-[17px] text-fg"><Link href={`/admin/affiliates/${s.affiliate_id}`} className="underline underline-offset-4">{s.name}</Link> <span className="mono !text-[13px]">{s.code}</span> · {s.mission_title}</p>
+                <p className="text-[17px] text-fg"><Link href={`/admin/affiliates/${s.affiliate_id}`} className="inline-flex min-h-12 items-center underline underline-offset-4">{s.name}</Link> <span className="mono !text-[13px]">{s.code}</span> · {s.mission_title}</p>
                 <p className="mt-1 text-[15px] text-body">
-                  {s.proof_url && <a href={s.proof_url} target="_blank" rel="noopener noreferrer nofollow" className="text-fg underline underline-offset-4">Open post</a>}
+                  {s.proof_url && <a href={s.proof_url} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex min-h-12 items-center text-fg underline underline-offset-4">Open post</a>}
                   {s.proof_url && s.proof_file && " · "}
-                  {s.proof_file && <a href={`/ambassador/files/proofs/${s.proof_file}`} target="_blank" rel="noopener noreferrer" className="text-fg underline underline-offset-4">Open screenshot</a>}
+                  {s.proof_file && <a href={`/ambassador/files/proofs/${s.proof_file}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center text-fg underline underline-offset-4">Open screenshot</a>}
                 </p>
                 <ActionForm action={reviewSubmissionAction} className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
                   <input type="hidden" name="id" value={s.id} />

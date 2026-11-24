@@ -103,7 +103,7 @@ describe("admin pages, roles and export", () => {
     expect(list).toContain("RAMI10");
     expect(list).toContain("@rami.runs");
     expect(list).toContain("Commission owed");
-    expect(list).toContain("Add affiliate");
+    expect(list).toContain("Add ambassador");
     expect(list).toContain("Applications"); // the section tabs, with the badge for the new application
     expect(list).toMatch(/aria-label="1 new"/);
     const detail = await html(() => import("@/app/admin/(app)/affiliates/[id]/page"), { params: Promise.resolve({ id: a.id }) });

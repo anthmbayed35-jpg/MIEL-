@@ -52,7 +52,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           rows={byMonth}
           empty={<Empty title="No ambassador sales yet." />}
           cols={[
-            { key: "m", label: "Month", primary: true, render: (r) => <Link href={`/admin/affiliates/reports?month=${r.month}`} className="underline underline-offset-4">{r.month}</Link> },
+            { key: "m", label: "Month", primary: true, render: (r) => <Link href={`/admin/affiliates/reports?month=${r.month}`} className="inline-flex min-h-12 items-center underline underline-offset-4">{r.month}</Link> },
             { key: "o", label: "Orders", render: (r) => r.orders },
             { key: "s", label: "Sales", render: (r) => <Money value={usd(r.sales_cents)} className="text-[17px]" /> },
             { key: "c", label: "Commission", render: (r) => <Money value={usd(r.commission_cents)} className="text-[17px]" /> },
