@@ -6,7 +6,7 @@ import Link from "next/link";
  */
 export function PreviewBar() {
   return (
-    <div role="status" data-preview-bar className="sticky top-0 z-[70] flex min-h-10 flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-acid px-4 py-2 text-center text-[14px] font-semibold text-black">
+    <div role="status" data-preview-bar className="sticky top-0 z-[70] flex min-h-12 flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-acid px-4 py-2 text-center text-[14px] font-semibold text-black">
       <span>Preview mode: only you can see this.</span>
       <span className="hidden font-normal sm:inline">Visitors see the under-development page. Orders here are TEST orders only.</span>
       <Link href="/admin" className="underline underline-offset-2">

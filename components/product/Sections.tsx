@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { COPY } from "@/config/copy";
 import { findPhoto, type Product } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money, perSachet } from "@/lib/format";
@@ -86,7 +87,7 @@ export function FlavorSwitcher({ current, products }: { current: string; product
 }
 
 export function TrustRow() {
-  const items = ["REAL HONEY", "DELIVERY IN LEBANON", "CASH ON DELIVERY"];
+  const items = COPY.product.trust;
   return (
     <ul className="mt-5 grid grid-cols-3 gap-2">
       {items.map((t) => (
@@ -149,12 +150,12 @@ export function PouchBlock({ product }: { product: Product }) {
       <div className={`${wrap} py-14 md:py-20`}>
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
           <Reveal>
-            <p className="mono mb-3">IN THE POUCH</p>
+            <p className="mono mb-3">{COPY.product.pouch.kicker}</p>
             <h2 className="display h-section">
               {SACHETS_PER_POUCH} sachets <span className="accent">per pouch.</span>
             </h2>
             <p className="body-lg mt-5 max-w-lg">
-              One stand-up pouch. {SACHETS_PER_POUCH} tear-open sachets{size ? `, ${size.toLowerCase()} each` : ""}. Throw a few in your bag and go.
+              {COPY.product.pouch.text}{size ? ` ${size.toLowerCase()} in every sachet.` : ""}
             </p>
             <p className="mono mt-5 !text-[15px]">
               {money(product.price)} · {money(perSachet(product.price), 2)} / SACHET
@@ -181,7 +182,8 @@ export function ProductHowTo({ product }: { product: Product }) {
     <section className={`${wrap} py-14 md:py-20`}>
       <Reveal>
         <p className="mono mb-3">HOW TO USE</p>
-        <h2 className="display h-section mb-8">Rip. Take. Go.</h2>
+        <h2 className="display h-section mb-8">{COPY.howTo.title}</h2>
+        <p className="mono !text-body -mt-5 mb-8 !text-[14px]">{COPY.howTo.timingNote}</p>
       </Reveal>
       {photo ? (
         // Image beside the steps on desktop, stacked on mobile. Photo stays 4:5 so the sachet label is never cropped.
@@ -231,38 +233,17 @@ export function ProductHowTo({ product }: { product: Product }) {
   );
 }
 
-export function Why({ product }: { product: Product }) {
-  const bg = findPhoto(product, "ingredients");
-  const fade = "linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent)";
+/** Three short benefit bullets under the headline, in the product's info column. */
+export function Benefits({ product }: { product: Product }) {
   return (
-    <section className="relative isolate overflow-x-clip">
-      {/* Soft background: ingredients photo dimmed to ~35% under a dark overlay so the cards stay fully readable */}
-      {bg && (
-        <>
-          <div aria-hidden className="absolute inset-0 -z-20 opacity-35" style={{ maskImage: fade, WebkitMaskImage: fade }}>
-            <Photo src={bg.src} alt="" sizes="100vw" position="50% 55%" className="h-full w-full" />
-          </div>
-          <div aria-hidden className="absolute inset-0 -z-10 bg-bg/40" />
-        </>
-      )}
-      <Blobs spots={[{ x: "60%", y: "-10%", color: product.glow }, { x: "-10%", y: "40%", delay: -8 }]} />
-      <div className={`${wrap} py-16 md:py-24`}>
-        <Reveal>
-          <p className="mono mb-3">WHY THIS ONE</p>
-          <h2 className="display h-section mb-8">
-            Why <span className="accent">{product.name}.</span>
-          </h2>
-        </Reveal>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {product.why.map((b, n) => (
-            <Reveal key={b.title} delay={n * 80} className="glass p-5 md:p-8">
-              <h3 className="display text-[24px]">{b.title}</h3>
-              <p className="body-lg mt-3 !text-fg">{b.text}</p>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
+    <ul className="mt-5 space-y-3">
+      {product.why.map((b) => (
+        <li key={b.title} className="flex gap-3 text-[18px] leading-snug text-fg">
+          <span aria-hidden className="accent mt-0.5 shrink-0">+</span>
+          <span><strong className="font-semibold">{b.title}.</strong> <span className="text-body">{b.text}</span></span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -273,11 +254,11 @@ export function Compare({ current, products }: { current: string; products: Prod
         <p className="mono mb-3">COMPARE</p>
         <h2 className="display h-section mb-8">The lineup.</h2>
       </Reveal>
-      <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
+      <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0 lg:grid lg:grid-cols-3 lg:overflow-visible">
         {products.filter((p) => p.kind !== "bundle").map((p) => {
           const on = p.slug === current;
           return (
-            <li key={p.id} className="w-[78%] shrink-0 snap-center md:w-auto">
+            <li key={p.id} className="w-[78%] shrink-0 snap-center md:w-[44%] lg:w-auto">
               <div className={`glass flex h-full flex-col p-5 ${on ? "glass-accent" : "glass-hover"}`}>
                 <h3 className="display h-product">{p.name}</h3>
                 <p className="mt-1 text-[18px] text-fg">{p.descriptor}</p>
@@ -309,8 +290,8 @@ export function ProductFaq({ product }: { product: Product }) {
       <Blobs spots={[{ x: "-12%", y: "10%" }, { x: "70%", y: "60%", delay: -9 }]} />
       <div className={`${wrap} pb-14 pt-6 md:pb-20`}>
         <Reveal>
-          <p className="mono mb-3">FAQ</p>
-          <h2 className="display h-section mb-8">Questions.</h2>
+          <p className="mono mb-3">{COPY.product.faqKicker}</p>
+          <h2 className="display h-section mb-8">{COPY.product.faqTitle}</h2>
         </Reveal>
         <Reveal className="space-y-3">
           {product.faqs.map((f) => (

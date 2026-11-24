@@ -1,5 +1,4 @@
 import { Header } from "@/components/Header";
-import { AmbassadorBanner } from "@/components/AmbassadorBanner";
 import { Hero } from "@/components/Hero";
 import { ProofStrip } from "@/components/ProofStrip";
 import { Lineup } from "@/components/Lineup";
@@ -30,7 +29,6 @@ export default async function Home() {
   return (
     <>
       <Header />
-      <AmbassadorBanner />
       <main>
         <Hero products={products} hero={cat.hero} />
         <ProofStrip />

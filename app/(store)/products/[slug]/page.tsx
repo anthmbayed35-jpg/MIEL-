@@ -19,7 +19,7 @@ import {
   ProductFaq,
   ProductHowTo,
   TrustRow,
-  Why,
+  Benefits,
 } from "@/components/product/Sections";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -75,17 +75,19 @@ export default async function ProductPage({ params }: Props) {
       <main className="pb-24 md:pb-0">
         <section className="relative isolate overflow-x-clip">
           <Blobs spots={[{ x: "-12%", y: "0%" }, { x: "60%", y: "50%", delay: -9 }]} />
-          <div className="mx-auto max-w-7xl px-5 pb-14 pt-[112px] md:px-8 md:pt-[136px]">
+          <div className="mx-auto max-w-7xl px-5 pb-14 pt-[calc(var(--header-h,72px)+32px)] md:px-8 md:pt-[calc(var(--header-h,88px)+40px)]">
             <Breadcrumb product={p} />
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
               <Gallery product={p} />
               <div>
                 <h1 className="display text-[clamp(2.25rem,1.4rem+4vw,4.5rem)]">{p.name}</h1>
                 <p className="mono mt-3 !text-[15px]">{p.descriptor}</p>
+                {p.headline && <p className="display mt-4 text-[clamp(1.375rem,1rem+1.6vw,2rem)] leading-tight">{p.headline}</p>}
                 <div className="mt-5">
                   <Chips product={p} />
                 </div>
-                <p className="body-lg mt-5 max-w-xl">{p.description}</p>
+                <p className="body-lg mt-4 max-w-xl">{p.description}</p>
+                <Benefits product={p} />
                 <Notice product={p} />
                 <div className="mt-6">
                   <PriceBlock product={p} />
@@ -102,9 +104,8 @@ export default async function ProductPage({ params }: Props) {
           </div>
         </section>
         <PouchBlock product={p} />
-        <Inside product={p} />
         <ProductHowTo product={p} />
-        <Why product={p} />
+        <Inside product={p} />
         <Compare current={p.slug} products={cat.products} />
         <ProductFaq product={p} />
         <FinalCta action={<AddOneButton product={p} />} />

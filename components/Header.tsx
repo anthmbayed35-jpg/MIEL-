@@ -5,9 +5,10 @@ import { useCart } from "./CartProvider";
 
 export function Header() {
   const { count, setOpen } = useCart();
-  // Sticky floating pill, 12px from the screen edges. The negative bottom margin lets the hero sit under it.
+  // Sticky floating pill, 12px from the screen edges and just below the preview bar (--preview-h, measured by TopOffsets).
+  // Its negative bottom margin (globals.css, .site-header) lets the hero start right under it.
   return (
-    <div className="site-header sticky top-3 z-40 mx-3 -mb-[84px] md:-mb-[100px]">
+    <div className="site-header sticky z-40 mx-3">
       <header className="glass-strong mx-auto max-w-7xl rounded-full">
         {/* Vertical padding = half the logo height (18px mobile / 22px desktop) keeps the clear zone. */}
         <div className="flex items-center justify-between px-6 py-[18px] md:px-8 md:py-[22px]">

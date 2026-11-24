@@ -1,4 +1,6 @@
 import "server-only";
+import { applyCopy } from "@/config/apply-copy";
+import { LEGACY_FAQ_FIRST_Q, LEGACY_HERO_SUB } from "@/config/copy";
 import { products as configProducts, type Product, type ProductPhoto } from "@/config/products";
 import {
   DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
@@ -70,11 +72,12 @@ export async function getCatalog(): Promise<Catalog> {
     const c = (k: string) => (content ?? []).find((x: Row) => x.key === k)?.value;
     const s = (k: string) => (settings ?? []).find((x: Row) => x.key === k)?.value;
     return {
-      products: (prods as Row[]).map((p) => ({ ...rowToProduct(p, imgs ?? []), soldOut: isSoldOut(p, stock) })),
+      products: (prods as Row[]).map((p) => applyCopy({ ...rowToProduct(p, imgs ?? []), soldOut: isSoldOut(p, stock) })),
       zones: (zones ?? []).map((z: Row) => ({ ...z, fee: Number(z.fee), free_over: z.free_over != null ? Number(z.free_over) : null })),
-      faq: c("faq") ?? DEFAULT_FAQ,
+      // databases seeded with the old placeholder wording get the reviewed copy; anything the team edited since stays
+      faq: (c("faq") as FaqItem[] | undefined)?.[0]?.q === LEGACY_FAQ_FIRST_Q ? DEFAULT_FAQ : (c("faq") ?? DEFAULT_FAQ),
       announcement: { ...DEFAULT_ANNOUNCEMENT, ...(c("announcement") ?? {}) },
-      hero: { ...DEFAULT_HERO, ...(c("hero") ?? {}) },
+      hero: { ...DEFAULT_HERO, ...(c("hero")?.sub === LEGACY_HERO_SUB ? {} : (c("hero") ?? {})) },
       testimonials: (c("testimonials") ?? []).filter((t: Testimonial) => t.approved),
       store: { ...DEFAULT_STORE, ...(s("store") ?? {}) },
       tracking: { ...DEFAULT_TRACKING, ...(s("tracking") ?? {}) },

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { findPhoto, type Product } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
+import { COPY } from "@/config/copy";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
 import { useCart } from "./CartProvider";
@@ -23,9 +24,9 @@ export function Lineup({ products, total, title = true, heading, children }: { p
         {heading}
         {title && (
           <Reveal>
-            <p className="mono mb-3">THE LINEUP</p>
+            <p className="mono mb-3">{COPY.lineup.kicker}</p>
             <h2 className="display h-section mb-10 md:mb-14">
-              Pick your <span className="accent">fuel.</span>
+              {COPY.lineup.title1} <span className="accent">{COPY.lineup.title2}</span>
             </h2>
           </Reveal>
         )}

@@ -1,3 +1,4 @@
+import { applyCopy } from "./apply-copy";
 import { POUCH_PRICE } from "./site";
 
 /**
@@ -51,6 +52,8 @@ export type Product = {
   // ---- product page ----
   /** Two-line description (placeholder copy, edit freely). */
   description: string;
+  /** One benefit headline under the name (config/copy.ts). */
+  headline?: string;
   /** Glass chip row under the name. */
   chips: string[];
   /** Short key spec for the compare strip. */
@@ -68,16 +71,12 @@ export type Product = {
 
 /** Labels for gallery slots that have no photo yet (same order as photos). */
 export const SLOT_PLACEHOLDERS = ["POUCH FRONT", "FLAT LAY", "SINGLE SACHET", "INGREDIENTS / LIFESTYLE"];
+// The marketing copy (descriptions, chips, benefits, how-to, FAQ) is in config/copy.ts and is applied by applyCopy() below.
+// The text in the entries is only the fallback shape; do not edit it here.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const commonFaqs = (_name: string): Faq[] => [];
 
-// TODO: all copy below is placeholder wording. No medical claims.
-const commonFaqs = (name: string): Faq[] => [
-  { q: "How many sachets in a pouch?", a: "12 sachets in every stand-up pouch. [PLACEHOLDER]" },
-  { q: "Does it need refrigeration?", a: "No. Keep it in a cool, dry place and toss a few in your gym bag. [PLACEHOLDER]" },
-  { q: "Do you deliver in Lebanon?", a: "Yes. We deliver across Lebanon, cash on delivery. We confirm details with you on WhatsApp. [PLACEHOLDER]" },
-  { q: `Can I mix ${name} with other MIEL+ flavours?`, a: "Yes. Mix and match your pouches. [PLACEHOLDER]" },
-];
-
-export const products: Product[] = [
+const baseProducts: Product[] = [
   {
     id: "red-burn",
     slug: "red-burn",
@@ -234,6 +233,8 @@ export const products: Product[] = [
     ],
   },
 ];
+
+export const products: Product[] = baseProducts.map(applyCopy);
 
 export const getProduct = (slug: string) => products.find((p) => p.slug === slug);
 

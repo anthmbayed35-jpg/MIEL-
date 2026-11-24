@@ -1,4 +1,5 @@
 import { SACHETS_PER_POUCH, SITE } from "@/config/site";
+import { COPY } from "@/config/copy";
 import Link from "next/link";
 import type { FaqItem, Policies, StoreSettings, Testimonial } from "@/config/content";
 import { money } from "@/lib/format";
@@ -7,11 +8,7 @@ import { Reveal } from "./Reveal";
 
 const wrap = "mx-auto max-w-7xl px-5 md:px-8";
 
-const steps = [
-  { n: "01", t: "Take one before", d: "Tear a sachet 15 minutes before you start. Straight from the pouch." },
-  { n: "02", t: "Take one during", d: "Long session? Take another mid-run or mid-set. Keep moving." },
-  { n: "03", t: "Repeat", d: "Every hour or so on long efforts. Carry a few. Simple." },
-];
+const steps = COPY.howTo.steps.map((s, i) => ({ n: String(i + 1).padStart(2, "0"), t: s.title, d: s.text }));
 
 export function HowTo() {
   return (
@@ -19,8 +16,9 @@ export function HowTo() {
       <Blobs spots={[{ x: "-10%", y: "10%" }, { x: "60%", y: "55%", delay: -8 }]} />
       <div className={`${wrap} py-16 md:py-24`}>
       <Reveal>
-        <p className="mono mb-3">HOW TO USE</p>
-        <h2 className="display h-section mb-10 md:mb-14">Rip. Sip. Repeat.</h2>
+        <p className="mono mb-3">{COPY.howTo.kicker}</p>
+        <h2 className="display h-section mb-10 md:mb-14">{COPY.howTo.title}</h2>
+        <p className="mono !text-body -mt-7 mb-10 !text-[14px] md:-mt-10 md:mb-14">{COPY.howTo.timingNote}</p>
       </Reveal>
       <ol className="grid gap-4 lg:grid-cols-3">
         {steps.map((s, i) => (
@@ -41,11 +39,7 @@ export function HowTo() {
   );
 }
 
-const benefits = [
-  { t: "Natural carbs", d: "Real honey. Simple sugars your body knows what to do with." },
-  { t: "Easy on the stomach", d: "No gels that feel like a chemistry set. Just honey and what the flavour needs." },
-  { t: "No crash", d: "Steady fuel for the long haul. Built to keep you going, not spike and drop." },
-];
+const benefits = COPY.whyHoney.items.map((i) => ({ t: i.title, d: i.text }));
 
 export function WhyHoney() {
   return (
@@ -53,9 +47,9 @@ export function WhyHoney() {
       <Blobs spots={[{ x: "65%", y: "-10%" }, { x: "-15%", y: "60%", delay: -11 }]} />
       <div className={`${wrap} py-16 md:py-24`}>
         <Reveal>
-          <p className="mono mb-3">WHY HONEY</p>
+          <p className="mono mb-3">{COPY.whyHoney.kicker}</p>
           <h2 className="display h-section mb-10 md:mb-14">
-            Nature already <span className="accent">figured it out.</span>
+            {COPY.whyHoney.title1} <span className="accent">{COPY.whyHoney.title2}</span>
           </h2>
         </Reveal>
         <div className="grid gap-10 lg:grid-cols-3 lg:gap-8">
@@ -79,21 +73,21 @@ export function Value({ price }: { price: number }) {
       <Blobs spots={[{ x: "30%", y: "-20%" }, { x: "75%", y: "40%", delay: -6 }, { x: "-10%", y: "50%", delay: -13 }]} />
       <div className={`${wrap} py-16 md:py-24`}>
       <Reveal className="glass p-5 md:p-12">
-        <p className="mono mb-6">PER-SACHET VALUE</p>
+        <p className="mono mb-6">{COPY.value.kicker}</p>
         <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
           <div>
-            <p className="mono !text-body">1 POUCH · {SACHETS_PER_POUCH} SACHETS</p>
+            <p className="mono !text-body">{COPY.value.pouchLabel} · {SACHETS_PER_POUCH} SACHETS</p>
             <p className="display mt-1 text-[64px] leading-none md:text-[96px]">{money(POUCH_PRICE)}</p>
           </div>
           <div>
             <p className="display accent text-[48px] leading-none md:text-[80px]">{money(per, 2)}</p>
-            <p className="display mt-2 text-[22px] md:text-[28px]">/ sachet</p>
+            <p className="display mt-2 text-[22px] md:text-[28px]">{COPY.value.perSachetUnit}</p>
           </div>
         </div>
-        <p className="body-lg mt-8 max-w-xl">Real fuel for less than a coffee. Every sachet, every session.</p>
+        <p className="body-lg mt-8 max-w-xl">{COPY.value.line}</p>
         <div className="mt-8">
           <a href="#lineup" className="btn">
-            GET YOUR POUCH
+            {COPY.value.cta}
           </a>
         </div>
       </Reveal>
@@ -136,9 +130,9 @@ export function FinalCta({ action }: { action?: React.ReactNode }) {
       <div className={`${wrap} py-20 md:py-32`}>
         <Reveal>
           <h2 className="display h-hero">
-            No <span className="accent">excuses.</span>
+            {COPY.finalCta.title1} <span className="accent">{COPY.finalCta.title2}</span>
           </h2>
-          <p className="body-lg mt-5 max-w-xl">Pick your fuel. Get it delivered. Go train.</p>
+          <p className="body-lg mt-5 max-w-xl">{COPY.finalCta.text}</p>
           <div className="mt-8">
             {action ?? (
               <a href="#lineup" className="btn">

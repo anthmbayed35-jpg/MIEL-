@@ -310,8 +310,9 @@ textarea.a-input { border-radius: 18px; }
   .no-print { display: none !important; }
 }
 
-/* Preview bar (admin previewing the hidden storefront): keep the floating header clear of the sticky 40px bar. */
-[data-preview] .site-header { top: 3.25rem; }
+/* Top of the page: preview bar (sticky, admins only) > ambassador strip (scrolls away) > floating header (sticky below the bar).
+   TopOffsets (components/TopBars.tsx) measures them and sets --preview-h, --strip-h, --header-h and --top-offset on <html>. */
+.site-header { margin-top: 12px; top: calc(var(--preview-h, 0px) + 12px); margin-bottom: calc(-1 * (var(--header-h, 72px) + 12px)); }
 
 /* Admin on phones: larger type. Small utility sizes inside admin cards step up one size, labels and tables get bigger. */
 @media (max-width: 767px) {

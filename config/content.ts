@@ -1,3 +1,4 @@
+import { COPY } from "./copy";
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL, SITE, WHATSAPP_NUMBER } from "./site";
 
 /**
@@ -9,17 +10,10 @@ export type Announcement = { enabled: boolean; text: string; link: string };
 export type HeroContent = { headline1: string; headline2: string; sub: string };
 export type Testimonial = { id: string; name: string; text: string; rating: number; approved: boolean };
 
-export const DEFAULT_FAQ: FaqItem[] = [
-  { q: "What's in it?", a: "Honey-based sachets, flavoured with real ingredients. RED BURN is pomegranate + beet, GOLD is vanilla + 150mg caffeine, CREATINE has 5g creatine. Full ingredient lists are on every product page. [PLACEHOLDER]" },
-  { q: "When should I take it?", a: "Take one before your workout or run, and another during longer sessions. [PLACEHOLDER]" },
-  { q: "Is it stim-free?", a: "RED BURN and CREATINE are stim-free. GOLD contains 150mg of caffeine per sachet. [PLACEHOLDER]" },
-  { q: "Does it need refrigeration?", a: "No. Keep it in a cool, dry place. Toss a few in your gym bag. [PLACEHOLDER]" },
-  { q: "Do you deliver in Lebanon?", a: "Yes. We deliver across Lebanon, cash on delivery. We confirm delivery details with you on WhatsApp. [PLACEHOLDER]" },
-  { q: "How many sachets in a pouch?", a: "12 sachets in every pouch." },
-];
+export const DEFAULT_FAQ: FaqItem[] = COPY.homeFaq.map((f) => ({ ...f }));
 
 export const DEFAULT_ANNOUNCEMENT: Announcement = { enabled: false, text: "Free delivery on orders over $60 in Beirut.", link: "" };
-export const DEFAULT_HERO: HeroContent = { headline1: "Fuel the", headline2: "grind.", sub: "Honey-powered sachets for people who train. Rip. Sip. Go." };
+export const DEFAULT_HERO: HeroContent = { headline1: COPY.hero.headline1, headline2: COPY.hero.headline2, sub: COPY.hero.sub };
 
 export type StoreSettings = {
   name: string;

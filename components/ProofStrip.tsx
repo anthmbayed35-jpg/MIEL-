@@ -1,6 +1,6 @@
-import { SACHETS_PER_POUCH } from "@/config/site";
+import { COPY } from "@/config/copy";
 
-const facts = ["REAL HONEY", `${SACHETS_PER_POUCH} SACHETS PER POUCH`, "MADE FOR ENDURANCE", "DELIVERED IN LEBANON"];
+const facts = COPY.proofStrip;
 
 export function ProofStrip() {
   return (
