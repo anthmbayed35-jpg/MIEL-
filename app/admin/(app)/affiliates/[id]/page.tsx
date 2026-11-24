@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DEFAULT_COMMISSION_PERCENT, DEFAULT_CUSTOMER_DISCOUNT_PERCENT, TIER_RULES } from "@/config/affiliates";
 import { requirePerm } from "@/lib/auth";
+import { newApplicationCount } from "@/lib/affiliates";
 import { affiliateOrders, affiliatePayouts, affiliateStats, suggestedTier } from "@/lib/affiliates";
 import { absoluteUrl } from "@/lib/site-url";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { AffiliateForm } from "@/components/admin/AffiliateForm";
 import { CopyField } from "@/components/admin/CopyField";
-import { AFFILIATE_TABS, SubNav } from "@/components/admin/SubNav";
+import { SubNav } from "@/components/admin/SubNav";
+import { affiliateTabs } from "@/lib/admin-tabs";
 import { Card, DataTable, Empty, Field, Flash, Money, PageHeader, SectionTitle, StatusBadge } from "@/components/admin/ui";
 import { recordPayoutAction, upgradeTierAction } from "../actions";
 
@@ -30,6 +32,7 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
   const payouts = affiliatePayouts(id);
   const suggest = suggestedTier(a.delivered, a.tier);
   const link = absoluteUrl(`/partner/${a.private_token}`);
+  const refLink = absoluteUrl(`/?ref=${a.code}`); // the personal link: opens the shop and fills in the code at checkout
 
   return (
     <>
@@ -37,7 +40,7 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
         actions={<span className={`status ${a.status === "active" ? "st-delivered" : a.status === "paused" ? "st-packed" : "st-cancelled"}`}>{a.status}</span>}>
         <p className="mt-2 text-[17px] text-body"><span className="mono !text-[16px] !text-fg">{a.code}</span>{a.instagram_handle && <> · @{a.instagram_handle}</>}</p>
       </PageHeader>
-      <SubNav items={AFFILIATE_TABS} role={admin.role} />
+      <SubNav items={affiliateTabs(newApplicationCount())} role={admin.role} />
       {sp.created && <Flash msg="Affiliate created. Share the code, and the private stats link below." />}
 
       {suggest && (
@@ -84,8 +87,12 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
           </ActionForm>
         </Card>
         <Card>
-          <SectionTitle>Private stats page</SectionTitle>
-          <CopyField label="Link for the affiliate (read only)" value={link} note="Anyone with this link sees their code, orders and commission, nothing else. Don't post it publicly." />
+          <SectionTitle>Code and links</SectionTitle>
+          <div className="space-y-5">
+            <CopyField label="Code" value={a.code} note={`${a.customer_discount_percent_x100 / 100}% off for their followers, ${a.commission_rate_x100 / 100}% commission for them.`} button="Copy code" />
+            <CopyField label="Personal link to share (adds the code at checkout)" value={refLink} />
+            <CopyField label="Private stats page for the affiliate (read only)" value={link} note="Anyone with this link sees their code, orders and commission, nothing else. Do not post it publicly." />
+          </div>
         </Card>
       </div>
 
@@ -126,7 +133,7 @@ export default async function AffiliatePage({ params, searchParams }: { params: 
       <Card className="mt-5">
         <SectionTitle>Edit affiliate</SectionTitle>
         <AffiliateForm a={a} defaults={{ commission: DEFAULT_COMMISSION_PERCENT, discount: DEFAULT_CUSTOMER_DISCOUNT_PERCENT }} />
-        <p className="mt-4 text-[14px] text-body">Changing the code or rates only affects orders placed afterwards. <Link href="/admin/affiliates" className="underline underline-offset-4">Back to all affiliates</Link></p>
+        <p className="mt-4 text-[14px] text-body">Changing the code or rates only affects orders placed afterwards. <Link href="/admin/affiliates/list" className="underline underline-offset-4">Back to all affiliates</Link></p>
       </Card>
     </>
   );

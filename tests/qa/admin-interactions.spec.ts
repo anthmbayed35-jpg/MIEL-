@@ -121,21 +121,21 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator("main")).not.toContainText("NaN");
       }
     });
-    await S("/admin/affiliates", "search, every status filter, empty result", async () => {
-      await page.goto("/admin/affiliates");
+    await S("/admin/affiliates/list", "search, every status filter, empty result", async () => {
+      await page.goto("/admin/affiliates/list");
       await page.locator("input[name=q]").fill("QAAFF0");
       await page.getByRole("button", { name: "Apply" }).click();
       const want = one<Record<string, number>>("SELECT COUNT(*) n FROM affiliates WHERE code LIKE '%QAAFF0%' OR name LIKE '%QAAFF0%' OR instagram_handle LIKE '%QAAFF0%'")!.n;
       expect(await page.locator("table tbody tr, [data-card]").count()).toBeGreaterThanOrEqual(1);
       for (const status of ["active", "paused", "ended"]) {
-        await page.goto(`/admin/affiliates?status=${status}`);
+        await page.goto(`/admin/affiliates/list?status=${status}`);
         const n = one<Record<string, number>>("SELECT COUNT(*) n FROM affiliates WHERE status = ?", status)!.n;
         if (vp.mobile) await expect(page.locator("main")).toContainText(new RegExp(status, "i"));
         else expect(await page.locator("table tbody tr").count()).toBe(n);
       }
       void want;
-      await page.goto("/admin/affiliates?q=zzzzzzzz");
-      await expect(page.getByText("No affiliates yet.")).toBeVisible();
+      await page.goto("/admin/affiliates/list?q=zzzzzzzz");
+      await expect(page.getByText("No affiliates match.")).toBeVisible();
     });
     await S("/admin/settings/activity", "paging and filters load", async () => {
       await page.goto("/admin/settings/activity");
@@ -190,15 +190,21 @@ for (const vp of VIEWPORTS) {
         await page.keyboard.press("Escape");
       });
     if (vp.mobile)
-      await S("shell", "phone navigation: the menu opens and every entry (including Affiliates) is reachable at 48px", async () => {
+      await S("shell", "phone navigation: Affiliates is a tab after Orders, the More menu opens, every entry is reachable at 48px", async () => {
         await page.goto("/admin");
-        const more = page.getByRole("button", { name: /more/i }).first();
-        await more.click();
-        await expect(page.getByRole("link", { name: "Affiliates" }).first()).toBeVisible();
-        const box = await page.getByRole("link", { name: "Affiliates" }).first().boundingBox();
-        expect(box!.height).toBeGreaterThanOrEqual(47.5);
-        await page.getByRole("link", { name: "Affiliates" }).first().click();
-        await expect(page).toHaveURL(/\/admin\/affiliates/);
+        await page.waitForTimeout(800); // hydration
+        const tabs = page.getByRole("navigation", { name: "Admin sections" });
+        const names = (await tabs.getByRole("link").allInnerTexts()).map((t) => t.replace(/^\d+\s+/, "").replace(/\d+$/, "").trim());
+        expect(names.slice(0, 3)).toEqual(["Dashboard", "Orders", "Affiliates"]);
+        const aff = tabs.getByRole("link", { name: /Affiliates/ });
+        expect((await aff.boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
+        await page.getByRole("button", { name: /more/i }).first().click();
+        const sheet = page.getByRole("dialog", { name: "More sections" });
+        await expect(sheet.getByRole("link", { name: "Discounts" })).toBeVisible();
+        expect((await sheet.getByRole("link", { name: "Discounts" }).boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
+        await sheet.getByRole("button", { name: "Close", exact: true }).click();
+        await aff.click();
+        await expect(page).toHaveURL(/\/admin\/affiliates$/);
       });
 
     // ---------------------------------------------------------------- validation messages (nothing is saved)

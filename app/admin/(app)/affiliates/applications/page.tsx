@@ -1,7 +1,9 @@
 import { requirePerm } from "@/lib/auth";
+import { newApplicationCount } from "@/lib/affiliates";
 import { listApplications } from "@/lib/affiliates";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
-import { AFFILIATE_TABS, SubNav } from "@/components/admin/SubNav";
+import { SubNav } from "@/components/admin/SubNav";
+import { affiliateTabs } from "@/lib/admin-tabs";
 import { Card, Empty, PageHeader } from "@/components/admin/ui";
 import { approveApplicationAction, rejectApplicationAction } from "../actions";
 
@@ -17,7 +19,7 @@ export default async function ApplicationsPage() {
   return (
     <>
       <PageHeader eyebrow="From /ambassadors" title="Applications" />
-      <SubNav items={AFFILIATE_TABS} role={admin.role} />
+      <SubNav items={affiliateTabs(newApplicationCount())} role={admin.role} />
       {apps.length === 0 ? (
         <Card><Empty title="No applications yet." hint="People apply on the Ambassadors page of the store." /></Card>
       ) : (

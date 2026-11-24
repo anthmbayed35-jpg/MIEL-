@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 /** A read-only value (a link) with a Copy button, for things the team hands over by hand. */
-export function CopyField({ label, value, note }: { label: string; value: string; note?: string }) {
+export function CopyField({ label, value, note, button = "Copy link" }: { label: string; value: string; note?: string; button?: string }) {
   const [done, setDone] = useState(false);
   return (
     <div role="group" aria-label={label}>
@@ -23,7 +23,7 @@ export function CopyField({ label, value, note }: { label: string; value: string
             }
           }}
         >
-          {done ? "Copied" : "Copy link"}
+          {done ? "Copied" : button}
         </button>
       </div>
       {note && <p className="mt-2 text-[14px] text-body">{note}</p>}

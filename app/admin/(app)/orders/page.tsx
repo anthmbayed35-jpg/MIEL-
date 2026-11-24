@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { can, requirePerm } from "@/lib/auth";
+import { affiliateOptions } from "@/lib/affiliates";
 import { getDb, must, type Row } from "@/lib/db";
 import { listOrders, PAGE_SIZE } from "@/lib/queries";
 import { ORDER_STATUSES, STATUS_LABEL } from "@/lib/status";
@@ -8,7 +9,7 @@ import { OrdersTable } from "@/components/admin/OrdersTable";
 
 export const metadata = { title: "Orders" };
 
-type SP = { q?: string; status?: string; pay?: string; region?: string; from?: string; to?: string; page?: string };
+type SP = { q?: string; status?: string; pay?: string; region?: string; affiliate?: string; from?: string; to?: string; page?: string };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const admin = await requirePerm("orders.read");
@@ -20,6 +21,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     return <ErrorState message={(e as Error).message} />;
   }
   const zones = must(await getDb().from("shipping_zones").select("name").order("sort", { ascending: true })) as Row[];
+  const affiliates = can(admin.role, "affiliates.read") ? affiliateOptions() : [];
   const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
   const qs = (over: Record<string, string | number>) => {
     const p = new URLSearchParams(Object.entries({ ...sp, ...over }).filter(([, v]) => v !== undefined && v !== "") as [string, string][]);
@@ -56,6 +58,12 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
             <option value="">All regions</option>
             {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
           </select>
+          {affiliates.length > 0 && (
+            <select name="affiliate" defaultValue={sp.affiliate ?? ""} className="a-input" aria-label="Affiliate">
+              <option value="">All affiliates</option>
+              {affiliates.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.code})</option>)}
+            </select>
+          )}
           <div className="flex gap-2">
             <input type="date" name="from" defaultValue={sp.from} className="a-input" aria-label="From date" />
             <input type="date" name="to" defaultValue={sp.to} className="a-input" aria-label="To date" />
@@ -71,6 +79,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           rows={data.orders.map((o: Row) => ({
             id: o.id, number: o.order_number, date: o.created_at, customer: o.customer?.name ?? "—", phone: o.customer?.phone ?? "",
             region: o.region, total: Number(o.total), status: o.status, collected: !!o.cod_collected, source: o.source, test: !!o.is_test,
+            affiliate: o.affiliate ? { id: o.affiliate.id, name: o.affiliate.name, code: o.affiliate.code, discount: Number(o.discount_amount), commission: Number(o.commission_amount), commissionStatus: o.commission_status } : undefined,
           }))}
         />
 

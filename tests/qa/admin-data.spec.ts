@@ -36,10 +36,13 @@ const n = (v: unknown) => Number(Object.values(v as object)[0] ?? 0);
 test("list totals: orders, customers, products, inventory, discounts", async () => {
   await page.goto("/admin/orders");
   eq("/admin/orders", "orders count", Number((await text(page, "main")).match(/(\d[\d,]*) orders?/i)?.[1].replace(/,/g, "")), n(one("SELECT COUNT(*) FROM orders WHERE status <> 'draft'")));
-  const firstRow = (await page.locator("table tbody tr").first().innerText()).replace(/\s+/g, " ");
+  const firstRowText = await page.locator("table tbody tr").first().innerText();
+  const firstRow = firstRowText.replace(/\s+/g, " ");
+  // columns: Order, Date, Customer, Region, Affiliate, Total, Payment, Status (the Affiliate cell also holds dollar amounts, so read the Total cell itself)
+  const totalCell = firstRowText.split("\t")[5] ?? "";
   const latest = one<{ order_number: number; total_cents: number }>("SELECT order_number, total_cents FROM orders WHERE status <> 'draft' ORDER BY created_at DESC LIMIT 1")!;
   eq("/admin/orders", "newest order number is first", Number(firstRow.match(/#(\d+)/)?.[1]), latest.order_number);
-  eq("/admin/orders", "newest order total", cents(firstRow.match(/\$[\d,]+\.\d\d/)?.[0] ?? ""), latest.total_cents);
+  eq("/admin/orders", "newest order total", cents(totalCell), latest.total_cents);
 
   await page.goto("/admin/customers");
   const cust = (await text(page, "main")).match(/PAGE 1 \/ (\d+) · (\d[\d,]*) customers?/i);
@@ -92,36 +95,62 @@ function affiliateSql(id: string) {
 }
 
 test("affiliates list, overview cards and top five match SQL to the cent", async () => {
-  await page.goto("/admin/affiliates");
+  await page.goto("/admin/affiliates/list");
   const rows = await page.locator("table tbody tr").allInnerTexts();
   expect(rows).toHaveLength(20);
-  let sumSales = 0, sumPending = 0, sumApproved = 0, sumPaid = 0, sumCorr = 0;
+  let sumSales = 0, sumOwed = 0, sumPending = 0, sumApproved = 0, sumCorr = 0;
   for (const r of rows) {
+    // columns: Affiliate, Instagram, Code, Tier, Orders, Sales, Commission owed, Status
     const cells = r.split("\t").map((c) => c.replace(/\s+/g, " ").trim());
-    const code = cells[1];
-    const a = one<{ id: string }>("SELECT id FROM affiliates WHERE code = ?", code)!;
+    const code = cells[2];
+    const a = one<{ id: string; instagram_handle: string }>("SELECT id, instagram_handle FROM affiliates WHERE code = ?", code)!;
     const s = affiliateSql(a.id);
-    eq("/admin/affiliates", `${code} orders`, Number(cells[3]), s.orders);
-    eq("/admin/affiliates", `${code} sales`, cents(cells[4]), s.sales);
-    eq("/admin/affiliates", `${code} pending`, cents(cells[5]), s.pending);
-    eq("/admin/affiliates", `${code} approved`, cents(cells[6]), s.approved);
-    eq("/admin/affiliates", `${code} paid`, cents(cells[7]), s.paid);
-    sumSales += cents(cells[4]); sumPending += cents(cells[5]); sumApproved += cents(cells[6]); sumPaid += cents(cells[7]);
-    sumCorr += s.corrections;
+    eq("/admin/affiliates/list", `${code} instagram`, cells[1], `@${a.instagram_handle}`);
+    eq("/admin/affiliates/list", `${code} orders`, Number(cells[4]), s.orders);
+    eq("/admin/affiliates/list", `${code} sales`, cents(cells[5]), s.sales);
+    eq("/admin/affiliates/list", `${code} commission owed (pending + approved)`, cents(cells[6]), s.pending + s.approved);
+    sumSales += cents(cells[5]); sumOwed += cents(cells[6]); sumPending += s.pending; sumApproved += s.approved; sumCorr += s.corrections;
   }
+  await page.goto("/admin/affiliates");
   const ov = (l: string) => card(page, "Overview", l);
   eq("/admin/affiliates", "overview: affiliate sales", cents(await ov("Affiliate sales")), sumSales);
-  eq("/admin/affiliates", "overview: commission owed", cents(await ov("Commission owed")), sumPending + sumApproved);
-  eq("/admin/affiliates", "overview: ready to pay", cents(await ov("Ready to pay")), sumApproved);
+  eq("/admin/affiliates", "overview: commission pending", cents(await ov("Commission pending")), sumPending);
+  eq("/admin/affiliates", "overview: commission approved", cents(await ov("Commission approved")), sumApproved);
+  eq("/admin/affiliates", "overview: pending + approved = the list's commission owed", sumPending + sumApproved, sumOwed);
   eq("/admin/affiliates", "overview: corrections owed back", cents(await ov("Corrections owed back")), sumCorr);
   eq("/admin/affiliates", "overview: active affiliates", Number(await ov("Active affiliates")), n(one("SELECT COUNT(*) FROM affiliates WHERE status = 'active'")));
   // the same totals straight from SQL, independent of the rows above
   const t = one<Record<string, number>>(`SELECT COALESCE(SUM(CASE WHEN ${VALID} THEN o.subtotal_cents - o.discount_amount_cents END),0) AS sales, COALESCE(SUM(CASE WHEN o.commission_status='paid' THEN o.commission_amount_cents END),0) AS paid FROM orders o WHERE o.affiliate_id IS NOT NULL`)!;
-  eq("/admin/affiliates", "sum of the rows = SQL total sales", sumSales, t.sales);
-  eq("/admin/affiliates", "sum of the rows = SQL total paid", sumPaid, t.paid);
-  const top = (await page.locator("ol li").allInnerTexts()).slice(0, 5).map((s) => s.replace(/\s+/g, " "));
-  const topSql = sql<{ code: string; sales: number; orders: number }>(`SELECT a.code, SUM(o.subtotal_cents - o.discount_amount_cents) AS sales, COUNT(*) AS orders FROM affiliates a JOIN orders o ON o.affiliate_id = a.id AND ${VALID} GROUP BY a.id ORDER BY sales DESC LIMIT 5`);
-  eq("/admin/affiliates", "top five (code, sales, orders)", top.map((s) => [s.match(/QAAFF\d\d/)?.[0], cents(s.match(/\$[\d,]+\.\d\d/)?.[0] ?? ""), Number(s.match(/(\d+) orders/)?.[1])]), topSql.map((r) => [r.code, r.sales, r.orders]));
+  eq("/admin/affiliates", "sum of the list rows = SQL total sales", sumSales, t.sales);
+  eq("/admin/affiliates", "overview: commission paid = SQL", cents(await ov("Commission paid")), t.paid);
+  // top five THIS MONTH (Beirut): the seed spreads orders over 13 months, so this is a different set from "all time"
+  const { monthRange } = await import("../../lib/time");
+  const ym = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Beirut" }).slice(0, 7);
+  const { from, to } = monthRange(ym);
+  const topSql = sql<{ code: string; sales: number; orders: number }>(`SELECT a.code, SUM(o.subtotal_cents - o.discount_amount_cents) AS sales, COUNT(*) AS orders FROM affiliates a JOIN orders o ON o.affiliate_id = a.id AND ${VALID} AND o.created_at >= ? AND o.created_at < ? GROUP BY a.id ORDER BY sales DESC, a.name LIMIT 5`, from.toISOString(), to.toISOString());
+  const top = (await page.locator("ol li").allInnerTexts()).slice(0, topSql.length).map((s) => s.replace(/\s+/g, " "));
+  eq("/admin/affiliates", "top five this month (code, sales, orders)", top.map((s) => [s.match(/QAAFF\d\d/)?.[0], cents(s.match(/\$[\d,]+\.\d\d/)?.[0] ?? ""), Number(s.match(/(\d+) orders/)?.[1])]), topSql.map((r) => [r.code, r.sales, r.orders]));
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+});
+
+test("payouts page: every payout and the month CSV match SQL", async () => {
+  await page.goto("/admin/affiliates/payouts");
+  const rows = await page.locator("table tbody tr").allInnerTexts();
+  const payouts = sql<{ amount_cents: number; corrections_cents: number }>("SELECT amount_cents, corrections_cents FROM affiliate_payouts ORDER BY paid_at DESC, rowid DESC LIMIT 300");
+  eq("/admin/affiliates/payouts", "payout rows", rows.length, payouts.length);
+  // columns: Date, Affiliate, Amount, Of which corrections, Method, Note
+  eq("/admin/affiliates/payouts", "sum of the amounts", rows.reduce((sum, r) => sum + cents(r.split("\t")[2] ?? ""), 0), payouts.reduce((sum, p) => sum + p.amount_cents, 0));
+  const { monthRange } = await import("../../lib/time");
+  const months = sql<{ m: string }>("SELECT DISTINCT substr(paid_at,1,7) m FROM affiliate_payouts ORDER BY m DESC LIMIT 3").map((r) => r.m);
+  for (const m of months) {
+    const { from, to } = monthRange(m);
+    const want = sql<{ amount_cents: number }>("SELECT amount_cents FROM affiliate_payouts WHERE paid_at >= ? AND paid_at < ?", from.toISOString(), to.toISOString());
+    const res = await page.request.get(`/admin/affiliates/payouts/export?month=${m}`);
+    expect(res.status()).toBe(200);
+    const lines = (await res.text()).replace(/^\uFEFF/, "").trim().split("\n");
+    eq(`/admin/affiliates/payouts/export ${m}`, "rows", lines.length - 1, want.length);
+    eq(`/admin/affiliates/payouts/export ${m}`, "paid total", lines.slice(1).reduce((sum, l) => sum + cents(l.split('","')[7] ?? ""), 0), want.reduce((sum, p) => sum + p.amount_cents, 0));
+  }
   expect(checks.filter((c) => !c.ok)).toEqual([]);
 });
 

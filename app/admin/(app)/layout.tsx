@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
+import { can, requireAdmin } from "@/lib/auth";
+import { newApplicationCount } from "@/lib/affiliates";
 import { BottomTabs, TopNav } from "@/components/admin/AdminNav";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -9,6 +10,8 @@ import { StatusBanners } from "@/components/admin/StatusBanners";
 
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
+  // the number of new ambassador applications shows as a badge on the Affiliates menu item (refreshed with every page and live update)
+  const badges: Record<string, number> = can(admin.role, "affiliates.read") ? { "/admin/affiliates": newApplicationCount() } : {};
 
   return (
     <div className="relative min-h-screen pb-32 lg:pb-12">
@@ -18,7 +21,7 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/miel-m-plus.png" alt="MIEL+" width={358} height={228} className="h-9 w-auto" />
           </Link>
-          <TopNav role={admin.role} />
+          <TopNav role={admin.role} badges={badges} />
           <div className="flex items-center gap-2">
             <SearchButton />
             <NotificationBell />
@@ -43,7 +46,7 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
         <StatusBanners />
         {children}
       </main>
-      <BottomTabs role={admin.role} />
+      <BottomTabs role={admin.role} badges={badges} />
       <CommandPalette />
     </div>
   );

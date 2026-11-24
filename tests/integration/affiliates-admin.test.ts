@@ -82,7 +82,9 @@ describe("admin affiliate actions", () => {
 
 describe("admin pages, roles and export", () => {
   const PAGES: [string, () => Promise<any>][] = [
-    ["list", () => import("@/app/admin/(app)/affiliates/page")],
+    ["overview", () => import("@/app/admin/(app)/affiliates/page")],
+    ["list", () => import("@/app/admin/(app)/affiliates/list/page")],
+    ["payouts", () => import("@/app/admin/(app)/affiliates/payouts/page")],
     ["new", () => import("@/app/admin/(app)/affiliates/new/page")],
     ["applications", () => import("@/app/admin/(app)/affiliates/applications/page")],
   ];
@@ -92,16 +94,26 @@ describe("admin pages, roles and export", () => {
     const a = createAffiliate({ name: "Rami Khoury", code: "RAMI10", instagram_handle: "rami.runs" });
     createApplication({ name: "Hadi Saad", instagram_handle: "hadi.fit", message: "hello" });
     placeOrder({ customer: { name: "Cara", phone: "03 111 222", address: "Hamra, Bldg 5" }, items: [{ productId: S.red.id, qty: 2 }], region: "Beirut", source: "web", actor: "c", code: "RAMI10" });
-    const list = await html(PAGES[0][1]);
+    const overview = await html(PAGES[0][1]);
+    expect(overview).toContain("1 new application");
+    expect(overview).toContain("Top 5 this month");
+    for (const card of ["Affiliate sales", "Commission pending", "Commission approved", "Commission paid"]) expect(overview, card).toContain(card);
+    expect(overview).toContain("RAMI10"); // the order was placed this month
+    const list = await html(PAGES[1][1]);
     expect(list).toContain("RAMI10");
-    expect(list).toContain("1 new application");
-    expect(list).toContain("Top affiliates");
+    expect(list).toContain("@rami.runs");
+    expect(list).toContain("Commission owed");
+    expect(list).toContain("Add affiliate");
+    expect(list).toContain("Applications"); // the section tabs, with the badge for the new application
+    expect(list).toMatch(/aria-label="1 new"/);
     const detail = await html(() => import("@/app/admin/(app)/affiliates/[id]/page"), { params: Promise.resolve({ id: a.id }) });
     expect(detail).toContain("Record payout");
     expect(detail).toContain(`/partner/${a.private_token}`);
+    expect(detail).toContain("/?ref=RAMI10"); // the personal link
+    expect(detail).toContain("Copy code");
     expect(detail).not.toMatch(/NaN|undefined|\[object Object\]/);
     await expect(html(() => import("@/app/admin/(app)/affiliates/[id]/page"), { params: Promise.resolve({ id: "missing" }) })).rejects.toThrow("HTTP_404");
-    expect(await html(PAGES[2][1])).toContain("Hadi Saad");
+    expect(await html(PAGES[4][1])).toContain("Hadi Saad");
   });
 
   it("staff can't open any of it, and every action refuses staff", async () => {

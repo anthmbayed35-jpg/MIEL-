@@ -22,7 +22,7 @@ const PERM: [RegExp, Perm | null][] = [
 const need = (url: string): Perm | null => PERM.find(([re]) => re.test(url))?.[1] ?? null;
 const ROUTES: [string, Perm | null][] = [
   ["/admin/orders/export", "exports.run"], ["/admin/customers/export", "exports.run"], ["/admin/analytics/export?kind=sales", "analytics.read"],
-  ["/admin/affiliates/export?month=2026-11", "exports.run"], ["/admin/backup/download", "backup.download"],
+  ["/admin/affiliates/export?month=2026-11", "exports.run"], ["/admin/affiliates/payouts/export?month=2026-11", "exports.run"], ["/admin/backup/download", "backup.download"],
   ["/admin/api/notifications", null], ["/admin/api/search?q=ab", null],
 ];
 type Item = { who: string; what: string; ok: boolean; note: string };

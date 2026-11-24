@@ -45,7 +45,7 @@ function adminPages(): string[] {
   const urls = out.map(fill).filter((u) => !skip.has(u));
   const token = one<{ private_token: string }>("SELECT private_token FROM affiliates LIMIT 1")?.private_token;
   if (token) urls.push(`/partner/${token}`);
-  urls.push("/admin/affiliates?status=active", `/admin/print?type=packing&ids=${order}`, `/admin/print?type=invoice&ids=${order}`, "/admin/orders?status=delivered", "/admin/orders?q=E2E");
+  urls.push("/admin/affiliates/list?status=active", `/admin/print?type=packing&ids=${order}`, `/admin/print?type=invoice&ids=${order}`, "/admin/orders?status=delivered", "/admin/orders?q=E2E");
   return [...new Set(urls)].sort();
 }
 

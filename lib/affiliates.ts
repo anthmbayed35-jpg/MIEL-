@@ -4,7 +4,7 @@ import { AFFILIATE_STATUSES, COMMISSION_APPROVAL_DAYS, DEFAULT_COMMISSION_PERCEN
 import { isValidCode, normalizeCode } from "./affiliate-math";
 import { getEngine } from "./db";
 import { publish } from "./events";
-import { monthRange } from "./time";
+import { monthRange, zonedParts } from "./time";
 
 /**
  * Influencer affiliates: data access, commission lifecycle and reporting. Money is integer cents inside the SQL here; the
@@ -320,3 +320,38 @@ export function rejectApplication(id: string) {
   const r = db().prepare("UPDATE affiliate_applications SET status = 'rejected' WHERE id = ? AND status = 'new'").run(id);
   if (!r.changes) throw new Error("This application was already handled.");
 }
+
+// ---------------------------------------------------------------- navigation, overview and payouts screens
+/** New (undecided) ambassador applications: the badge on the Applications tab and on the Affiliates menu item. */
+export const newApplicationCount = (): number => (db().prepare("SELECT COUNT(*) AS n FROM affiliate_applications WHERE status = 'new'").get() as { n: number }).n;
+
+/** Top affiliates by sales in the current calendar month of the store's time zone (Asia/Beirut). */
+export function topThisMonth(limit = 5, now = new Date()) {
+  const { y, m } = zonedParts(now);
+  const { from, to } = monthRange(`${y}-${String(m).padStart(2, "0")}`);
+  return db().prepare(
+    `SELECT a.id, a.name, a.code, COALESCE(SUM(o.subtotal_cents - o.discount_amount_cents), 0) AS sales_cents, COUNT(o.id) AS orders
+     FROM affiliates a JOIN orders o ON o.affiliate_id = a.id AND ${VALID} AND o.created_at >= ? AND o.created_at < ?
+     GROUP BY a.id ORDER BY sales_cents DESC, a.name LIMIT ?`,
+  ).all(from.toISOString(), to.toISOString(), limit) as { id: string; name: string; code: string; sales_cents: number; orders: number }[];
+}
+
+export type PayoutRow = { id: string; affiliate_id: string; name: string; code: string; instagram_handle: string; amount_cents: number; gross_cents: number; corrections_cents: number; method: string; note: string; paid_at: string };
+/** Every payout, newest first, with the affiliate. `month` (YYYY-MM, store time zone) limits it for the CSV; `limit` caps the screen. */
+export function listPayouts(opts: { month?: string; limit?: number } = {}): PayoutRow[] {
+  const where: string[] = [];
+  const p: unknown[] = [];
+  if (opts.month) {
+    const { from, to } = monthRange(opts.month);
+    where.push("p.paid_at >= ? AND p.paid_at < ?");
+    p.push(from.toISOString(), to.toISOString());
+  }
+  return db().prepare(
+    `SELECT p.id, p.affiliate_id, a.name, a.code, a.instagram_handle, p.amount_cents, p.gross_cents, p.corrections_cents, p.method, p.note, p.paid_at
+     FROM affiliate_payouts p JOIN affiliates a ON a.id = p.affiliate_id ${where.length ? "WHERE " + where.join(" AND ") : ""}
+     ORDER BY p.paid_at DESC, p.rowid DESC ${opts.limit ? "LIMIT " + Math.floor(opts.limit) : ""}`,
+  ).all(...p) as PayoutRow[];
+}
+
+/** Everyone, for the "filter orders by affiliate" menu. */
+export const affiliateOptions = () => db().prepare("SELECT id, name, code FROM affiliates ORDER BY name COLLATE NOCASE").all() as { id: string; name: string; code: string }[];

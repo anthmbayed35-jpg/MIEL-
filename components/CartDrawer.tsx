@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { decodeRef, encodeRef, parseRef, REF_KEY } from "@/lib/ref";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
 import { getUtm, trackEvent } from "@/lib/track-client";
@@ -27,6 +28,17 @@ export function CartDrawer() {
   const [error, setError] = useState("");
   const [region, setRegion] = useState("");
   const [code, setCode] = useState("");
+  // An affiliate's personal link (/?ref=CODE): remember the code and put it in the discount field. The server still checks it.
+  useEffect(() => {
+    try {
+      const fromLink = parseRef(window.location.search);
+      if (fromLink) localStorage.setItem(REF_KEY, encodeRef(fromLink));
+      const c = fromLink ?? decodeRef(localStorage.getItem(REF_KEY));
+      if (c) setCode((cur) => cur || c);
+    } catch {
+      /* storage blocked: the customer can still type the code */
+    }
+  }, []);
   const [quote, setQuote] = useState<QuoteView | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");

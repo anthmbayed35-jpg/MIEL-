@@ -135,8 +135,9 @@ test("cancelling an order voids its commission and an affiliate list shows the t
   await expect.poll(() => one<{ s: string }>("SELECT commission_status s FROM orders WHERE id = ?", id)?.s, { timeout: 15_000 }).toBe("void");
   expect(one("SELECT commission_status s FROM orders WHERE id = ?", id)).toMatchObject({ s: "void" });
   await page.goto("/admin/affiliates");
-  await expect(page.getByText("Top affiliates")).toBeVisible();
-  await expect(page.getByText(state.code).first()).toBeVisible();
+  await expect(page.getByText(/Top 5 this month/)).toBeVisible();
+  await page.goto("/admin/affiliates/list");
+  await expect(page.getByText(state.code).locator("visible=true").first()).toBeVisible(); // the table is hidden on a phone: the cards show it
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 });
 

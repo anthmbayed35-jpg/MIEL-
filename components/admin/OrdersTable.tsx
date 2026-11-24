@@ -18,6 +18,8 @@ export type OrderRow = {
   collected: boolean;
   source: string;
   test?: boolean;
+  /** The affiliate whose code was used, with what it earned: shown in the list so a team member sees it without opening the order. */
+  affiliate?: { id: string; name: string; code: string; discount: number; commission: number; commissionStatus: string | null };
 };
 
 /** Orders list with row selection and bulk actions (change status, print slips). */
@@ -40,6 +42,15 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
     { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
     { key: "cust", label: "Customer", render: (r) => <span><span className="block text-fg">{r.customer}</span><span className="block text-[13px] text-muted">{r.phone}</span></span> },
     { key: "region", label: "Region", render: (r) => r.region || "—" },
+    {
+      key: "aff", label: "Affiliate",
+      render: (r) =>
+        r.affiliate ? (
+          <span><span className="block text-fg">{r.affiliate.name}</span><span className="block text-[13px] text-muted">{r.affiliate.code} · −${r.affiliate.discount.toFixed(2)} · commission ${r.affiliate.commission.toFixed(2)}{r.affiliate.commissionStatus ? ` (${r.affiliate.commissionStatus})` : ""}</span></span>
+        ) : (
+          <span className="text-muted">—</span>
+        ),
+    },
     { key: "total", label: "Total", render: (r) => <Money value={r.total} className="text-[18px]" />, className: "tnum" },
     { key: "pay", label: "Payment", render: (r) => (["cancelled", "draft"].includes(r.status) ? <span className="text-muted">—</span> : <PayBadge collected={r.collected} refunded={r.status === "returned" && r.collected} />) },
     { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },

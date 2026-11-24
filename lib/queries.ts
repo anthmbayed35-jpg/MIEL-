@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb, must, type Row } from "./db";
 
-export type OrderFilters = { q?: string; status?: string; pay?: string; region?: string; from?: string; to?: string; page?: number };
+export type OrderFilters = { q?: string; status?: string; pay?: string; region?: string; affiliate?: string; from?: string; to?: string; page?: number };
 export const PAGE_SIZE = 25;
 
 /** Filtered order list with customer attached. paginate=false returns everything (CSV export / bulk print). */
@@ -17,6 +17,7 @@ export async function listOrders(f: OrderFilters, paginate = true) {
     q = f.status && ["cancelled", "returned", "draft"].includes(f.status) ? q.eq("id", "none") : q.neq("status", "cancelled").neq("status", "returned");
   }
   if (f.region) q = q.eq("region", f.region);
+  if (f.affiliate) q = q.eq("affiliate_id", f.affiliate); // an id from the menu; anything else simply matches nothing
   if (f.from) q = q.gte("created_at", new Date(f.from).toISOString());
   if (f.to) q = q.lte("created_at", new Date(new Date(f.to).getTime() + 86_399_000).toISOString());
   if (f.q?.trim()) {
@@ -34,8 +35,10 @@ export async function listOrders(f: OrderFilters, paginate = true) {
   const orders = must(res) as Row[];
   const cids = [...new Set(orders.map((o) => o.customer_id).filter(Boolean))];
   const customers = cids.length ? (must(await db.from("customers").select("*").in("id", cids)) as Row[]) : [];
+  const aids = [...new Set(orders.map((o) => o.affiliate_id).filter(Boolean))];
+  const affiliates = aids.length ? (must(await db.from("affiliates").select("id, name, code").in("id", aids)) as Row[]) : [];
   return {
-    orders: orders.map((o): Row & { customer?: Row } => ({ ...o, customer: customers.find((c) => c.id === o.customer_id) })),
+    orders: orders.map((o): Row & { customer?: Row; affiliate?: Row } => ({ ...o, customer: customers.find((c) => c.id === o.customer_id), affiliate: affiliates.find((a) => a.id === o.affiliate_id) })),
     total: res.count ?? orders.length,
     page,
   };

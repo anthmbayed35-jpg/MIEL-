@@ -217,3 +217,8 @@ Admin: **Marketing → Affiliates** (`/admin/affiliates`, owner and manager). Pu
 - **Private stats link:** each affiliate has a random link (`/partner/...`) shown on their page in the admin. Anyone with the link can see their numbers (no customer data), so send it to them privately. It is not indexed and is disallowed in `robots.txt`.
 - **Applications:** `/ambassadors` stores to the Applications inbox (honeypot, minimum fill time, 3 per hour per connection, duplicate handle check). Approving creates an affiliate with a generated code you can change.
 - **Export:** Affiliates page → Monthly export → CSV of that month's affiliate orders and commissions (owner and manager).
+
+### Affiliates in the admin (menu, pages, personal link)
+- **Menu:** "Affiliates" sits right after Orders (owner and manager). It has four pages: Overview (`/admin/affiliates`: sales, commission pending / approved / paid, top 5 this month), Affiliates (`/admin/affiliates/list`: search, status filter, Add affiliate), Payouts (`/admin/affiliates/payouts`, with a CSV by month) and Applications (`/admin/affiliates/applications`, with the number of new ones as a badge here and on the menu item). An affiliate's own page is `/admin/affiliates/<id>`.
+- **Personal link:** each affiliate page shows the code and a link `https://<your domain>/?ref=CODE` (the domain comes from `NEXT_PUBLIC_SITE_URL`). Opening it remembers the code for 30 days and fills the discount field at checkout; the server still checks it exactly as if it had been typed (active affiliate, valid code).
+- **Orders:** the Orders list shows the affiliate, code, discount and commission with its status, can be filtered by affiliate, and the CSV has those columns.
