@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
-import { AFFILIATE_STATUSES, COMMISSION_APPROVAL_DAYS, DEFAULT_COMMISSION_PERCENT, DEFAULT_CUSTOMER_DISCOUNT_PERCENT, TIER_RULES, type AffiliateTier } from "@/config/affiliates";
+import { AFFILIATE_STATUSES, TIER_RULES, type AffiliateTier } from "@/config/affiliates";
+import { getProgram, type TierSetting } from "./program";
 import { isValidCode, normalizeCode } from "./affiliate-math";
 import { getEngine } from "./db";
 import { publish } from "./events";
@@ -72,8 +73,8 @@ export function validateAffiliate(i: AffiliateInput, exceptId?: string) {
   if (handle && !/^[A-Za-z0-9._]{1,30}$/.test(handle)) throw new Error("The Instagram handle can only have letters, numbers, dots and underscores.");
   return {
     name, code, tier, status, email, instagram_handle: handle, phone: clean(i.phone, 30), payout_method: clean(i.payout_method, 80), notes: clean(i.notes, 1000),
-    commission_rate_x100: percentX100(i.commission_percent ?? DEFAULT_COMMISSION_PERCENT, "Commission"),
-    customer_discount_percent_x100: percentX100(i.customer_discount_percent ?? DEFAULT_CUSTOMER_DISCOUNT_PERCENT, "Customer discount"),
+    commission_rate_x100: percentX100(i.commission_percent ?? getProgram().tiers[tier].commissionPercent, "Commission"),
+    customer_discount_percent_x100: percentX100(i.customer_discount_percent ?? getProgram().customerDiscountPercent, "Customer discount"),
   };
 }
 
@@ -121,10 +122,31 @@ export const getAffiliateByToken = (token: string) =>
  * pending -> approved, COMMISSION_APPROVAL_DAYS after delivery. Idempotent; called whenever an affiliate page is opened,
  * so no scheduler is needed. (Void and paid are applied at the moment they happen: setOrderStatus and recordPayout.)
  */
-export function approveDueCommissions(now = new Date()): number {
-  const cutoff = new Date(now.getTime() - COMMISSION_APPROVAL_DAYS * 86_400_000).toISOString();
-  return db().prepare("UPDATE orders SET commission_status = 'approved' WHERE commission_status = 'pending' AND status = 'delivered' AND delivered_at IS NOT NULL AND delivered_at <= ?").run(cutoff).changes;
+export function approveDueCommissions(now = new Date(), holdDays?: number): number {
+  const program = getProgram();
+  const cutoff = new Date(now.getTime() - (holdDays ?? program.holdDays) * 86_400_000).toISOString();
+  const n = db().prepare("UPDATE orders SET commission_status = 'approved' WHERE commission_status = 'pending' AND status = 'delivered' AND delivered_at IS NOT NULL AND delivered_at <= ?").run(cutoff).changes;
+  if (program.autoUpgrade) autoUpgradeTiers();
+  return n;
 }
+
+/** With the program setting "upgrade automatically" on, anyone who has reached the next tier's delivered-order threshold moves up (future orders only). */
+export function autoUpgradeTiers(): number {
+  const order: AffiliateTier[] = ["seed", "athlete", "ambassador"];
+  const tiers = getProgram().tiers;
+  let n = 0;
+  for (const a of listAffiliatesRaw()) {
+    const next = suggestedTier(a.delivered, a.tier, tiers);
+    if (next && order.indexOf(next) > order.indexOf(a.tier) && a.status === "active") {
+      db().prepare("UPDATE affiliates SET tier = ?, commission_rate_x100 = ?, version = version + 1 WHERE id = ?").run(next, Math.round(tiers[next].commissionPercent * 100), a.id);
+      db().prepare("INSERT INTO notifications (id, affiliate_id, kind, title, body, link) VALUES (?, ?, 'tier', ?, ?, '/ambassador')").run(uuid(), a.id, `You reached ${tiers[next].label}`, `Your commission is now ${tiers[next].commissionPercent}% on new orders.`);
+      n++;
+    }
+  }
+  return n;
+}
+
+const listAffiliatesRaw = () => db().prepare("SELECT a.id, a.tier, a.status, (SELECT COUNT(*) FROM orders o WHERE o.affiliate_id = a.id AND o.status = 'delivered' AND o.is_test = 0) AS delivered FROM affiliates a").all() as { id: string; tier: AffiliateTier; status: string; delivered: number }[];
 
 /**
  * Pays out every approved, unpaid commission of one affiliate in one transaction and records the payout.
@@ -228,10 +250,10 @@ export const affiliatePayouts = (id: string) =>
   db().prepare("SELECT id, amount_cents, gross_cents, corrections_cents, method, note, paid_at FROM affiliate_payouts WHERE affiliate_id = ? ORDER BY paid_at DESC, rowid DESC").all(id) as { id: string; amount_cents: number; gross_cents: number; corrections_cents: number; method: string; note: string; paid_at: string }[];
 
 /** "Athlete at 10 delivered orders, Ambassador at 30": the highest tier earned, if it is above the current one. */
-export function suggestedTier(delivered: number, current: AffiliateTier): AffiliateTier | null {
+export function suggestedTier(delivered: number, current: AffiliateTier, tiers: Record<AffiliateTier, Pick<TierSetting, "minDelivered">> = TIER_RULES): AffiliateTier | null {
   const order: AffiliateTier[] = ["seed", "athlete", "ambassador"];
   let best: AffiliateTier | null = null;
-  for (const t of order) if (delivered >= TIER_RULES[t].minDelivered && order.indexOf(t) > order.indexOf(current)) best = t;
+  for (const t of order) if (delivered >= tiers[t].minDelivered && order.indexOf(t) > order.indexOf(current)) best = t;
   return best;
 }
 
@@ -239,9 +261,10 @@ export function suggestedTier(delivered: number, current: AffiliateTier): Affili
 export function upgradeTier(id: string, to: AffiliateTier): AffiliateRow {
   const a = affiliateStats(id);
   if (!a) throw new Error("That affiliate no longer exists.");
-  if (!(to in TIER_RULES) || to === a.tier || a.delivered < TIER_RULES[to].minDelivered || ["seed", "athlete", "ambassador"].indexOf(to) < ["seed", "athlete", "ambassador"].indexOf(a.tier))
+  const tiers = getProgram().tiers;
+  if (!(to in tiers) || to === a.tier || a.delivered < tiers[to].minDelivered || ["seed", "athlete", "ambassador"].indexOf(to) < ["seed", "athlete", "ambassador"].indexOf(a.tier))
     throw new Error("This affiliate has not reached that tier yet.");
-  db().prepare("UPDATE affiliates SET tier = ?, commission_rate_x100 = ?, version = version + 1 WHERE id = ?").run(to, TIER_RULES[to].commissionPercent * 100, id);
+  db().prepare("UPDATE affiliates SET tier = ?, commission_rate_x100 = ?, version = version + 1 WHERE id = ?").run(to, Math.round(tiers[to].commissionPercent * 100), id);
   return getAffiliate(id)!;
 }
 
@@ -279,7 +302,7 @@ export function monthlyRows(month: string): MonthlyRow[] {
 }
 
 // ---------------------------------------------------------------- applications
-export type ApplicationInput = { name: string; instagram_handle?: string; tiktok_handle?: string; followers?: string; city?: string; sport?: string; message?: string };
+export type ApplicationInput = { name: string; instagram_handle?: string; tiktok_handle?: string; followers?: string; city?: string; sport?: string; message?: string; phone?: string; email?: string; termsVersion?: number };
 export function validateApplication(i: ApplicationInput) {
   const name = clean(i.name, 80);
   if (name.length < 2) throw new Error("Enter your name.");
@@ -290,12 +313,16 @@ export function validateApplication(i: ApplicationInput) {
   for (const h of [ig, tt]) if (h && !/^[A-Za-z0-9._]{1,30}$/.test(h)) throw new Error("Handles can only have letters, numbers, dots and underscores.");
   const followers = clean(i.followers, 20);
   if (followers && !/^[0-9][0-9.,]*\s?[kKmM]?$/.test(followers)) throw new Error("Followers: a number like 12000 or 12k.");
-  return { name, instagram_handle: ig, tiktok_handle: tt, followers, city: clean(i.city, 60), sport: clean(i.sport, 60), message: clean(i.message, 1000) };
+  const email = clean(i.email, 120);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("That email address does not look right.");
+  const phone = clean(i.phone, 30);
+  if (phone && !/^\+?[0-9][0-9\s().-]{5,24}$/.test(phone)) throw new Error("That phone number does not look right.");
+  return { name, instagram_handle: ig, tiktok_handle: tt, followers, city: clean(i.city, 60), sport: clean(i.sport, 60), message: clean(i.message, 1000), phone, email };
 }
 export function createApplication(i: ApplicationInput) {
   const v = validateApplication(i);
   const id = uuid();
-  db().prepare("INSERT INTO affiliate_applications (id, name, instagram_handle, tiktok_handle, followers, city, sport, message) VALUES (@id, @name, @instagram_handle, @tiktok_handle, @followers, @city, @sport, @message)").run({ ...v, id });
+  db().prepare("INSERT INTO affiliate_applications (id, name, instagram_handle, tiktok_handle, followers, city, sport, message, phone, email, terms_version, terms_accepted_at) VALUES (@id, @name, @instagram_handle, @tiktok_handle, @followers, @city, @sport, @message, @phone, @email, @tv, @ta)").run({ ...v, id, tv: i.termsVersion ?? null, ta: i.termsVersion ? new Date().toISOString() : null });
   publish({ type: "application.created", id });
   return id;
 }

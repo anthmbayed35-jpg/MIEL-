@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { createApplication } from "@/lib/affiliates";
+import { getProgram } from "@/lib/program";
 import { ipFromHeaders } from "@/lib/client-ip";
 import { getEngine } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
@@ -33,14 +34,19 @@ export async function applyAction(_prev: ApplyResult | null, fd: FormData): Prom
       const dup = getEngine().sqlite.prepare("SELECT 1 FROM affiliate_applications WHERE lower(instagram_handle) = ? AND created_at > ?").get(ig, new Date(Date.now() - 30 * 86_400_000).toISOString());
       if (dup) return { ok: false, error: "We already have your application. We will be in touch." };
     }
+    // the public form needs a way to reach the person and their agreement to the terms (the version and the time are stored with it)
+    if (text("phone").replace(/\D/g, "").length < 7) return { ok: false, error: "Enter your phone or WhatsApp number." };
+    if (!text("email").trim()) return { ok: false, error: "Enter your email address." };
+    if (fd.get("terms") !== "on") return { ok: false, error: "Accept the ambassador terms to apply." };
     createApplication({
       name: text("name"), instagram_handle: text("instagram_handle"), tiktok_handle: text("tiktok_handle"),
       followers: text("followers"), city: text("city"), sport: text("sport"), message: text("message"),
+      phone: text("phone"), email: text("email"), termsVersion: getProgram().termsVersion,
     });
     return { ok: true };
   } catch (e) {
     const m = e instanceof Error ? e.message : "";
     // validation messages are written for people; anything else (a database error) is not shown
-    return { ok: false, error: /^(Enter|Add|Handles|Followers)/.test(m) ? m : "Something went wrong. Try again." };
+    return { ok: false, error: /^(Enter|Add|Handles|Followers|That|Accept)/.test(m) ? m : "Something went wrong. Try again." };
   }
 }

@@ -27,6 +27,9 @@ async function apply(browser: Browser, handle: string) {
   const p = await ctx.newPage();
   await p.goto("/ambassadors");
   await p.locator("#ap-name").fill(`Live ${handle}`);
+  await p.locator("#ap-ph").fill("+961 70 765 432");
+  await p.locator("#ap-em").fill(`${handle}@example.com`);
+  await p.getByLabel(/I agree to the/).check();
   await p.locator("#ap-ig").fill(handle);
   await p.waitForTimeout(3300); // the minimum fill time of the spam check
   await p.getByRole("button", { name: "SEND APPLICATION" }).click();

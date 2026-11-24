@@ -145,9 +145,12 @@ test("/ambassadors on a phone: the application is saved with spam protection, th
   const ctx = await ctxFor(browser);
   const page = await ctx.newPage();
   await page.goto("/ambassadors");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Train with");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Train. Fuel.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await page.locator("#ap-name").fill("Karim Daher");
+  await page.locator("#ap-ph").fill("+961 70 765 432");
+  await page.locator("#ap-em").fill("karim@example.com");
+  await page.getByLabel(/I agree to the/).check();
   await page.locator("#ap-ig").fill("@karim.lifts");
   await page.locator("#ap-f").fill("8k");
   await page.locator("#ap-c").fill("Saida");

@@ -49,6 +49,14 @@ export function ApplyForm() {
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <div>
+          <label htmlFor="ap-ph" className={label}>Phone / WhatsApp</label>
+          <input id="ap-ph" name="phone" required inputMode="tel" maxLength={30} autoComplete="tel" placeholder="+961 …" className={field} />
+        </div>
+        <div>
+          <label htmlFor="ap-em" className={label}>Email</label>
+          <input id="ap-em" name="email" type="email" required maxLength={120} autoComplete="email" className={field} />
+        </div>
+        <div>
           <label htmlFor="ap-ig" className={label}>Instagram</label>
           <input id="ap-ig" name="instagram_handle" maxLength={40} placeholder="@yourhandle" autoCapitalize="none" autoCorrect="off" className={field} />
         </div>
@@ -66,14 +74,18 @@ export function ApplyForm() {
         </div>
       </div>
       <div>
-        <label htmlFor="ap-s" className={label}>Your sport</label>
+        <label htmlFor="ap-s" className={label}>Your sport(s)</label>
         <input id="ap-s" name="sport" maxLength={60} placeholder="Running, CrossFit, football…" className={field} />
       </div>
       <div>
-        <label htmlFor="ap-m" className={label}>Why MIEL+? (optional)</label>
+        <label htmlFor="ap-m" className={label}>Why MIEL+?</label>
         <textarea id="ap-m" name="message" rows={4} maxLength={1000} className={field} />
       </div>
-      <p className="text-[15px] text-body">Add at least your Instagram or TikTok so we can find you.</p>
+      <p className="text-[16px] text-body">Add at least your Instagram or TikTok so we can find you.</p>
+      <label className="flex min-h-12 items-start gap-3 text-[16px] text-fg">
+        <input type="checkbox" name="terms" required className="mt-1 h-6 w-6 shrink-0 accent-[#DAFC69]" />
+        <span>I agree to the <a href="/ambassadors/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">ambassador terms</a>, including saying when a post is an ad and making no health claims.</span>
+      </label>
       <Send pending={pending} />
     </form>
   );

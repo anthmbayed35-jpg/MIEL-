@@ -162,7 +162,7 @@ describe("public pages and the application form", () => {
     expect(meta.robots).toMatchObject({ index: false });
   });
 
-  const good = () => form({ name: "Hadi Saad", instagram_handle: "@hadi.fit", followers: "12k", city: "Jounieh", sport: "Running", started: String(Date.now() - 10_000), website: "" });
+  const good = () => form({ name: "Hadi Saad", phone: "+961 70 123 456", email: "hadi@example.com", terms: "on", instagram_handle: "@hadi.fit", followers: "12k", city: "Jounieh", sport: "Running", started: String(Date.now() - 10_000), website: "" });
 
   it("saves a valid application", async () => {
     h.user = null;
@@ -182,8 +182,8 @@ describe("public pages and the application form", () => {
     const noTime = good();
     noTime.delete("started");
     expect(await applyAction(null, noTime)).toMatchObject({ ok: false });
-    expect(await applyAction(null, form({ name: "A", instagram_handle: "x", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/name/) });
-    expect(await applyAction(null, form({ name: "Hadi", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/Instagram or TikTok/) });
+    expect(await applyAction(null, form({ name: "A", phone: "+961 70 123 456", email: "a@example.com", terms: "on", instagram_handle: "x", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/name/) });
+    expect(await applyAction(null, form({ name: "Hadi", phone: "+961 70 123 456", email: "a@example.com", terms: "on", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/Instagram or TikTok/) });
     sql().prepare("DELETE FROM rate_limits").run(); // the attempts above all counted against the limit, as they should
     expect(await applyAction(null, good())).toEqual({ ok: true });
     expect(await applyAction(null, good())).toMatchObject({ ok: false, error: expect.stringMatching(/already have your application/) });
@@ -201,9 +201,10 @@ describe("public pages and the application form", () => {
   it("the ambassadors page renders with the form, the program and the levels", async () => {
     h.user = null;
     const out = await html(() => import("@/app/(store)/ambassadors/page"));
-    expect(out).toContain("Train with");
+    expect(out).toContain("Train. Fuel.");
     expect(out).toContain("SEND APPLICATION");
     expect(out).toContain("Athlete");
-    expect(out).not.toMatch(/health|cure|immune|medical/i);
+    // the only place those words may appear is the rule that forbids them
+    expect(out.replace(/No (medical or health|health or medical) claims[^<]*/g, "")).not.toMatch(/health|cure|immune|medical|treats/i);
   });
 });
