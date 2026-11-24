@@ -147,20 +147,6 @@ describe("admin pages, roles and export", () => {
 });
 
 describe("public pages and the application form", () => {
-  it("the private stats page works only for the right token and never shows customer data", async () => {
-    const a = createAffiliate({ name: "Rami Khoury", code: "RAMI10" });
-    placeOrder({ customer: { name: "Secret Customer", phone: "03 777 666", address: "Private Street 9" }, items: [{ productId: S.red.id, qty: 1 }], region: "Beirut", source: "web", actor: "c", code: "RAMI10" });
-    h.user = null; // no admin session needed
-    const page = () => import("@/app/(store)/partner/[token]/page");
-    const out = await html(page, { params: Promise.resolve({ token: a.private_token }) });
-    expect(out).toContain("RAMI10");
-    expect(out).toContain("$27.00");
-    expect(out).toContain("$4.05");
-    for (const secret of ["Secret Customer", "777", "Private Street", "03 777 666", a.id]) expect(out).not.toContain(secret);
-    for (const bad of ["x".repeat(32), "short", a.code, "../admin"]) await expect(html(page, { params: Promise.resolve({ token: bad }) }), bad).rejects.toThrow("HTTP_404");
-    const meta = (await page()).metadata;
-    expect(meta.robots).toMatchObject({ index: false });
-  });
 
   const good = () => form({ name: "Hadi Saad", phone: "+961 70 123 456", email: "hadi@example.com", terms: "on", instagram_handle: "@hadi.fit", followers: "12k", city: "Jounieh", sport: "Running", started: String(Date.now() - 10_000), website: "" });
 

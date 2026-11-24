@@ -379,35 +379,19 @@ describe("the private partner link", () => {
     expect(getAffiliateByToken("' OR 1=1 --")).toBeUndefined();
   });
 
-  const page = async (token: string) => {
-    const mod = await import("@/app/(store)/partner/[token]/page");
-    return renderToStaticMarkup(createElement(CartProvider, { products: [], zones: [] } as never, await mod.default({ params: Promise.resolve({ token }) })));
-  };
-
-  it("one affiliate can never see another's data (20 affiliates, every page scanned for every other affiliate's details)", async () => {
-    const affs = Array.from({ length: 20 }, (_, i) => createAffiliate({ name: `Zed${String.fromCharCode(65 + i)} Person`, code: `UNIQ${String.fromCharCode(65 + i)}${i}`, instagram_handle: `handle.${String.fromCharCode(97 + i)}x${i}`, phone: `03 90${String(1000 + i)}` }));
-    for (const [i, a] of affs.entries()) buy(a.code, 1 + (i % 3), { customer: { name: `Buyer Of${String.fromCharCode(65 + i)}`, phone: `03 55${String(1000 + i)}`, address: `Street ${i}, Hamra` } });
-    h.user = null;
-    for (const [i, a] of affs.entries()) {
-      sql().prepare("DELETE FROM rate_limits").run();
-      const out = await page(a.private_token);
-      expect(out).toContain(a.code);
-      for (const [j, other] of affs.entries()) {
-        if (i === j) continue;
-        for (const secret of [other.code, other.private_token, other.id, other.instagram_handle, other.phone, `Buyer Of${String.fromCharCode(65 + j)}`]) expect(out, `${a.code} sees ${other.code}'s ${secret}`).not.toContain(secret);
-      }
-      for (const secret of [a.private_token, a.id, a.phone, "Buyer Of", "Street", "Hamra"]) expect(out, secret).not.toContain(secret);
-    }
-  });
-
-  it("is rate limited: 20 wrong links a minute lock the connection out, even for a right one", async () => {
+  it("the old private stats page now only redirects to the portal login (the token is never read, nothing is shown)", async () => {
     const a = createAffiliate({ name: "Rami", code: "RAMI10" });
-    h.user = null;
-    expect(await page(a.private_token)).toContain("RAMI10");
-    for (let i = 0; i < 20; i++) await expect(page("w".repeat(32))).rejects.toThrow("HTTP_404");
-    await expect(page(a.private_token)).rejects.toThrow("HTTP_404"); // guessing is locked out
-    sql().prepare("DELETE FROM rate_limits").run(); // a minute later
-    expect(await page(a.private_token)).toContain("RAMI10");
+    const mod = await import("@/app/(store)/partner/[token]/page");
+    for (const _t of [a.private_token, "wrong"]) {
+      void _t;
+      let err: unknown;
+      try {
+        mod.default();
+      } catch (e) {
+        err = e;
+      }
+      expect(String((err as Error)?.message)).toBe("NEXT_REDIRECT:/ambassador/login");
+    }
   });
 });
 

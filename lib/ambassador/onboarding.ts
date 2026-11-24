@@ -1,4 +1,5 @@
 import "server-only";
+import crypto from "node:crypto";
 import { approveApplication, getAffiliate, type AffiliateRow } from "../affiliates";
 import { getEngine } from "../db";
 import { mailConfigured, sendMail } from "../mail";
@@ -36,6 +37,7 @@ export async function inviteFor(affiliateId: string, kind: "invite" | "reset" = 
 /** Approve an application: creates the ambassador account (one transaction), then the 7-day invite link. */
 export async function approveAndInvite(applicationId: string): Promise<Invite> {
   const aff = approveApplication(applicationId);
+  getEngine().sqlite.prepare("INSERT INTO kit_requests (id, affiliate_id, kind) VALUES (?, ?, 'starter')").run(crypto.randomUUID(), aff.id);
   notifyAmbassador(getEngine().sqlite, aff.id, "account", "Welcome to MIEL+", "Your application was approved. Finish your checklist to get started.", "/ambassador");
   return inviteFor(aff.id, "invite");
 }

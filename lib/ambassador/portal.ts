@@ -176,7 +176,7 @@ export function requestMonthlyKit(me: Ambassador) {
 }
 
 // ---------------------------------------------------------------- resources, news, notifications, leaderboard
-export const resourcesList = () => sql().prepare("SELECT id, title, description, category, file_name, url, size_bytes FROM resources ORDER BY sort, created_at DESC").all() as { id: string; title: string; description: string; category: string; file_name: string; url: string; size_bytes: number }[];
+export const resourcesList = () => sql().prepare("SELECT id, title, description, category, file_name, stored_name, url, size_bytes FROM resources ORDER BY sort, created_at DESC").all() as { id: string; title: string; description: string; category: string; file_name: string; stored_name: string; url: string; size_bytes: number }[];
 export const announcementsList = (limit = 20) => sql().prepare("SELECT id, title, body, created_at FROM announcements ORDER BY created_at DESC LIMIT ?").all(limit) as { id: string; title: string; body: string; created_at: string }[];
 export const notificationsFor = (id: string, limit = 40) => sql().prepare("SELECT id, kind, title, body, link, read_at, created_at FROM notifications WHERE affiliate_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?").all(id, limit) as { id: string; kind: string; title: string; body: string; link: string; read_at: string | null; created_at: string }[];
 export const unreadCount = (id: string) => (sql().prepare("SELECT COUNT(*) AS n FROM notifications WHERE affiliate_id = ? AND read_at IS NULL").get(id) as { n: number }).n;

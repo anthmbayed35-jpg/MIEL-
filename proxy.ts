@@ -51,7 +51,11 @@ function publicGate(req: NextRequest, path: string) {
 
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  if (path !== "/admin" && !path.startsWith("/admin/")) return publicGate(req, path);
+  if (path !== "/admin" && !path.startsWith("/admin/")) {
+    const res = publicGate(req, path);
+    if (path === "/ambassador" || path.startsWith("/ambassador/") || path.startsWith("/partner/")) Object.entries(SECURITY).forEach(([k, v]) => res.headers.set(k, v)); // the portal is private: never indexed, never cached
+    return res;
+  }
 
   const isPublic = PUBLIC_ADMIN.some((p) => path === p || path.startsWith(p + "/"));
   const wantsJson = path.startsWith("/admin/api") || req.headers.has("next-action") || path.endsWith("/export") || path.startsWith("/admin/backup");
