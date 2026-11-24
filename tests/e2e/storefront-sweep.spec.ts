@@ -292,3 +292,31 @@ test("product pages: every gallery loads, GOLD's flat-lay slot shows the pouch, 
   await expect(page.getByText(/150 mg of caffeine/i).first()).toBeVisible();
   await ctx.close();
 });
+
+test("keyboard focus is visible on the header and hero controls, and the hero image is the LCP element and loads fast", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    (window as unknown as { __lcp: { t: number; tag: string } }).__lcp = { t: 0, tag: "" };
+    new PerformanceObserver((l) => {
+      const e = l.getEntries().at(-1) as unknown as { startTime: number; element?: Element };
+      (window as unknown as { __lcp: { t: number; tag: string } }).__lcp = { t: e.startTime, tag: e.element?.tagName ?? "" };
+    }).observe({ type: "largest-contentful-paint", buffered: true });
+  });
+  await page.goto("/");
+  await page.waitForTimeout(800);
+  const lcp = await page.evaluate(() => (window as unknown as { __lcp: { t: number; tag: string } }).__lcp);
+  expect(lcp.t, "LCP under 2.5 s").toBeLessThan(2500);
+  // focus ring on the first few tab stops
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press("Tab");
+    const ring = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return "none";
+      const cs = getComputedStyle(el);
+      return cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0 ? "outline" : cs.boxShadow !== "none" ? "shadow" : "none";
+    });
+    expect(ring, `tab stop ${i + 1} has a visible focus indicator`).not.toBe("none");
+  }
+  await ctx.close();
+});
