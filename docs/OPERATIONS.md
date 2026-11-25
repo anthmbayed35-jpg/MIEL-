@@ -62,7 +62,7 @@ Railway sets `PORT` and `RAILWAY_ENVIRONMENT_NAME` itself; do not set them. `npm
     npm run create-owner -- --email you@example.com --name "Your Name"
     ```
     It emails a one-time link (valid 48 h). **With no email configured it prints the one-time link in the terminal instead** (a link, never a password), and you open it yourself. It never accepts, shows or logs a password. Open the link, choose your password, sign in at `/admin/login`, and turn on two-factor in **My account** (save the recovery codes). Everyone else is invited from **Settings → Team**.
-11. In the admin: **Inventory** (starting stock; everything starts at 0, so nothing can be sold yet), **Shipping & delivery** (real fees), **Settings → Store details** (real WhatsApp number, notification email).
+11. In the admin: **Inventory** (starting stock; everything starts at 0, so nothing can be sold yet), **Shipping & delivery** (the flat delivery fee, default $5), **Settings → Store details** (real WhatsApp number, notification email).
 12. Work through "Before launch" (section 8), then the go-live test (section 9).
 
 ## 4. Who can do what
@@ -142,7 +142,7 @@ While the shop is not ready, deploy with `SITE_MODE=maintenance`: visitors see "
 When you are ready to launch, in this order:
 
 - [ ] **Domain**: custom domain added in Railway, DNS record created, HTTPS active, and `NEXT_PUBLIC_SITE_URL` is the final `https://` domain (redeploy if you changed it).
-- [ ] **Products and stock**: **Inventory** has real starting stock, **Shipping & delivery** has real fees, **Settings → Store details** has your real WhatsApp number, policy texts are written.
+- [ ] **Products and stock**: **Inventory** has real starting stock, **Shipping & delivery** has the delivery fee you want (default $5), **Settings → Store details** has your real WhatsApp number, policy texts are written.
 - [ ] **Owner and team**: owner account created, two-factor on (recovery codes saved), teammates invited.
 - [ ] **Email** (recommended before launch, not required): `MAIL_FROM` + `BREVO_API_KEY` (or SMTP) set, the sending domain verified in Brevo, **SPF**, **DKIM** (and DMARC) records added at your DNS provider and shown as authenticated (section 7). The "Email is not configured yet" banner disappears after the redeploy.
 - [ ] **Backups**: **Back up now** works, off-site copy configured if you want one.
