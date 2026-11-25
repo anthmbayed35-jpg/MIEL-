@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { can, requirePerm } from "@/lib/auth";
 import { affiliateOptions } from "@/lib/affiliates";
-import { getDb, must, type Row } from "@/lib/db";
+import type { Row } from "@/lib/db";
 import { adminTree } from "@/lib/locations";
 import { listOrders, orderStatusCounts, PAGE_SIZE } from "@/lib/queries";
 import { ORDER_STATUSES, STATUS_LABEL } from "@/lib/status";
