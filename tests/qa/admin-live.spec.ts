@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { chooseLocation } from "../support/location";
 import { newContext, one, signIn, sql, VIEWPORTS, writeResults } from "./qa-lib";
 
 /**
@@ -91,8 +92,7 @@ test("a new storefront order shows on the dashboard (today's orders) without a r
     await s.getByRole("link", { name: "CHECKOUT" }).click();
     await s.locator("#name").fill("Live Orderer");
     await s.locator("#phone").fill(`03 ${Math.floor(100000 + Math.random() * 899999)}`);
-    await s.locator("#governorate").selectOption("Beirut");
-    await s.locator("#district").selectOption("Beirut");
+    await chooseLocation(s, "Beirut", "Beirut");
     await s.locator("#street").fill("Beirut, Hamra, test building, floor 2");
     await s.getByRole("button", { name: "PLACE ORDER" }).click();
     await expect(s.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });

@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { exec, one, query } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * The influencer affiliate programme, end to end on the production build at a 375px phone:
@@ -55,8 +56,7 @@ test("checkout on a phone: lower-case code, clear error for a bad one, discount 
   await page.goto("/products/red-burn");
   await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
   await page.getByRole("link", { name: "CHECKOUT" }).click();
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.locator("#code").fill("NOTACODE");
   await expect(page.getByText("That code isn't valid.")).toBeVisible({ timeout: 15_000 });
   await page.locator("#code").fill(state.code.toLowerCase());
@@ -118,8 +118,7 @@ test("cancelling an order voids its commission and an affiliate list shows the t
   await shop.getByRole("link", { name: "CHECKOUT" }).click();
   await shop.locator("#name").fill("Cancelling Shopper");
   await shop.locator("#phone").fill("03 535 353");
-  await shop.locator("#governorate").selectOption("Beirut");
-  await shop.locator("#district").selectOption("Beirut");
+  await chooseLocation(shop, "Beirut", "Beirut");
   await shop.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   await shop.locator("#code").fill(state.code);
   await expect(shop.getByText(/Code applied/)).toBeVisible({ timeout: 15_000 });

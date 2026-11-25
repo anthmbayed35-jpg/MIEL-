@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { one, query } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * The flat $5 delivery fee, on a 375px phone: two orders from two different regions show exactly $5 delivery and the right totals
@@ -29,8 +30,7 @@ async function orderFrom(page: Page, governorate: string, district: string, phon
   await expect(summary.locator("dd").filter({ hasText: /^\$5$/ })).toBeVisible();
   await page.locator("#name").fill(`Fee ${district}`);
   await page.locator("#phone").fill(phone);
-  await page.locator("#governorate").selectOption(governorate);
-  await page.locator("#district").selectOption(district);
+  await chooseLocation(page, governorate, district);
   await page.locator("#street").fill("Main street, Bldg 3, floor 2");
   await expect(summary.locator("dd").filter({ hasText: /^\$5$/ })).toBeVisible(); // still $5 in this region
   await expect(summary.locator("dd").filter({ hasText: new RegExp(`^\\$${total}$`) })).toBeVisible(); // price + 5
@@ -48,7 +48,7 @@ async function orderFrom(page: Page, governorate: string, district: string, phon
 }
 
 test("two orders from two different regions: exactly $5 delivery in the cart, checkout and confirmation", async ({ browser }) => {
-  for (const [gov, district, phone] of [["Beirut", "Beirut", "03 191 001"], ["Beqaa", "Zahle", "03 191 002"]] as const) {
+  for (const [gov, district, phone] of [["Beirut", "Beirut", "03 191 001"], ["Bekaa", "Zahle", "03 191 002"]] as const) {
     const ctx = await ctxFor(browser);
     await orderFrom(await ctx.newPage(), gov, district, phone);
     await ctx.close();

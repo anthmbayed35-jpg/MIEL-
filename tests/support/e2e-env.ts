@@ -32,6 +32,7 @@ export const E2E_ENV = {
   MAIL_OUTBOX: E2E_OUTBOX,
   BREVO_API_KEY: SENTINEL_BREVO_KEY,
   MAIL_FROM: "MIEL+ <orders@e2e.test>",
+  GOOGLE_MAPS_API_KEY: "e2e-fake-maps-key", // the Google script itself is stubbed in the tests: no request ever leaves the machine
   NEXT_TELEMETRY_DISABLED: "1",
   PORT: String(APP_PORT),
 };

@@ -48,7 +48,6 @@ const locs = sheet(FILES.localities.file, "Locations");
 
 // ---------------------------------------------------------------- cleaning
 const ws = (s) => String(s ?? "").replace(/[​-‏‪-‮﻿]/g, "").replace(/\s+/g, " ").trim();
-const SMALL = new Set(["el", "al", "ech", "es", "ed", "ez", "er", "en", "ben", "bin", "wa", "of", "de", "du", "la", "le", "dar"]);
 /** ALL-CAPS English names ("DEIR EL BALAMAND") become "Deir El Balamand"; mixed-case names are kept as written. */
 function nice(en) {
   const s = ws(en);

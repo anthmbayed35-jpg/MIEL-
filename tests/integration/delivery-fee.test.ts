@@ -11,10 +11,9 @@ import { placeOrder, quoteAction } from "@/app/actions/checkout";
 import { saveDeliveryFee, saveFreeOver } from "@/app/admin/(app)/settings/shipping/actions";
 import { DEFAULT_DELIVERY_FEE, deliveryFee } from "@/lib/delivery";
 import { getCatalog } from "@/lib/catalog";
-import { GOVERNORATES } from "@/lib/lebanon";
 import { h, ID, reqHeaders, resetState } from "../support/state";
 import { seedStore } from "../support/seed";
-import { checkoutInput } from "../support/checkout";
+import { checkoutInput, deliveryTo } from "../support/checkout";
 
 let S: Awaited<ReturnType<typeof seedStore>>;
 const sql = () => getEngine().sqlite;
@@ -38,19 +37,19 @@ describe("one flat $5 delivery fee for every region and every order", () => {
     expect(deliveryFee()).toBe(5);
   });
 
-  it("an order from ANY governorate and district gets exactly $5 delivery (the same total formula everywhere)", async () => {
+  it("an order from ANY district (all 26, in all 8 governorates) gets exactly $5 delivery (the same total formula everywhere)", async () => {
+    const districts = sql().prepare("SELECT id FROM locations WHERE type = 'district' ORDER BY id").all() as { id: string }[];
+    expect(districts).toHaveLength(26);
     let n = 0;
-    for (const g of GOVERNORATES) {
-      for (const d of g.districts) {
-        reqHeaders["x-forwarded-for"] = `10.50.${Math.floor(n / 200)}.${n % 200}`;
-        const r = await placeOrder(checkoutInput(S.red.id, { phone: `03 ${String(100000 + n)}`, name: `Region ${n}`, delivery: { governorate: g.name, district: d, street: "Main street, Bldg 3, floor 2", landmark: "", notes: "" } }));
-        expect(r, `${g.name} / ${d}`).toMatchObject({ ok: true });
-        n++;
-      }
+    for (const d of districts) {
+      reqHeaders["x-forwarded-for"] = `10.50.${Math.floor(n / 200)}.${n % 200}`;
+      const r = await placeOrder(checkoutInput(S.red.id, { phone: `03 ${String(100000 + n)}`, name: `Region ${n}`, delivery: deliveryTo(d.id) }));
+      expect(r, d.id).toMatchObject({ ok: true });
+      n++;
     }
-    expect(n).toBe(26);
     const rows = orders();
     expect(rows).toHaveLength(26);
+    expect(new Set(sql().prepare("SELECT governorate_id FROM orders").all().map((o) => (o as { governorate_id: string }).governorate_id)).size).toBe(8);
     for (const o of rows) {
       expect(o.shipping_fee_cents, `${o.region}`).toBe(500);
       expect(o.total_cents).toBe(Number(o.subtotal_cents) + 500);

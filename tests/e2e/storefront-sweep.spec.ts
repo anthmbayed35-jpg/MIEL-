@@ -3,6 +3,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_PASSWORD, MAINT_URL, USERS } from "../support/e2e-env";
 import { exec } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * Storefront sweep: the home page and the three product pages at 360, 375, 768, 1024 and 1440 px.
@@ -260,8 +261,7 @@ test("flavour switcher, quantity, add to cart across all three flavours, cart dr
   for (const n of ["RED BURN", "GOLD", "CREATINE"]) await expect(drawer.getByText(n).first()).toBeVisible();
   await shot(page, "cart-drawer-375");
   await drawer.getByRole("link", { name: "CHECKOUT" }).click();
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.locator("#code").fill("NOTACODE");
   await expect(page.getByText("That code isn't valid.")).toBeVisible({ timeout: 15_000 });
   await shot(page, "checkout-375");

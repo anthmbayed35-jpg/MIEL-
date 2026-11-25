@@ -12,7 +12,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { previewAdmin } from "@/lib/preview";
 import { inMaintenance, STOREFRONT_CLOSED, TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
 import { notifyCustomerOrder, notifyNewOrder } from "@/lib/notify";
-import { addressLine, zoneFor } from "@/lib/lebanon";
+import { addressLine, mapsPinUrl, zoneForGovernorate } from "@/lib/lebanon";
+import { resolveLocation } from "@/lib/locations";
 import { orderRef } from "@/lib/order-ref";
 import { paymentMethod } from "@/lib/payments";
 import { absoluteUrl } from "@/lib/site-url";
@@ -60,7 +61,8 @@ export type PlaceResult =
 export type PlaceInput = {
   items: CartInput;
   customer: { name: string; phone: string; email?: string };
-  delivery: { governorate: string; district: string; street: string; landmark: string; notes: string };
+  /** The location is chosen by id (governorate, district, region): the server checks the chain and stores the names. `pin` is the optional map pin. */
+  delivery: { governorateId: string; districtId: string; regionId: string; street: string; landmark: string; notes: string; pin?: { lat: number; lon: number } | null };
   paymentMethod?: string;
   code: string;
   utm?: { source?: string; medium?: string; campaign?: string };
@@ -73,6 +75,14 @@ export type PlaceInput = {
 };
 
 const bad = (error: string, field?: string): PlaceResult => ({ ok: false, error, field });
+
+/** The optional map pin: numbers inside Lebanon, else it is ignored (a pin is never required and never blocks an order). */
+function cleanPin(p: { lat: number; lon: number } | null | undefined): { lat: number; lon: number } | null {
+  const lat = Number(p?.lat);
+  const lon = Number(p?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return lat >= 33.0 && lat <= 34.75 && lon >= 35.05 && lon <= 36.7 ? { lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6 } : null;
+}
 
 /**
  * Place an order from /checkout. Nothing the browser says about money is trusted: only product ids and quantities are read, prices,
@@ -104,11 +114,15 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
     const email = String(input.customer?.email ?? "").trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("That email address does not look right. You can also leave it empty.", "email");
     const d = input.delivery;
-    const gov = String(d?.governorate ?? "");
-    const district = String(d?.district ?? "");
-    const zoneName = zoneFor(gov, district);
-    if (!gov) return bad("Choose your governorate.", "governorate");
-    if (!zoneName) return bad("Choose your district.", "district");
+    // Governorate, district and region must form a chain (the region belongs to the district, the district to the governorate) and none may be hidden.
+    const loc = usesDb() ? resolveLocation({ governorateId: String(d?.governorateId ?? ""), districtId: String(d?.districtId ?? ""), regionId: String(d?.regionId ?? "") }) : null;
+    if (loc && !loc.ok) return bad(loc.error, loc.field);
+    const gov = loc?.ok ? loc.value.governorate.name : "";
+    const district = loc?.ok ? loc.value.district.name : "";
+    const regionName = loc?.ok ? loc.value.region.name : "";
+    // the zone only decides the free-delivery line; the delivery FEE is one flat amount for everyone
+    const zoneName = loc?.ok ? zoneForGovernorate(loc.value.governorate.id) : "";
+    const pin = cleanPin(d?.pin);
     const street = String(d?.street ?? "").trim().replace(/\s+/g, " ");
     if (street.length < 5) return bad("Enter your street, building and floor so the courier can find you.", "street");
     const landmark = String(d?.landmark ?? "").trim().replace(/\s+/g, " ");
@@ -121,7 +135,7 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
     const wa = cat.store.whatsapp;
     const method = paymentMethod(String(input.paymentMethod ?? "cod"), cat.store.cod_enabled);
     if (!method) return bad(cat.live && !cat.store.cod_enabled ? "Online ordering is paused right now. Message us on WhatsApp and we'll take your order." : "Choose a payment method.", "payment");
-    const address = addressLine({ street, district, governorate: gov, landmark });
+    const address = addressLine({ street, region: regionName, district, governorate: gov, landmark });
 
     // No database yet: keep the original behaviour (WhatsApp-only order, prices from the config).
     if (!cat.live || !usesDb()) {
@@ -152,7 +166,11 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
       customer: { name, phone, address, notes, email: email || undefined },
       items,
       region: zoneName,
-      delivery: { governorate: gov, district, street, landmark },
+      delivery: {
+        governorate: gov, district, street, landmark,
+        governorateId: loc?.ok ? loc.value.governorate.id : "", districtId: loc?.ok ? loc.value.district.id : "", regionId: loc?.ok ? loc.value.region.id : "", regionName,
+        pin: pin ? { ...pin, link: mapsPinUrl(pin.lat, pin.lon) } : undefined,
+      },
       paymentMethod: method.id,
       code: input.code,
       source: "web",

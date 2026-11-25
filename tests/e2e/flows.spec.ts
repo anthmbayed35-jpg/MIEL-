@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { exec, linkFor, mails, one, query, stockOf } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 import { newSecret, totpNow } from "../../lib/totp";
 
 /**
@@ -50,8 +51,7 @@ async function placeOrder(browser: Browser, opts: { slug: string; qty?: number; 
   await page.getByRole("link", { name: "CHECKOUT" }).click();
   await page.locator("#name").fill(opts.name ?? "E2E Customer");
   await page.locator("#phone").fill(opts.phone ?? `03 ${Math.floor(100000 + Math.random() * 899999)}`);
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   if (opts.code) {
     await page.locator("#code").fill(opts.code);
@@ -228,8 +228,7 @@ test("stock at 0 disables purchase on the product page and the lineup, and check
   exec("UPDATE inventory_items SET on_hand = 0 WHERE product_id = (SELECT id FROM products WHERE slug = 'creatine')");
   await shopper.locator("#name").fill("Late Customer");
   await shopper.locator("#phone").fill("03 765 432");
-  await shopper.locator("#governorate").selectOption("Beirut");
-  await shopper.locator("#district").selectOption("Beirut");
+  await chooseLocation(shopper, "Beirut", "Beirut");
   await shopper.locator("#street").fill("Beirut, Hamra, test building");
   await shopper.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(shopper.getByText(/is out of stock/i)).toBeVisible();

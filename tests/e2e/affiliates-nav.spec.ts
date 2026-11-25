@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { exec, one } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * The Ambassadors section of the admin: the menu item (after Orders, highlighted, with the new-application badge), its four pages
@@ -173,8 +174,7 @@ test("the orders list shows the affiliate and filters by it", async ({ browser }
   await shop.getByRole("link", { name: "CHECKOUT" }).click();
   await shop.locator("#name").fill("Nav Orderer");
   await shop.locator("#phone").fill("03 818 181");
-  await shop.locator("#governorate").selectOption("Beirut");
-  await shop.locator("#district").selectOption("Beirut");
+  await chooseLocation(shop, "Beirut", "Beirut");
   await shop.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   await shop.locator("#code").fill(CODE);
   await expect(shop.getByText(/Code applied/)).toBeVisible({ timeout: 15_000 });
@@ -208,8 +208,7 @@ test("the personal link: /?ref=CODE fills the discount field at checkout, and a 
   await shop.getByRole("button", { name: /ADD TO CART/ }).first().click();
   await shop.getByRole("link", { name: "CHECKOUT" }).click();
   await expect(shop.locator("#code")).toHaveValue(CODE);
-  await shop.locator("#governorate").selectOption("Beirut");
-  await shop.locator("#district").selectOption("Beirut");
+  await chooseLocation(shop, "Beirut", "Beirut");
   await expect(shop.getByText(/Code applied: 10% off/)).toBeVisible({ timeout: 15_000 });
 
   const other = await (await ctxFor(browser, 375, 812)).newPage();

@@ -38,6 +38,7 @@ Set these as **Railway service variables** (project → environment → the web 
 | `MAIL_PROVIDER` | optional | no | `brevo` (default) or `smtp` |
 | `SMTP_URL` | when `MAIL_PROVIDER=smtp` (optional) | **YES** | `smtp://user:password@host:587` |
 | `STORE_TIMEZONE` | optional | no | defaults to `Asia/Beirut` |
+| `GOOGLE_MAPS_API_KEY` | optional | no | turns on the optional "Pin your location" step at checkout (Google Maps JavaScript API + Places). Without it the step does not exist. Restrict the key by website (HTTP referrer) in Google Cloud: see section 18 |
 | `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_PREFIX` | optional | key and secret: **YES** | off-site backup bucket (section 6). Keep the encryption key too |
 | `BACKUP_ENCRYPTION_KEY` | required when `BACKUP_S3_BUCKET` is set | **YES** | 32+ characters. Encrypts each off-site backup. **Store it somewhere other than Railway**: without it the off-site copies cannot be opened |
 | `BACKUPS_DISABLED` | never in production | no | `1` turns off the nightly backups (tests only) |
@@ -252,3 +253,13 @@ Admin: **Marketing → Affiliates** (`/admin/affiliates`, owner and manager). Pu
 **Email:** the order confirmation to the customer is sent only if they typed an email and mail is configured (`MAIL_FROM` plus `BREVO_API_KEY` or `SMTP_URL`); otherwise nothing is sent and nothing fails. You see new orders in the admin immediately (live bell and the Orders badge).
 
 **Ambassadors page:** public `/ambassadors` shows only the application form. Applications arrive in Ambassadors > Applications with the WhatsApp number and an Open WhatsApp button. Approve only changes the status; after you spoke to them press Create account / send invite to make the account and the invite link (you send it yourself).
+
+## 18. Lebanon locations and the optional Google Maps pin
+
+**Data:** checkout uses 8 governorates, 26 districts and 2708 regions from official open data (HDX: COD-AB boundaries by the CDR, and the Central Administration of Statistics settlements list), stored in the `locations` table and loaded by migration 0010. Nothing is fetched at runtime. The validation report (counts per governorate and district) is `docs/LOCATIONS-REPORT.md`. To rebuild it from the sources: `npm run locations` (it downloads the two files into `data-src/`; if your network cannot reach data.humdata.org, download them by hand and save them as `data-src/admin_boundaries.xlsx` and `data-src/localities.xlsx`).
+
+**Admin > Settings > Locations:** search any place in English or Arabic, rename it (orders already placed keep the old name), hide or show a district or region (hidden places are not offered at checkout, for places you do not deliver to; a district with no visible region is not offered either), and add a region the official list is missing. The page shows how many regions each district has. Delivery stays a flat fee everywhere.
+
+**Orders:** each order saves the governorate, district and region (ids and names). The Orders list filters by governorate and district (orders placed before this feature are matched by the names they were saved with); the order page shows the location and an "Open in Google Maps" button that searches the full address text (no key needed).
+
+**Optional Google Maps pin (off by default):** set the environment variable `GOOGLE_MAPS_API_KEY` in Railway and redeploy (or restart). The checkout then shows an optional "Pin your location" step: search (Places Autocomplete, Lebanon only) or tap the map; the latitude, longitude and a map link are saved on the order and shown to the team on the order page. It is never required, and without the key nothing of it exists. In Google Cloud Console (a project with billing): 1) enable **Maps JavaScript API** and **Places API (New)**; 2) create an API key; 3) under *Application restrictions* choose *Websites (HTTP referrers)* and add your domain, for example `https://your-domain/*` (and the Railway domain while testing); 4) under *API restrictions* restrict the key to those two APIs; 5) set a budget alert. The key is visible in the browser by design, so the referrer restriction is what protects it. Place data is never copied or cached by the site.

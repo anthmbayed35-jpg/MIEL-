@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { exec, linkFor, one, query } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * The ambassador programme end to end on the production build, on a 375px phone:
@@ -118,8 +119,7 @@ test("a shopper opens the personal link: the code is applied, the visit is count
   await page.getByRole("link", { name: "CHECKOUT" }).click();
   await expect(page.locator("#code")).toHaveValue(state.code); // applied from the link, nothing typed
   await expect(page.getByText(/Code applied: 10% off/)).toBeVisible({ timeout: 15_000 });
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.locator("#name").fill("Jade Customer");
   await page.locator("#phone").fill("03 616 161");
   await page.locator("#street").fill("Beirut, Hamra, test building, floor 3");

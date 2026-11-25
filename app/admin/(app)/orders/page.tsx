@@ -2,6 +2,7 @@ import Link from "next/link";
 import { can, requirePerm } from "@/lib/auth";
 import { affiliateOptions } from "@/lib/affiliates";
 import { getDb, must, type Row } from "@/lib/db";
+import { adminTree } from "@/lib/locations";
 import { listOrders, orderStatusCounts, PAGE_SIZE } from "@/lib/queries";
 import { ORDER_STATUSES, STATUS_LABEL } from "@/lib/status";
 import { Card, ErrorState, PageHeader, PillLink } from "@/components/admin/ui";
@@ -9,7 +10,7 @@ import { OrdersTable } from "@/components/admin/OrdersTable";
 
 export const metadata = { title: "Orders" };
 
-type SP = { q?: string; status?: string; pay?: string; region?: string; affiliate?: string; from?: string; to?: string; page?: string };
+type SP = { q?: string; status?: string; pay?: string; region?: string; governorate?: string; district?: string; affiliate?: string; from?: string; to?: string; page?: string };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const admin = await requirePerm("orders.read");
@@ -20,10 +21,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   } catch (e) {
     return <ErrorState message={(e as Error).message} />;
   }
-  const zones = must(await getDb().from("shipping_zones").select("name").order("sort", { ascending: true })) as Row[];
   const affiliates = can(admin.role, "affiliates.read") ? affiliateOptions() : [];
   const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
   const counts = orderStatusCounts();
+  const tree = adminTree();
   const qs = (over: Record<string, string | number>) => {
     const p = new URLSearchParams(Object.entries({ ...sp, ...over }).filter(([, v]) => v !== undefined && v !== "") as [string, string][]);
     return `/admin/orders?${p}`;
@@ -66,10 +67,19 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
             <option value="pending">COD pending</option>
             <option value="collected">COD collected</option>
           </select>
-          <select name="region" defaultValue={sp.region ?? ""} className="a-input" aria-label="Region">
-            <option value="">All regions</option>
-            {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
+          <select name="governorate" defaultValue={sp.governorate ?? ""} className="a-input" aria-label="Governorate">
+            <option value="">All governorates</option>
+            {tree.map((g) => <option key={g.id} value={g.id}>{g.name_en}</option>)}
           </select>
+          <select name="district" defaultValue={sp.district ?? ""} className="a-input" aria-label="District">
+            <option value="">All districts</option>
+            {tree.map((g) => (
+              <optgroup key={g.id} label={g.name_en}>
+                {g.districts.map((d) => <option key={d.id} value={d.id}>{d.name_en}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          {sp.region && <input type="hidden" name="region" value={sp.region} />}
           {affiliates.length > 0 && (
             <select name="affiliate" defaultValue={sp.affiliate ?? ""} className="a-input" aria-label="Ambassador">
               <option value="">All ambassadors</option>
@@ -90,7 +100,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         <OrdersTable
           rows={data.orders.map((o: Row) => ({
             id: o.id, number: o.order_number, date: o.created_at, customer: o.customer?.name ?? "—", phone: o.customer?.phone ?? "",
-            region: o.region, total: Number(o.total), status: o.status, collected: !!o.cod_collected, source: o.source, test: !!o.is_test,
+            region: o.region_name ? `${o.region_name}, ${o.district}` : o.district || o.region, total: Number(o.total), status: o.status, collected: !!o.cod_collected, source: o.source, test: !!o.is_test,
             affiliate: o.affiliate ? { id: o.affiliate.id, name: o.affiliate.name, code: o.affiliate.code, discount: Number(o.discount_amount), commission: Number(o.commission_amount), commissionStatus: o.commission_status } : undefined,
           }))}
         />

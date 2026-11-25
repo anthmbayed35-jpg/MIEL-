@@ -1,4 +1,5 @@
 import { getCatalog } from "@/lib/catalog";
+import { checkoutTree } from "@/lib/locations";
 import { activePaymentMethods } from "@/lib/payments";
 import { Blobs } from "@/components/Blobs";
 import { Header } from "@/components/Header";
@@ -21,7 +22,7 @@ export default async function CheckoutPage() {
           <h1 className="display h-section mb-8">
             Almost there<span className="accent">.</span>
           </h1>
-          <CheckoutForm methods={methods} whatsapp={cat.store.whatsapp} />
+          <CheckoutForm methods={methods} whatsapp={cat.store.whatsapp} tree={checkoutTree()} mapsKey={process.env.GOOGLE_MAPS_API_KEY ?? ""} />
         </div>
       </main>
       <Footer store={cat.store} policies={cat.policies} />

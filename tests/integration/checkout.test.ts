@@ -10,12 +10,12 @@ import { changeStatus } from "@/app/admin/(app)/orders/actions";
 import { listOrders } from "@/lib/queries";
 import { orderByToken } from "@/lib/order-view";
 import { orderRef, parseOrderRef } from "@/lib/order-ref";
-import { GOVERNORATES, addressLine, zoneFor } from "@/lib/lebanon";
+import { addressLine } from "@/lib/lebanon";
 import { activePaymentMethods, paymentMethod } from "@/lib/payments";
 import { setOrderStatus } from "@/lib/orders";
 import { h, ID, reqHeaders, resetState } from "../support/state";
 import { seedStore } from "../support/seed";
-import { checkoutInput } from "../support/checkout";
+import { checkoutInput, D, deliveryTo } from "../support/checkout";
 
 let S: Awaited<ReturnType<typeof seedStore>>;
 const sql = () => getEngine().sqlite;
@@ -69,16 +69,16 @@ describe("order creation", () => {
     sql().prepare("INSERT INTO shipping_zones (id, name, fee_cents, eta, active, sort) VALUES (?, 'Mount Lebanon', 400, '1 to 2 days', 1, 3)").run(crypto.randomUUID()); // an old per-zone fee in the database is ignored
     const r = await place({
       customer: { name: "  Lina   Haddad ", phone: "+961 70 123 456", email: "lina@example.com" },
-      delivery: { governorate: "Mount Lebanon", district: "Matn", street: "Main street, Bldg 12, floor 4", landmark: "the pharmacy", notes: "Call before" },
+      delivery: deliveryTo(D.meten, 0, { street: "Main street, Bldg 12, floor 4", landmark: "the pharmacy", notes: "Call before" }),
       heardFrom: "Instagram",
     });
     expect(r).toMatchObject({ ok: true, orderNumber: "MP-1001", token: expect.stringMatching(/^[0-9a-f]{32}$/) });
     const o = orders()[0];
     expect(o).toMatchObject({
-      order_number: 1001, status: "new", payment_method: "cod", payment_status: "pending", governorate: "Mount Lebanon", district: "Matn", street: "Main street, Bldg 12, floor 4",
-      landmark: "the pharmacy", region: "Mount Lebanon", heard_from: "Instagram", shipping_fee_cents: 500, total_cents: 3500, cod_amount_due_cents: 3500, // the courier collects the whole total
+      order_number: 1001, status: "new", payment_method: "cod", payment_status: "pending", governorate: "Mount Lebanon", district: "El Meten", governorate_id: "LB3", district_id: "LB36", street: "Main street, Bldg 12, floor 4",
+      landmark: "the pharmacy", region: "Mount Lebanon", region_id: expect.stringMatching(/^LBN/), region_name: expect.any(String), heard_from: "Instagram", shipping_fee_cents: 500, total_cents: 3500, cod_amount_due_cents: 3500, // the courier collects the whole total
     });
-    expect(String(o.address)).toBe("Main street, Bldg 12, floor 4 · Matn, Mount Lebanon · Near the pharmacy");
+    expect(String(o.address)).toBe(`Main street, Bldg 12, floor 4 · ${o.region_name}, El Meten, Mount Lebanon · Near the pharmacy`);
     expect(String(o.customer_notes)).toBe("Call before");
     expect(sql().prepare("SELECT name FROM customers").get()).toEqual({ name: "Lina Haddad" }); // spaces tidied
   });
@@ -122,10 +122,14 @@ describe("validation in plain language", () => {
     expect(await place({ name: "A" })).toMatchObject({ ok: false, field: "name", error: expect.stringMatching(/full name/) });
     for (const phone of ["999", "abc", "12345", "+44 20 7946 0958", ""]) expect(await place({ phone }), phone).toMatchObject({ ok: false, field: "phone", error: expect.stringMatching(/Lebanese phone/) });
     expect(await place({ customer: { name: "Test Customer", phone: "03 123 456", email: "not-an-email" } })).toMatchObject({ ok: false, field: "email" });
-    const d = (over: object) => ({ governorate: "Beirut", district: "Beirut", street: "Hamra Street, Bldg 5", landmark: "", notes: "", ...over });
-    expect(await place({ delivery: d({ governorate: "" }) })).toMatchObject({ ok: false, field: "governorate" });
-    expect(await place({ delivery: d({ governorate: "Mount Lebanon", district: "Beirut" }) })).toMatchObject({ ok: false, field: "district" }); // a district of another governorate
-    expect(await place({ delivery: d({ governorate: "Atlantis" }) })).toMatchObject({ ok: false });
+    const d = (over: object) => ({ ...deliveryTo(D.beirut), ...over });
+    expect(await place({ delivery: d({ governorateId: "" }) })).toMatchObject({ ok: false, field: "governorate" });
+    expect(await place({ delivery: d({ governorateId: "LB3" }) })).toMatchObject({ ok: false, field: "district" }); // the district belongs to another governorate
+    expect(await place({ delivery: d({ governorateId: "Atlantis" }) })).toMatchObject({ ok: false, field: "governorate" });
+    expect(await place({ delivery: d({ districtId: "" }) })).toMatchObject({ ok: false, field: "district" });
+    expect(await place({ delivery: d({ regionId: "" }) })).toMatchObject({ ok: false, field: "region" });
+    expect(await place({ delivery: deliveryTo(D.meten, 0, { regionId: deliveryTo(D.beirut).regionId }) })).toMatchObject({ ok: false, field: "region" }); // a Beirut neighbourhood in El Meten
+    expect(await place({ delivery: d({ regionId: "' OR 1=1 --" }) })).toMatchObject({ ok: false, field: "region" });
     expect(await place({ delivery: d({ street: "x" }) })).toMatchObject({ ok: false, field: "street" });
     expect(await place({ delivery: d({ street: "s".repeat(300) }) })).toMatchObject({ ok: false });
     expect(await placeOrder({ ...checkoutInput(S.red.id), items: [] })).toMatchObject({ ok: false, error: expect.stringMatching(/cart is empty/) });
@@ -140,10 +144,10 @@ describe("validation in plain language", () => {
     for (const c of sql().prepare("SELECT phone FROM customers").all() as { phone: string }[]) expect(c.phone).toMatch(/^\+961\d{7,8}$/);
   });
 
-  it("every governorate is delivered to, whatever is (or is not) set up as a zone, at the same flat fee", async () => {
+  it("every region of every governorate is delivered to, whatever is (or is not) set up as a delivery zone, at the same flat fee", async () => {
     // the seed has the Beirut and Bekaa zones only; the South has no zone at all, and Beirut's zone is switched off
     sql().prepare("UPDATE shipping_zones SET active = 0 WHERE name = 'Beirut'").run();
-    expect(await place({ delivery: { governorate: "South", district: "Sidon", street: "Main street, Bldg 3", landmark: "", notes: "" } })).toMatchObject({ ok: true });
+    expect(await place({ delivery: deliveryTo(D.sidon) })).toMatchObject({ ok: true });
     reqHeaders["x-forwarded-for"] = "10.8.8.8";
     expect(await place({ phone: "03 818 000" })).toMatchObject({ ok: true });
     expect(orders().map((o) => o.shipping_fee_cents)).toEqual([500, 500]);
@@ -259,14 +263,10 @@ describe("admin: search, counts and the order number", () => {
   });
 });
 
-describe("Lebanon geography", () => {
-  it("26 districts in 8 governorates, each pair maps to a delivery zone and a wrong pair maps to nothing", () => {
-    expect(GOVERNORATES).toHaveLength(8);
-    expect(GOVERNORATES.flatMap((g) => g.districts)).toHaveLength(26);
-    for (const g of GOVERNORATES) for (const d of g.districts) expect(zoneFor(g.name, d)).toBe(g.zone);
-    expect(zoneFor("Beirut", "Sidon")).toBeNull();
-    expect(zoneFor("", "")).toBeNull();
-    expect(addressLine({ street: "Main st, Bldg 1", district: "Matn", governorate: "Mount Lebanon", landmark: "Pharmacy" })).toBe("Main st, Bldg 1 · Matn, Mount Lebanon · Near Pharmacy");
+describe("address helpers", () => {
+  it("one readable address line", () => {
+    expect(addressLine({ street: "Main st, Bldg 1", region: "Antelias", district: "El Meten", governorate: "Mount Lebanon", landmark: "Pharmacy" })).toBe("Main st, Bldg 1 · Antelias, El Meten, Mount Lebanon · Near Pharmacy");
+    expect(addressLine({ street: "Hamra St", region: "Hamra", district: "Beirut", governorate: "Beirut" })).toBe("Hamra St · Hamra, Beirut");
     expect(addressLine({ street: "Hamra St", district: "Beirut", governorate: "Beirut" })).toBe("Hamra St · Beirut");
   });
 });

@@ -188,7 +188,13 @@ export type CreateOrderInput = {
   /** The optional "How did you hear about us?" answer from checkout. */
   heardFrom?: string;
   /** The address in parts (checkout). `customer.address` stays the one readable line. */
-  delivery?: { governorate: string; district: string; street: string; landmark: string };
+  delivery?: {
+    governorate: string; district: string; street: string; landmark: string;
+    /** The location ids and the region (town or village) name, saved next to the names so a later rename never changes an order. */
+    governorateId?: string; districtId?: string; regionId?: string; regionName?: string;
+    /** The optional map pin (checked to be inside Lebanon by the checkout action). */
+    pin?: { lat: number; lon: number; link: string };
+  };
   /** Payment method id (lib/payments.ts). Defaults to cash on delivery. */
   paymentMethod?: string;
 };
@@ -257,7 +263,9 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
         affiliate_id: aff?.id ?? null, code_used: aff?.code ?? null, discount_amount: aff ? q.discount : 0,
         commission_amount: aff ? dollars(commissionCents(subtotalC, discountC, aff.commissionPercentX100)) : 0, commission_status: aff ? "pending" : null,
         region: input.region, address: input.customer.address.trim(),
-        governorate: input.delivery?.governorate ?? "", district: input.delivery?.district ?? "", street: input.delivery?.street.trim() ?? "", landmark: input.delivery?.landmark.trim() ?? "", customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
+        governorate: input.delivery?.governorate ?? "", district: input.delivery?.district ?? "", street: input.delivery?.street.trim() ?? "", landmark: input.delivery?.landmark.trim() ?? "",
+        governorate_id: input.delivery?.governorateId ?? "", district_id: input.delivery?.districtId ?? "", region_id: input.delivery?.regionId ?? "", region_name: input.delivery?.regionName ?? "",
+        pin_lat: input.delivery?.pin?.lat ?? null, pin_lon: input.delivery?.pin?.lon ?? null, pin_link: input.delivery?.pin?.link ?? "", customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
         delivery_partner_id: null, tracking_number: "", source: input.source,
         utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
         stock_deducted: false, is_demo: !!input.demo, is_test: !!testBy, created_at: stamp, updated_at: stamp,

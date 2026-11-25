@@ -6,14 +6,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { captureCheckout, placeOrder, quoteAction, type QuoteView } from "@/app/actions/checkout";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
-import { GOVERNORATES, HEARD_FROM_OPTIONS, governorate, zoneFor } from "@/lib/lebanon";
+import { HEARD_FROM_OPTIONS, zoneForGovernorate } from "@/lib/lebanon";
+import type { CheckoutGovernorate } from "@/lib/locations";
+import { PinPicker, type Pin } from "./PinPicker";
+import { SearchSelect, type PlaceOption } from "./SearchSelect";
 import { TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
 import { getUtm } from "@/lib/track-client";
 import { useRefCode } from "@/lib/use-ref-code";
 import { useCart } from "../CartProvider";
 
 type Method = { id: string; label: string; description: string };
-type Field = "name" | "phone" | "email" | "governorate" | "district" | "street" | "landmark" | "payment";
+type Field = "name" | "phone" | "email" | "governorate" | "district" | "region" | "street" | "landmark" | "payment";
 
 const input =
   "w-full min-h-14 rounded-[14px] bg-white/5 border border-white/15 px-4 py-3 text-fg text-[18px] placeholder:text-body/60 focus:border-acid focus:outline-none aria-[invalid=true]:border-[#FF5C7A]";
@@ -31,7 +34,7 @@ function Err({ id, children }: { id: string; children?: string }) {
  * /checkout: one page, guest checkout. The cart comes from the browser; EVERYTHING that matters (prices, delivery fee, discount,
  * stock, the zone behind the governorate) is decided again on the server when the order is placed.
  */
-export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsapp: string }) {
+export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { methods: Method[]; whatsapp: string; tree: CheckoutGovernorate[]; mapsKey?: string }) {
   const router = useRouter();
   const { lines, products, deliveryFee, ready, preview, clear, setQty } = useCart();
   const ref = useRefCode();
@@ -44,6 +47,11 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
   const [email, setEmail] = useState("");
   const [gov, setGov] = useState("");
   const [district, setDistrict] = useState("");
+  const [region, setRegion] = useState("");
+  const [regions, setRegions] = useState<PlaceOption[]>([]);
+  const [regionsLoading, setRegionsLoading] = useState(false);
+  const regionCache = useRef<Map<string, PlaceOption[]>>(new Map());
+  const [pin, setPin] = useState<Pin | null>(null);
   const [street, setStreet] = useState("");
   const [landmark, setLandmark] = useState("");
   const [notes, setNotes] = useState("");
@@ -72,7 +80,36 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
   );
   const cartInput = items.map((i) => ({ productId: i.p.id, qty: i.qty }));
   const cartKey = JSON.stringify(cartInput);
-  const zoneName = zoneFor(gov, district);
+  const zoneName = zoneForGovernorate(gov); // only the free-delivery line depends on the area: the delivery fee is flat
+  const govOptions: PlaceOption[] = tree.map((g) => ({ id: g.id, en: g.en, ar: g.ar }));
+  const districtOptions: PlaceOption[] = tree.find((g) => g.id === gov)?.districts ?? [];
+
+  // the regions of the chosen district only (loaded from our own database, cached per district)
+  useEffect(() => {
+    if (!district) {
+      setRegions([]);
+      return;
+    }
+    const cached = regionCache.current.get(district);
+    if (cached) {
+      setRegions(cached);
+      return;
+    }
+    let live = true;
+    setRegionsLoading(true);
+    fetch(`/api/locations/regions?district=${encodeURIComponent(district)}`)
+      .then((r) => (r.ok ? r.json() : { regions: [] }))
+      .then((j: { regions: PlaceOption[] }) => {
+        if (!live) return;
+        regionCache.current.set(district, j.regions);
+        setRegions(j.regions);
+      })
+      .catch(() => live && setRegions([]))
+      .finally(() => live && setRegionsLoading(false));
+    return () => {
+      live = false;
+    };
+  }, [district]);
   const subtotal = items.reduce((n, i) => n + i.p.price * i.qty, 0);
   const soldOut = items.filter((i) => i.p.soldOut);
 
@@ -94,7 +131,8 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
     if (phone.replace(/\D/g, "").length < 7) e.phone = "Enter your phone number, for example 03 123 456 or +961 70 123 456.";
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "That email address does not look right. You can also leave it empty.";
     if (!gov) e.governorate = "Choose your governorate.";
-    else if (!zoneName) e.district = "Choose your district.";
+    else if (!district) e.district = "Choose your district.";
+    else if (!region) e.region = "Choose your town or village.";
     if (street.trim().length < 5) e.street = "Enter your street, building and floor so the courier can find you.";
     return e;
   }
@@ -118,7 +156,7 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
       idempotencyKey: idemKey.current,
       items: cartInput,
       customer: { name: name.trim(), phone: phone.trim(), email: email.trim() },
-      delivery: { governorate: gov, district, street: street.trim(), landmark: landmark.trim(), notes: notes.trim() },
+      delivery: { governorateId: gov, districtId: district, regionId: region, street: street.trim(), landmark: landmark.trim(), notes: notes.trim(), pin },
       paymentMethod: payment,
       code,
       attribution: fromLink ? "link" : "code",
@@ -232,32 +270,37 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
 
         <section className="glass space-y-5 p-5 md:p-8" aria-labelledby="h-delivery">
           <h2 id="h-delivery" className="display text-[22px]">Delivery in Lebanon</h2>
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-3">
             <div>
               <label htmlFor="governorate" className={label}>Governorate</label>
-              <select
-                id="governorate" name="governorate" className={input} value={gov} aria-invalid={!!errors.governorate} aria-describedby="e-governorate"
-                onChange={(e) => {
-                  setGov(e.target.value);
-                  setDistrict(""); // dependent list: the districts change with the governorate
+              <SearchSelect
+                id="governorate" options={govOptions} value={gov} placeholder="Choose your governorate" invalid={!!errors.governorate} describedBy="e-governorate"
+                onChange={(id) => {
+                  setGov(id);
+                  setDistrict(""); // dependent lists: the district and the region start again
+                  setRegion("");
                 }}
-              >
-                <option value="">Choose your governorate</option>
-                {GOVERNORATES.map((g) => (
-                  <option key={g.name} value={g.name}>{g.name}</option>
-                ))}
-              </select>
+              />
               <Err id="e-governorate">{errors.governorate}</Err>
             </div>
             <div>
-              <label htmlFor="district" className={label}>District / city</label>
-              <select id="district" name="district" className={input} value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!gov} aria-invalid={!!errors.district} aria-describedby="e-district">
-                <option value="">{gov ? "Choose your district" : "Choose a governorate first"}</option>
-                {(governorate(gov)?.districts ?? []).map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+              <label htmlFor="district" className={label}>District</label>
+              <SearchSelect
+                id="district" options={districtOptions} value={district} disabled={!gov} placeholder={gov ? "Choose your district" : "Choose a governorate first"} invalid={!!errors.district} describedBy="e-district"
+                onChange={(id) => {
+                  setDistrict(id);
+                  setRegion(""); // changing the district resets the region
+                }}
+              />
               <Err id="e-district">{errors.district}</Err>
+            </div>
+            <div>
+              <label htmlFor="region" className={label}>Town / village / area</label>
+              <SearchSelect
+                id="region" options={regions} value={region} disabled={!district} loading={regionsLoading} placeholder={district ? "Search your town or village" : "Choose a district first"} invalid={!!errors.region} describedBy="e-region"
+                onChange={setRegion}
+              />
+              <Err id="e-region">{errors.region}</Err>
             </div>
           </div>
           <div>
@@ -274,6 +317,8 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
             <textarea id="notes" name="notes" rows={2} className={input} placeholder="Anything the courier should know" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </section>
+
+        {mapsKey && <PinPicker apiKey={mapsKey} pin={pin} onChange={setPin} />}
 
         <section className="glass space-y-5 p-5 md:p-8" aria-labelledby="h-pay">
           <h2 id="h-pay" className="display text-[22px]">Payment</h2>

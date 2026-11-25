@@ -3,7 +3,7 @@ import { getDb, getEngine, must, type Row } from "./db";
 import { parseOrderRef } from "./order-ref";
 import { normalizeLebanesePhone } from "./phone";
 
-export type OrderFilters = { q?: string; status?: string; pay?: string; region?: string; affiliate?: string; from?: string; to?: string; page?: number };
+export type OrderFilters = { q?: string; status?: string; pay?: string; region?: string; governorate?: string; district?: string; affiliate?: string; from?: string; to?: string; page?: number };
 export const PAGE_SIZE = 25;
 
 /** Filtered order list with customer attached. paginate=false returns everything (CSV export / bulk print). */
@@ -19,6 +19,12 @@ export async function listOrders(f: OrderFilters, paginate = true) {
     q = f.status && ["cancelled", "returned", "refused", "draft"].includes(f.status) ? q.eq("id", "none") : q.neq("status", "cancelled").neq("status", "returned").neq("status", "refused");
   }
   if (f.region) q = q.eq("region", f.region);
+  // location filters take a location id from the menu. New orders match by id; older orders (placed before the location ids existed) by the name they were saved with.
+  for (const [id, idCol, nameCol] of [[f.governorate, "governorate_id", "governorate"], [f.district, "district_id", "district"]] as const) {
+    if (!id) continue;
+    const loc = getEngine().sqlite.prepare("SELECT name_en FROM locations WHERE id = ?").get(id) as { name_en: string } | undefined;
+    q = loc ? q.or(`${idCol}.eq.${id},${nameCol}.eq.${loc.name_en.replace(/[%,()]/g, "")}`) : q.eq("id", "none");
+  }
   if (f.affiliate) q = q.eq("affiliate_id", f.affiliate); // an id from the menu; anything else simply matches nothing
   if (f.from) q = q.gte("created_at", new Date(f.from).toISOString());
   if (f.to) q = q.lte("created_at", new Date(new Date(f.to).getTime() + 86_399_000).toISOString());
@@ -63,7 +69,8 @@ export async function orderDetail(id: string) {
   return { order, items, events, customer, partner, partners, orderCount };
 }
 
-export const mapUrl = (address: string, region: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${address}, ${region}, Lebanon`)}`;
+/** Google Maps search for the full address text (no API key needed). `region` is only added for older orders whose address line does not carry the place. */
+export const mapUrl = (address: string, region: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([address, region, "Lebanon"].filter(Boolean).join(", "))}`;
 
 /**
  * One CSV cell, quoted. Text that a spreadsheet would run as a formula (starts with = + - @ or a tab / carriage return) gets a

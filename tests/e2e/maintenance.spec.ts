@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_PASSWORD, MAINT_URL, USERS } from "../support/e2e-env";
 import { one, query } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * SITE_MODE=maintenance with NO email configured, on a second server started from the SAME build (so the mode is read at
@@ -266,8 +267,7 @@ test.describe("admin preview: the real storefront, for the signed-in admin only"
     await page.getByRole("link", { name: "CHECKOUT" }).click();
     await page.locator("#name").fill("Preview Tester");
     await page.locator("#phone").fill("03 600 700");
-    await page.locator("#governorate").selectOption("Beirut");
-    await page.locator("#district").selectOption("Beirut");
+    await chooseLocation(page, "Beirut", "Beirut");
     await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
     // the button says TEST and stays disabled until the explicit confirmation is ticked
     const place = page.getByRole("button", { name: "PLACE TEST ORDER" });

@@ -1,31 +1,34 @@
 /**
- * Lebanon delivery geography: the 8 governorates and their districts (qadas), and which delivery zone (Settings > Shipping)
- * prices each governorate. Pure data, shared by the checkout form (dependent dropdowns) and the server (which re-checks everything).
- * A governorate whose zone is missing or switched off in the admin is simply not offered.
+ * Lebanon delivery geography helpers. The places themselves (8 governorates, 26 districts, every region) live in the `locations`
+ * table (migration 0010, official open data; lib/locations.ts). What stays here is pure and shared with the browser.
  */
-export const GOVERNORATES: { name: string; zone: string; districts: string[] }[] = [
-  { name: "Beirut", zone: "Beirut", districts: ["Beirut"] },
-  { name: "Mount Lebanon", zone: "Mount Lebanon", districts: ["Aley", "Baabda", "Chouf", "Jbeil (Byblos)", "Keserwan", "Matn"] },
-  { name: "North", zone: "North Lebanon", districts: ["Batroun", "Bsharri", "Koura", "Minieh-Danniyeh", "Tripoli", "Zgharta"] },
-  { name: "Akkar", zone: "North Lebanon", districts: ["Akkar"] },
-  { name: "Baalbek-Hermel", zone: "Bekaa", districts: ["Baalbek", "Hermel"] },
-  { name: "Beqaa", zone: "Bekaa", districts: ["Rashaya", "West Beqaa", "Zahle"] },
-  { name: "South", zone: "South Lebanon", districts: ["Jezzine", "Sidon", "Tyre"] },
-  { name: "Nabatieh", zone: "Nabatieh", districts: ["Bint Jbeil", "Hasbaya", "Marjayoun", "Nabatieh"] },
-];
 
-export const governorate = (name: string) => GOVERNORATES.find((g) => g.name === name);
+/**
+ * The delivery zone (Settings > Shipping & delivery) behind each governorate, by its official code. A zone only carries the
+ * free-delivery line now: the delivery FEE is one flat amount for everyone (lib/delivery.ts), so this is NOT zone pricing.
+ */
+export const GOVERNORATE_ZONE: Record<string, string> = {
+  LB1: "Beirut",
+  LB2: "Bekaa", // Bekaa
+  LB3: "Mount Lebanon",
+  LB4: "Nabatieh", // El Nabatieh
+  LB5: "North Lebanon",
+  LB6: "South Lebanon",
+  LB7: "North Lebanon", // Akkar
+  LB8: "Bekaa", // Baalbek-El Hermel
+};
 
-/** The delivery zone name for a governorate + district pair, or null when the pair is not valid. */
-export function zoneFor(gov: string, district: string): string | null {
-  const g = governorate(gov);
-  return g && g.districts.includes(district) ? g.zone : null;
-}
+export const zoneForGovernorate = (governorateId: string): string => GOVERNORATE_ZONE[governorateId] ?? "";
 
 /** One readable address line for slips, WhatsApp and emails. */
-export function addressLine(a: { street: string; district: string; governorate: string; landmark?: string }): string {
-  const place = a.district === a.governorate ? a.district : `${a.district}, ${a.governorate}`;
+export function addressLine(a: { street: string; region?: string; district: string; governorate: string; landmark?: string }): string {
+  const place = [a.region, a.district !== a.governorate ? a.district : "", a.governorate].filter((x, i, all) => x && all.indexOf(x) === i).join(", ");
   return [a.street.trim(), place, a.landmark?.trim() ? `Near ${a.landmark.trim()}` : ""].filter(Boolean).join(" · ");
 }
 
 export const HEARD_FROM_OPTIONS = ["Instagram", "A friend", "An athlete or creator", "Other"] as const;
+
+/** Google Maps search for a text address (no API key needed). */
+export const mapsSearchUrl = (text: string): string => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
+/** Google Maps link for a pin. */
+export const mapsPinUrl = (lat: number, lon: number): string => `https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lon.toFixed(6)}`;

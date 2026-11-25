@@ -41,7 +41,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
     { key: "num", label: "Order", render: (r) => <span className="mono !text-[14px] !text-fg">#{r.number}{r.test && <span className="status st-cancelled ml-2">TEST</span>}</span>, primary: true },
     { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString("en-GB", { timeZone: "Asia/Beirut", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
     { key: "cust", label: "Customer", render: (r) => <span><span className="block text-fg">{r.customer}</span><span className="block text-[13px] text-muted">{r.phone}</span></span> },
-    { key: "region", label: "Region", render: (r) => r.region || "—" },
+    { key: "region", label: "Location", render: (r) => r.region || "—" },
     {
       key: "aff", label: "Affiliate",
       render: (r) =>

@@ -142,8 +142,21 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           <Card>
             <SectionTitle>Delivery</SectionTitle>
             <p className="text-[16px] text-fg">{o.address}</p>
-            <p className="mt-1 text-[14px] text-body">{o.region}</p>
-            <a href={mapUrl(o.address, o.region)} target="_blank" rel="noopener noreferrer" className="link inline-flex min-h-12 items-center text-[15px]">Open in Google Maps ↗</a>
+            {o.governorate || o.district || o.region_name ? (
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[15px]" aria-label="Location">
+                {o.governorate && <><dt className="text-muted">Governorate</dt><dd className="text-fg" data-testid="loc-governorate">{o.governorate}</dd></>}
+                {o.district && <><dt className="text-muted">District</dt><dd className="text-fg" data-testid="loc-district">{o.district}</dd></>}
+                {o.region_name && <><dt className="text-muted">Region</dt><dd className="text-fg" data-testid="loc-region">{o.region_name}</dd></>}
+                {o.landmark && <><dt className="text-muted">Landmark</dt><dd className="text-fg">{o.landmark}</dd></>}
+              </dl>
+            ) : (
+              <p className="mt-1 text-[14px] text-body">{o.region}</p>
+            )}
+            <div className="mt-2 flex flex-wrap gap-x-5">
+              <a href={mapUrl(o.address, o.region_name ? "" : o.region)} target="_blank" rel="noopener noreferrer" className="link inline-flex min-h-12 items-center text-[15px]">Open in Google Maps ↗</a>
+              {o.pin_link && <a href={String(o.pin_link)} target="_blank" rel="noopener noreferrer" className="link inline-flex min-h-12 items-center text-[15px]" data-testid="pin-link">Open the customer&apos;s pin ↗</a>}
+            </div>
+            {o.pin_link && o.pin_lat != null && <p className="text-[14px] text-body" data-testid="pin-coords">Pin: {Number(o.pin_lat).toFixed(6)}, {Number(o.pin_lon).toFixed(6)} (dropped by the customer for the courier)</p>}
             {o.customer_notes && <p className="mt-3 rounded-2xl bg-white/6 p-3 text-[15px]"><span className="mono block !text-[13px]">CUSTOMER NOTE</span>{o.customer_notes}</p>}
             <ActionForm action={saveDelivery} className="mt-4 space-y-3">
               <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { E2E_PASSWORD, MAINT_URL, USERS } from "../support/e2e-env";
 import { exec, one, query, stockOf } from "../support/e2e-db";
+import { chooseLocation, pickPlace } from "../support/location";
 
 /**
  * Checkout end to end on the production build, on a 375px phone: add each flavour, change quantities, /checkout with a Lebanese
@@ -103,24 +104,48 @@ test("/checkout validates in plain language, the district list depends on the go
   await page.locator("#name").fill("Checkout Tester");
   await page.locator("#phone").fill("12345"); // invalid
   await page.locator("#street").fill("Hamra Street, Bldg 5, floor 3");
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/Enter your phone number/)).toBeVisible();
   expect(query("SELECT 1 FROM customers WHERE name = 'Checkout Tester'")).toHaveLength(0); // nothing was created
 
-  // dependent dropdown: the district list changes with the governorate and starts empty
-  await page.locator("#governorate").selectOption("Mount Lebanon");
+  // dependent selectors: the district list changes with the governorate, the region list with the district
+  await pickPlace(page, "#governorate", "Mount Lebanon");
   await expect(page.locator("#district")).toHaveValue("");
-  const districts = await page.locator("#district option").allInnerTexts();
-  expect(districts).toEqual(expect.arrayContaining(["Matn", "Keserwan", "Chouf"]));
+  await expect(page.locator("#region")).toBeDisabled(); // a region needs a district first
+  await page.locator("#district").click();
+  const options = page.locator('[role="listbox"] [role="option"]');
+  await expect(options).toHaveCount(6); // the six districts of Mount Lebanon
+  const districts = (await options.allInnerTexts()).join(" | ");
+  for (const d of ["Aley", "Baabda", "Chouf", "Jbeil", "Kesrwane", "El Meten"]) expect(districts).toContain(d);
   expect(districts).not.toContain("Sidon");
+  expect(districts).toContain("المتن"); // the Arabic name is shown beside the English one
+  await page.keyboard.press("Escape");
+  await pickPlace(page, "#district", "El Meten");
+  await page.locator("#region").click();
+  await expect(options).toHaveCount(187); // ALL regions of El Meten, and only those
+  await page.locator("#region").fill("Antelias");
+  await expect(options.first()).toContainText("Antelias");
+  await options.first().click();
+  await expect(page.locator("#region")).not.toHaveValue("");
+  // changing the district resets the region and lists the new district's regions only
+  await pickPlace(page, "#district", "Jbeil");
+  await expect(page.locator("#region")).toHaveValue("");
+  await page.locator("#region").click();
+  await expect(options).toHaveCount(215);
+  await page.keyboard.press("Escape");
+  // search works in Arabic too
+  await pickPlace(page, "#governorate", "بيروت");
+  await expect(page.locator("#governorate")).toHaveValue(/Beirut/);
+  await expect(page.locator("#district")).toHaveValue(""); // changing the governorate reset the district
   await shot(page, "checkout-375-errors");
-  await page.locator("#district").selectOption("Matn");
+  await pickPlace(page, "#district", "Beirut");
+  await page.locator("#region").click();
+  await options.first().click();
   // the delivery fee and total are live, from the server
   await expect(page.locator("details summary").getByText(/^\$\d/)).toBeVisible(); // the total in the phone summary
   await summary.locator("summary").click();
-  await expect(summary.locator("dd").filter({ hasText: /^(\$\d|Free)/ }).first()).toBeVisible(); // the delivery fee for Matn
+  await expect(summary.locator("dd").filter({ hasText: /^(\$\d|Free)/ }).first()).toBeVisible(); // the delivery fee
   expect(await page.getByRole("radio", { name: /Cash on delivery/ }).isChecked()).toBe(true);
   await noOverflow(page);
   await ctx.close();
@@ -138,8 +163,7 @@ test("place the order: a double click makes ONE order, the confirmation page sho
   await page.locator("#name").fill("Mira Khoury");
   await page.locator("#phone").fill(PHONE);
   await page.locator("#email").fill("mira@example.com");
-  await page.locator("#governorate").selectOption("Mount Lebanon");
-  await page.locator("#district").selectOption("Matn");
+  await chooseLocation(page, "Mount Lebanon", "El Meten");
   await page.locator("#street").fill("Main street, Bldg 12, floor 4");
   await page.locator("#landmark").fill("the pharmacy");
   await page.locator("#notes").fill("Call before arriving");
@@ -155,7 +179,7 @@ test("place the order: a double click makes ONE order, the confirmation page sho
   await expect(page.getByText("2 × RED BURN")).toBeVisible();
   await expect(page.getByText("Pay cash on delivery")).toBeVisible();
   await expect(page.getByText(/Main street, Bldg 12, floor 4/)).toBeVisible();
-  await expect(page.getByText(/Matn, Mount Lebanon/)).toBeVisible();
+  await expect(page.getByText(/El Meten, Mount Lebanon/)).toBeVisible();
   const wa = await page.getByRole("link", { name: /WHATSAPP/ }).getAttribute("href");
   expect(wa).toContain("wa.me/");
   expect(decodeURIComponent(wa!)).toContain(ref);
@@ -167,7 +191,7 @@ test("place the order: a double click makes ONE order, the confirmation page sho
   expect(orders).toHaveLength(1);
   const o = orders[0];
   state.id = String(o.id);
-  expect(o).toMatchObject({ order_number: state.number, status: "new", payment_method: "cod", governorate: "Mount Lebanon", district: "Matn", landmark: "the pharmacy", heard_from: "A friend", public_token: state.token });
+  expect(o).toMatchObject({ order_number: state.number, status: "new", payment_method: "cod", governorate: "Mount Lebanon", district: "El Meten", landmark: "the pharmacy", heard_from: "A friend", public_token: state.token });
   expect(String(o.customer_notes)).toBe("Call before arriving");
   expect(Number(o.subtotal_cents)).toBe(Number(one("SELECT price_cents p FROM products WHERE slug = 'red-burn'")!.p) * 2);
   expect(stockOf("red-burn")).toBe(redBefore - 2); // taken once, not twice
@@ -198,7 +222,7 @@ test("admin: the order is in the list (search by number, name, phone), change it
     await expect(admin.getByText(`#${state.number}`).locator("visible=true").first(), q).toBeVisible();
   }
   await admin.goto(`/admin/orders/${state.id}`);
-  await expect(admin.getByText(/Matn, Mount Lebanon/).first()).toBeVisible();
+  await expect(admin.getByText(/El Meten, Mount Lebanon/).first()).toBeVisible();
   await expect(admin.getByText("A friend")).toBeVisible();
   await expect(admin.getByRole("link", { name: /WhatsApp/i }).first()).toBeVisible();
   await expect(admin.getByRole("link", { name: /Packing slip|Invoice/ }).first()).toBeVisible();
@@ -233,8 +257,7 @@ test("out of stock: the product is SOLD OUT, and an order for the last pouch tha
   exec("UPDATE inventory_items SET on_hand = 0 WHERE product_id = (SELECT id FROM products WHERE slug = 'gold')"); // sold out while the customer fills the form
   await page.locator("#name").fill("Too Late");
   await page.locator("#phone").fill("03 818 282");
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.locator("#street").fill("Hamra Street, Bldg 5, floor 3");
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/GOLD is out of stock/)).toBeVisible();

@@ -15,11 +15,12 @@ const isProd = process.env.NODE_ENV === "production";
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://www.googletagmanager.com https://connect.facebook.net`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://www.googletagmanager.com https://www.facebook.com https://www.google-analytics.com",
-  "font-src 'self' data:",
-  "connect-src 'self' https://www.google-analytics.com https://*.analytics.google.com https://www.facebook.com https://connect.facebook.net",
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://www.googletagmanager.com https://connect.facebook.net https://maps.googleapis.com`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https://www.googletagmanager.com https://www.facebook.com https://www.google-analytics.com https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://*.ggpht.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https://www.google-analytics.com https://*.analytics.google.com https://www.facebook.com https://connect.facebook.net https://maps.googleapis.com https://places.googleapis.com",
+  "worker-src 'self' blob:", // the optional Google Maps pin step (only loaded when GOOGLE_MAPS_API_KEY is set)
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

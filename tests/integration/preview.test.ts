@@ -16,7 +16,7 @@ import { previewAdmin } from "@/lib/preview";
 import { isSale, loadData } from "@/lib/stats";
 import { placeOrder as placeOrderLib } from "@/lib/orders";
 import { h, ID, outbox, reqHeaders, resetState } from "../support/state";
-import { checkoutInput } from "../support/checkout";
+import { checkoutInput, D, deliveryTo } from "../support/checkout";
 import { seedStore } from "../support/seed";
 
 let S: Awaited<ReturnType<typeof seedStore>>;
@@ -28,7 +28,7 @@ const maintenance = () => {
   process.env.SITE_MODE = "maintenance";
 };
 const input = (productId: string, extra: object = {}) =>
-  checkoutInput(productId, { qty: 2, name: "Preview Tester", delivery: { governorate: "Beirut", district: "Beirut", street: "Hamra Street, Bldg 5, floor 3", landmark: "", notes: "ring twice" }, ...extra });
+  checkoutInput(productId, { qty: 2, name: "Preview Tester", delivery: deliveryTo(D.beirut, 0, { notes: "ring twice" }), ...extra });
 
 beforeEach(async () => {
   resetState();

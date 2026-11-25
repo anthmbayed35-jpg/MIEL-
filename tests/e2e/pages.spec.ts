@@ -3,6 +3,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_PASSWORD, ROOT, USERS } from "../support/e2e-env";
 import { one, query } from "../support/e2e-db";
+import { chooseLocation } from "../support/location";
 
 /**
  * Click-through of the WHOLE site, storefront and every admin page, at phone width (375) and desktop width (1440).
@@ -130,8 +131,7 @@ test("setup: make sure an order and a customer exist, so the order and customer 
   await page.getByRole("link", { name: "CHECKOUT" }).click();
   await page.locator("#name").fill("Pages Customer");
   await page.locator("#phone").fill("03 555 123");
-  await page.locator("#governorate").selectOption("Beirut");
-  await page.locator("#district").selectOption("Beirut");
+  await chooseLocation(page, "Beirut", "Beirut");
   await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
