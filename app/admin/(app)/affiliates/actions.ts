@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AFFILIATE_TIERS, type AffiliateTier } from "@/config/affiliates";
 import { audit } from "@/lib/audit";
-import { createAffiliate, generateCode, recordPayout, rejectApplication, updateAffiliate, upgradeTier, type AffiliateInput } from "@/lib/affiliates";
-import { approveAndInvite, inviteFor, type Invite } from "@/lib/ambassador/onboarding";
+import { approveApplication, createAffiliate, generateCode, recordPayout, rejectApplication, updateAffiliate, upgradeTier, type AffiliateInput } from "@/lib/affiliates";
+import { createAccountAndInvite, inviteFor, type Invite } from "@/lib/ambassador/onboarding";
 import { requirePerm } from "@/lib/auth";
 import { formVersion, orFail } from "@/lib/version";
 import type { ActionState } from "@/components/admin/ActionForm";
@@ -86,13 +86,25 @@ function inviteState(prefix: string, inv: Invite, kind: "invite" | "reset"): Act
   };
 }
 
+/** Approve = change the status ONLY. No account, no code, no invite, nothing sent: the team speaks to the applicant on WhatsApp first. */
 export async function approveApplicationAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   return orFail(async () => {
     const admin = await requirePerm("affiliates.manage");
-    const inv = await approveAndInvite(text(fd, "id"));
-    await audit(admin, "affiliate_application_approve", "affiliate_application", text(fd, "id"), { affiliate: inv.affiliate.id, code: inv.affiliate.code });
+    approveApplication(text(fd, "id"));
+    await audit(admin, "affiliate_application_approve", "affiliate_application", text(fd, "id"), {});
+    refresh();
+    return { ok: "Approved. No account was created and nothing was sent." };
+  });
+}
+
+/** The separate manual step, pressed only after talking to the applicant: creates the account and the 7-day invite link. */
+export async function createAccountAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(async () => {
+    const admin = await requirePerm("affiliates.manage");
+    const inv = await createAccountAndInvite(text(fd, "id"));
+    await audit(admin, "affiliate_account_create", "affiliate_application", text(fd, "id"), { affiliate: inv.affiliate.id, code: inv.affiliate.code });
     refresh(inv.affiliate.id);
-    return inviteState(`Approved. Code ${inv.affiliate.code} created.`, inv, "invite");
+    return inviteState(`Account created. Code ${inv.affiliate.code}.`, inv, "invite");
   });
 }
 

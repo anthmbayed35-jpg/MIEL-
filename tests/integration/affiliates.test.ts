@@ -7,7 +7,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 import { getEngine } from "../../lib/db/core";
 import { placeOrder, quoteSync, setOrderStatus } from "@/lib/orders";
 import {
-  affiliateOrders, affiliatePayouts, affiliateStats, approveApplication, approveDueCommissions, codeTaken, createAffiliate, createApplication, generateCode,
+  affiliateOrders, affiliatePayouts, affiliateStats, approveApplication, createAccountFromApplication, approveDueCommissions, codeTaken, createAffiliate, createApplication, generateCode,
   getAffiliateByToken, listAffiliates, monthlyRows, overview, recordPayout, rejectApplication, updateAffiliate, upgradeTier,
 } from "@/lib/affiliates";
 import { resetState } from "../support/state";
@@ -266,15 +266,19 @@ describe("applications", () => {
     expect(() => createApplication({ name: "Hadi", instagram_handle: "hadi", followers: "lots" })).toThrow(/Followers/);
     const id = createApplication({ name: "Hadi Saad", instagram_handle: "@hadi.fit", tiktok_handle: "https://tiktok.com/@hadi", followers: "12k", city: "Jounieh", sport: "Running", message: "Love it" });
     expect(sql().prepare("SELECT status, instagram_handle, tiktok_handle FROM affiliate_applications WHERE id = ?").get(id)).toEqual({ status: "new", instagram_handle: "hadi.fit", tiktok_handle: "hadi" });
-    const aff = approveApplication(id);
+    expect(() => createAccountFromApplication(id)).toThrow(/Approve the application first/); // approving comes first
+    approveApplication(id);
+    expect(sql().prepare("SELECT COUNT(*) n FROM affiliates").get()).toEqual({ n: 0 }); // approving only changes the status
+    const aff = createAccountFromApplication(id);
     expect(aff).toMatchObject({ name: "Hadi Saad", tier: "seed", status: "active", instagram_handle: "hadi.fit" });
     expect(aff.code).toMatch(/^HADI\d{2}$/);
     expect(aff.notes).toContain("12k followers");
-    expect(() => approveApplication(id)).toThrow(/already approved/);
+    expect(() => approveApplication(id)).toThrow(/already handled/);
+    expect(() => createAccountFromApplication(id)).toThrow(/already created/);
     const id2 = createApplication({ name: "Zed", instagram_handle: "zed" });
     rejectApplication(id2);
     expect(() => rejectApplication(id2)).toThrow(/already handled/);
-    expect(() => approveApplication(id2)).toThrow(/already rejected/);
+    expect(() => approveApplication(id2)).toThrow(/already handled/);
     expect(sql().prepare("SELECT COUNT(*) n FROM affiliates").get()).toEqual({ n: 1 });
   });
 });

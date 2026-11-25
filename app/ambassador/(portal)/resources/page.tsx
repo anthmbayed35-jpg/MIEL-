@@ -25,7 +25,7 @@ export default async function ResourcesPage() {
       <Card className="mb-6" >
         <p id="rules" className="mono mb-3">THE RULES</p>
         <ul className="space-y-2 text-[18px] text-fg">{RULES.map((r) => <li key={r} className="flex gap-3"><span aria-hidden className="accent">+</span>{r}</li>)}</ul>
-        <p className="mt-4 text-[15px] text-muted">Full terms (version {program.termsVersion}): <a href="/ambassadors/terms" className="accent underline underline-offset-4" target="_blank">read them</a>.</p>
+        <p className="mt-4 text-[15px] text-muted">Full terms (version {program.termsVersion}): <a href="/ambassador/terms" className="accent underline underline-offset-4" target="_blank">read them</a>.</p>
         <div className="mt-5 max-w-sm">
           {me.rules_read_at ? <p className="mono">✓ YOU READ THE RULES</p> : <ActionButton ghost action={rulesReadAction}>I READ THE RULES</ActionButton>}
         </div>

@@ -6,7 +6,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 import { getEngine } from "../../lib/db/core";
 import { applyAction } from "@/app/actions/ambassadors";
-import { approveApplicationAction } from "@/app/admin/(app)/affiliates/actions";
+import { approveApplicationAction, createAccountAction } from "@/app/admin/(app)/affiliates/actions";
 import { loginAction, logoutAction, requestPayoutAction, setPasswordAction, submitProofAction, monthlyKitAction, profileAction } from "@/app/ambassador/actions";
 import { reviewSubmissionAction, setKitStatusAction, rejectPayoutRequestAction, saveProgramAction } from "@/app/admin/(app)/affiliates/program/actions";
 import { POST as refClick } from "@/app/api/ref/route";
@@ -60,13 +60,15 @@ beforeEach(async () => {
 describe("application -> approval -> invite -> portal", () => {
   it("the whole path: apply, approve (invite link + WhatsApp), set password with terms, log in, log out", async () => {
     const started = String(Date.now() - 10_000);
-    expect(await applyAction(null, form({ name: "Hadi Saad", phone: "+961 70 123 456", email: "hadi@example.com", terms: "on", instagram_handle: "@hadi.fit", started, website: "" }))).toEqual({ ok: true });
-    const app = sql().prepare("SELECT id, terms_version FROM affiliate_applications").get() as { id: string; terms_version: number };
-    expect(app.terms_version).toBe(getProgram().termsVersion);
+    expect(await applyAction(null, form({ name: "Hadi Saad", phone: "+961 70 123 456", email: "hadi@example.com", instagram_handle: "@hadi.fit", started, website: "" }))).toEqual({ ok: true });
+    const app = sql().prepare("SELECT id FROM affiliate_applications").get() as { id: string };
 
     owner();
     expect(needsAction().applications).toBe(1);
-    const r = await approveApplicationAction(null, form({ id: app.id }));
+    const approved = await approveApplicationAction(null, form({ id: app.id }));
+    expect(approved).toMatchObject({ ok: expect.stringMatching(/nothing was sent/) });
+    expect(sql().prepare("SELECT COUNT(*) n FROM affiliates").get()).toEqual({ n: 0 }); // the account is the separate manual step
+    const r = await createAccountAction(null, form({ id: app.id }));
     expect(r).toMatchObject({ copy: { value: expect.stringContaining("/ambassador/set-password?token=") }, links: [{ href: expect.stringContaining("wa.me") }] });
     h.user = null;
     const token = new URL(r!.copy!.value).searchParams.get("token")!;

@@ -2,7 +2,6 @@
 
 import { headers } from "next/headers";
 import { createApplication } from "@/lib/affiliates";
-import { getProgram } from "@/lib/program";
 import { ipFromHeaders } from "@/lib/client-ip";
 import { getEngine } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
@@ -34,14 +33,13 @@ export async function applyAction(_prev: ApplyResult | null, fd: FormData): Prom
       const dup = getEngine().sqlite.prepare("SELECT 1 FROM affiliate_applications WHERE lower(instagram_handle) = ? AND created_at > ?").get(ig, new Date(Date.now() - 30 * 86_400_000).toISOString());
       if (dup) return { ok: false, error: "We already have your application. We will be in touch." };
     }
-    // the public form needs a way to reach the person and their agreement to the terms (the version and the time are stored with it)
-    if (text("phone").replace(/\D/g, "").length < 7) return { ok: false, error: "Enter your phone or WhatsApp number." };
-    if (!text("email").trim()) return { ok: false, error: "Enter your email address." };
-    if (fd.get("terms") !== "on") return { ok: false, error: "Accept the ambassador terms to apply." };
+    // the team contacts everyone on WhatsApp: the number is required and must have a country code (email is optional)
+    const digits = text("phone").replace(/[\s().-]/g, "");
+    if (!/^\+[1-9]\d{7,14}$/.test(digits)) return { ok: false, error: "Enter your WhatsApp number with the country code, for example +961 70 123 456." };
     createApplication({
       name: text("name"), instagram_handle: text("instagram_handle"), tiktok_handle: text("tiktok_handle"),
       followers: text("followers"), city: text("city"), sport: text("sport"), message: text("message"),
-      phone: text("phone"), email: text("email"), termsVersion: getProgram().termsVersion,
+      phone: digits, email: text("email"),
     });
     return { ok: true };
   } catch (e) {

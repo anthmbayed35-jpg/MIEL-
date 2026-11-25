@@ -145,24 +145,23 @@ test("/ambassadors on a phone: the application is saved with spam protection, th
   const ctx = await ctxFor(browser);
   const page = await ctx.newPage();
   await page.goto("/ambassadors");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Train. Fuel.");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Become a");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await page.locator("#ap-name").fill("Karim Daher");
   await page.locator("#ap-ph").fill("+961 70 765 432");
   await page.locator("#ap-em").fill("karim@example.com");
-  await page.getByLabel(/I agree to the/).check();
   await page.locator("#ap-ig").fill("@karim.lifts");
   await page.locator("#ap-f").fill("8k");
   await page.locator("#ap-c").fill("Saida");
   await page.locator("#ap-s").fill("CrossFit");
   await page.getByRole("button", { name: "SEND APPLICATION" }).click();
-  await expect(page.getByText("You're on the list.")).toBeVisible({ timeout: 15_000 }).catch(async () => {
+  await expect(page.getByText("Thanks, we received your application.")).toBeVisible({ timeout: 15_000 }).catch(async () => {
     // sent too fast for the bot check (under 3 s): a person would simply press the button again
     await expect(page.getByText("That was quick.")).toBeVisible();
     await expect(page.locator("#ap-name")).toHaveValue("Karim Daher"); // nothing typed is lost
     await page.waitForTimeout(3200);
     await page.getByRole("button", { name: "SEND APPLICATION" }).click();
-    await expect(page.getByText("You're on the list.")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Thanks, we received your application.")).toBeVisible({ timeout: 15_000 });
   });
   expect(query("SELECT name, instagram_handle, status FROM affiliate_applications WHERE instagram_handle = 'karim.lifts'")).toEqual([{ name: "Karim Daher", instagram_handle: "karim.lifts", status: "new" }]);
   await ctx.close();
@@ -173,8 +172,13 @@ test("/ambassadors on a phone: the application is saved with spam protection, th
   await admin.goto("/admin/affiliates/applications");
   const card = admin.locator("li", { hasText: "Karim Daher" });
   await expect(card).toContainText("@karim.lifts");
-  await card.getByRole("button", { name: /Approve and send invite/ }).click();
-  await expect(admin.getByText(/Approved. Code KARIM\d\d created/)).toBeVisible();
+  await expect(card.getByRole("link", { name: "Open WhatsApp" })).toBeVisible();
+  await card.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(admin.getByText(/No account was created/)).toBeVisible();
+  expect(query("SELECT 1 FROM affiliates WHERE name = 'Karim Daher'")).toHaveLength(0); // approving changed the status only
+  await admin.reload();
+  await admin.locator("li", { hasText: "Karim Daher" }).getByRole("button", { name: /Create account \/ send invite/ }).click();
+  await expect(admin.getByText(/Account created. Code KARIM\d\d/)).toBeVisible();
   expect(one("SELECT code FROM affiliates WHERE name = 'Karim Daher'")).toMatchObject({ code: expect.stringMatching(/^KARIM\d\d$/) });
 });
 

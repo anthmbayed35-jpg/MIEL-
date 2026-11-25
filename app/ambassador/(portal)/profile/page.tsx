@@ -52,12 +52,12 @@ export default async function ProfilePage() {
         <Card>
           <p id="terms" className="mono mb-3">TERMS</p>
           {me.terms_version === program.termsVersion ? (
-            <p className="body-lg">You accepted version {me.terms_version} on {me.terms_accepted_at ? day(me.terms_accepted_at) : "–"}. <Link href="/ambassadors/terms" target="_blank" className="accent underline underline-offset-4">Read the terms</Link></p>
+            <p className="body-lg">You accepted version {me.terms_version} on {me.terms_accepted_at ? day(me.terms_accepted_at) : "–"}. <Link href="/ambassador/terms" target="_blank" className="accent underline underline-offset-4">Read the terms</Link></p>
           ) : (
             <PortalForm action={acceptTermsAction} submit="ACCEPT">
               <label className="flex min-h-12 items-start gap-3 text-[17px] text-fg">
                 <input type="checkbox" name="terms" className="mt-1 size-6 accent-[#DAFC69]" />
-                <span>I accept the <Link href="/ambassadors/terms" target="_blank" className="accent underline underline-offset-4">ambassador terms</Link> (version {program.termsVersion}).</span>
+                <span>I accept the <Link href="/ambassador/terms" target="_blank" className="accent underline underline-offset-4">ambassador terms</Link> (version {program.termsVersion}).</span>
               </label>
             </PortalForm>
           )}

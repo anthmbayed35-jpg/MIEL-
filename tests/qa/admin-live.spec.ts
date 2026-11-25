@@ -29,11 +29,10 @@ async function apply(browser: Browser, handle: string) {
   await p.locator("#ap-name").fill(`Live ${handle}`);
   await p.locator("#ap-ph").fill("+961 70 765 432");
   await p.locator("#ap-em").fill(`${handle}@example.com`);
-  await p.getByLabel(/I agree to the/).check();
   await p.locator("#ap-ig").fill(handle);
   await p.waitForTimeout(3300); // the minimum fill time of the spam check
   await p.getByRole("button", { name: "SEND APPLICATION" }).click();
-  await expect(p.getByText("You're on the list.")).toBeVisible({ timeout: 15_000 });
+  await expect(p.getByText("Thanks, we received your application.")).toBeVisible({ timeout: 15_000 });
   await ctx.close();
 }
 const newApps = () => one<Record<string, number>>("SELECT COUNT(*) n FROM affiliate_applications WHERE status = 'new'")!.n;

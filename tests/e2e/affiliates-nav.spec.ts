@@ -96,7 +96,7 @@ test("desktop: Ambassadors sits after Orders, is highlighted on every page of th
   await section.getByRole("link", { name: /Applications/ }).click();
   await expect(page).toHaveURL(/\/admin\/affiliates\/applications$/);
   await expect(page.getByText("Nav Applicant 1")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Approve and send invite/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve", exact: true }).first()).toBeVisible();
   expect(bad).toEqual([]);
   await ctx.close();
 });

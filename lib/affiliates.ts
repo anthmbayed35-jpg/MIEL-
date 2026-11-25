@@ -340,19 +340,29 @@ export function createApplication(i: ApplicationInput) {
   return id;
 }
 
-export type ApplicationRow = ApplicationInput & { id: string; name: string; status: string; created_at: string; terms_version?: number | null; admin_notes?: string };
+export type ApplicationRow = ApplicationInput & { id: string; name: string; status: string; created_at: string; terms_version?: number | null; admin_notes?: string; affiliate_id?: string | null };
 export const listApplications = (status?: string) =>
   db().prepare(`SELECT * FROM affiliate_applications ${status ? "WHERE status = ?" : ""} ORDER BY (status = 'new') DESC, created_at DESC LIMIT 200`).all(...(status ? [status] : [])) as ApplicationRow[];
 
-/** Approving creates an affiliate (seed tier, default rates, a generated code the admin can change) in one transaction. */
-export function approveApplication(id: string): AffiliateRow {
+/** Approving an application ONLY changes its status. It creates no account, code or invite and tells the applicant nothing: the team talks to them on WhatsApp first. */
+export function approveApplication(id: string): void {
+  const r = db().prepare("UPDATE affiliate_applications SET status = 'approved', decided_at = ? WHERE id = ? AND status = 'new'").run(new Date().toISOString(), id);
+  if (!r.changes) throw new Error("This application was already handled.");
+}
+
+/**
+ * The separate, manual step after the WhatsApp conversation: create the ambassador account (seed tier, default rates, a generated code
+ * the admin can change) from an APPROVED application, in one transaction. Only once per application.
+ */
+export function createAccountFromApplication(id: string): AffiliateRow {
   return getEngine().tx(() => {
-    const a = db().prepare("SELECT * FROM affiliate_applications WHERE id = ?").get(id) as ApplicationRow | undefined;
+    const a = db().prepare("SELECT * FROM affiliate_applications WHERE id = ?").get(id) as (ApplicationRow & { affiliate_id?: string | null }) | undefined;
     if (!a) throw new Error("That application no longer exists.");
-    if (a.status !== "new") throw new Error(`This application was already ${a.status}.`);
+    if (a.status !== "approved") throw new Error("Approve the application first.");
+    if (a.affiliate_id) throw new Error("An account was already created for this application.");
     const details = [a.tiktok_handle && `TikTok @${a.tiktok_handle}`, a.followers && `${a.followers} followers`, a.city, a.sport].filter(Boolean).join(" · ");
     const aff = createAffiliate({ name: a.name, instagram_handle: a.instagram_handle ?? "", phone: a.phone ?? "", email: a.email ?? "", code: generateCode(a.name), notes: [details, a.message].filter(Boolean).join("\n") });
-    db().prepare("UPDATE affiliate_applications SET status = 'approved', affiliate_id = ?, decided_at = ? WHERE id = ?").run(aff.id, new Date().toISOString(), id);
+    db().prepare("UPDATE affiliate_applications SET affiliate_id = ? WHERE id = ?").run(aff.id, id);
     return aff;
   });
 }

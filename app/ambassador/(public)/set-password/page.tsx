@@ -33,7 +33,7 @@ export default async function SetPasswordPage({ searchParams }: { searchParams: 
               {info.kind === "invite" && (
                 <label className="flex min-h-12 items-start gap-3 text-[17px] text-fg">
                   <input type="checkbox" name="terms" required className="mt-1 size-6 accent-[#DAFC69]" />
-                  <span>I agree to the <Link href="/ambassadors/terms" target="_blank" className="accent underline underline-offset-4">ambassador terms</Link> (version {program.termsVersion}).</span>
+                  <span>I agree to the <Link href={`/ambassador/terms?token=${encodeURIComponent(token)}`} target="_blank" className="accent underline underline-offset-4">ambassador terms</Link> (version {program.termsVersion}).</span>
                 </label>
               )}
             </PortalForm>

@@ -11,7 +11,7 @@ import { createAffiliate, createApplication } from "@/lib/affiliates";
 import { placeOrder, setOrderStatus } from "@/lib/orders";
 import { CartProvider } from "@/components/CartProvider";
 import { applyAction } from "@/app/actions/ambassadors";
-import { approveApplicationAction, recordPayoutAction, rejectApplicationAction, saveAffiliate, suggestCode, upgradeTierAction } from "@/app/admin/(app)/affiliates/actions";
+import { approveApplicationAction, createAccountAction, recordPayoutAction, rejectApplicationAction, saveAffiliate, suggestCode, upgradeTierAction } from "@/app/admin/(app)/affiliates/actions";
 import { h, ID, resetState } from "../support/state";
 import { seedStore } from "../support/seed";
 
@@ -70,10 +70,15 @@ describe("admin affiliate actions", () => {
     expect(sql().prepare("SELECT 1 FROM audit_log WHERE action = 'affiliate_payout'").all()).toHaveLength(1);
   });
 
-  it("applications: approve creates an affiliate once, reject closes it", async () => {
-    const id = createApplication({ name: "Hadi Saad", instagram_handle: "hadi.fit" });
-    expect(await approveApplicationAction(null, form({ id }))).toMatchObject({ ok: expect.stringMatching(/Code HADI\d\d created/) });
-    expect(await approveApplicationAction(null, form({ id }))).toMatchObject({ error: expect.stringMatching(/already approved/) });
+  it("applications: approve only changes the status (no account, nothing sent), the account is a separate manual step, reject closes it", async () => {
+    const id = createApplication({ name: "Hadi Saad", instagram_handle: "hadi.fit", phone: "+96170123456" });
+    expect(await approveApplicationAction(null, form({ id }))).toMatchObject({ ok: expect.stringMatching(/No account was created/) });
+    expect(sql().prepare("SELECT COUNT(*) n FROM affiliates").get()).toEqual({ n: 0 });
+    expect(sql().prepare("SELECT COUNT(*) n FROM ambassador_tokens").get()).toEqual({ n: 0 });
+    expect(sql().prepare("SELECT COUNT(*) n FROM kit_requests").get()).toEqual({ n: 0 });
+    expect(await approveApplicationAction(null, form({ id }))).toMatchObject({ error: expect.stringMatching(/already handled/) });
+    expect(await createAccountAction(null, form({ id }))).toMatchObject({ ok: expect.stringMatching(/Code HADI\d\d/), copy: { value: expect.stringContaining("/ambassador/set-password") } });
+    expect(await createAccountAction(null, form({ id }))).toMatchObject({ error: expect.stringMatching(/already created/) });
     const id2 = createApplication({ name: "Zed Zed", instagram_handle: "zed" });
     expect(await rejectApplicationAction(null, form({ id: id2 }))).toMatchObject({ ok: "Application rejected." });
     expect(await rejectApplicationAction(null, form({ id: "nope" }))).toMatchObject({ error: expect.any(String) });
@@ -149,7 +154,7 @@ describe("admin pages, roles and export", () => {
 
 describe("public pages and the application form", () => {
 
-  const good = () => form({ name: "Hadi Saad", phone: "+961 70 123 456", email: "hadi@example.com", terms: "on", instagram_handle: "@hadi.fit", followers: "12k", city: "Jounieh", sport: "Running", started: String(Date.now() - 10_000), website: "" });
+  const good = () => form({ name: "Hadi Saad", phone: "+961 70 123 456", email: "hadi@example.com", instagram_handle: "@hadi.fit", followers: "12k", city: "Jounieh", sport: "Running", started: String(Date.now() - 10_000), website: "" });
 
   it("saves a valid application", async () => {
     h.user = null;
@@ -169,8 +174,8 @@ describe("public pages and the application form", () => {
     const noTime = good();
     noTime.delete("started");
     expect(await applyAction(null, noTime)).toMatchObject({ ok: false });
-    expect(await applyAction(null, form({ name: "A", phone: "+961 70 123 456", email: "a@example.com", terms: "on", instagram_handle: "x", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/name/) });
-    expect(await applyAction(null, form({ name: "Hadi", phone: "+961 70 123 456", email: "a@example.com", terms: "on", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/Instagram or TikTok/) });
+    expect(await applyAction(null, form({ name: "A", phone: "+961 70 123 456", email: "a@example.com", instagram_handle: "x", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/name/) });
+    expect(await applyAction(null, form({ name: "Hadi", phone: "+961 70 123 456", email: "a@example.com", started: String(Date.now() - 9000) }))).toMatchObject({ ok: false, error: expect.stringMatching(/Instagram or TikTok/) });
     sql().prepare("DELETE FROM rate_limits").run(); // the attempts above all counted against the limit, as they should
     expect(await applyAction(null, good())).toEqual({ ok: true });
     expect(await applyAction(null, good())).toMatchObject({ ok: false, error: expect.stringMatching(/already have your application/) });
@@ -185,16 +190,12 @@ describe("public pages and the application form", () => {
     expect(blocked).toBeGreaterThan(0); // 3 per hour per connection
   });
 
-  it("the ambassadors page renders with the form, the program and the levels", async () => {
+  it("the ambassadors page is private about the program: only the form, no money, levels, perks or rules", async () => {
     h.user = null;
     const out = await html(() => import("@/app/(store)/ambassadors/page"));
-    expect(out).toContain("Train. Fuel.");
+    expect(out).toContain("Become a");
     expect(out).toContain("SEND APPLICATION");
-    expect(out).toContain("Athlete");
-    // the only place those words may appear is the rule that forbids them
-    const claims = [...out.matchAll(/health|cure|immune|medical|treats/gi)]
-      .filter((m) => !/\b(no|never|not)\b/i.test(out.slice(Math.max(0, (m.index ?? 0) - 60), m.index))) // a mention that follows "no" / "never" is the rule forbidding it
-      .map((m) => out.slice(Math.max(0, (m.index ?? 0) - 30), (m.index ?? 0) + 30));
-    expect(claims).toEqual([]);
+    expect(out).toContain("WhatsApp number (with country code)");
+    expect(out).not.toMatch(/commission|percent|tier|levels?b|perk|payout|earn|threshold|affiliate|ambassador login|log in|free kit|starter kit|hold period/i);
   });
 });

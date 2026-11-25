@@ -5,7 +5,8 @@ import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { SubNav } from "@/components/admin/SubNav";
 import { affiliateTabs } from "@/lib/admin-tabs";
 import { Card, Empty, PageHeader } from "@/components/admin/ui";
-import { approveApplicationAction, rejectApplicationAction } from "../actions";
+import { approveApplicationAction, createAccountAction, rejectApplicationAction } from "../actions";
+import { waLink } from "@/lib/phone";
 import { saveApplicationNotesAction } from "../program/actions";
 
 export const metadata = { title: "Affiliate applications" };
@@ -35,7 +36,11 @@ export default async function ApplicationsPage() {
                     {a.instagram_handle && a.tiktok_handle && " · "}
                     {a.tiktok_handle && <span>TikTok <a className="text-fg underline underline-offset-4" href={`https://tiktok.com/@${a.tiktok_handle}`} target="_blank" rel="noopener noreferrer">@{a.tiktok_handle}</a></span>}
                   </p>
-                  <p className="mt-1 text-[15px] text-body">{[a.phone, a.email, a.terms_version ? `terms v${a.terms_version}` : ""].filter(Boolean).join(" · ")}</p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="text-[22px] font-semibold text-fg">{a.phone || "No WhatsApp number"}</span>
+                    {a.phone && <a href={waLink(a.phone, `Hi ${a.name.split(" ")[0]}, this is MIEL+. Thanks for applying to become an ambassador.`)} target="_blank" rel="noopener noreferrer" className="pill-btn pill-lime">Open WhatsApp</a>}
+                  </div>
+                  {a.email && <p className="mt-2 text-[15px] text-body">{a.email}</p>}
                   <p className="mt-1 text-[15px] text-body">{[a.followers && `${a.followers} followers`, a.city, a.sport, day(a.created_at)].filter(Boolean).join(" · ")}</p>
                 </div>
                 <span className={`status ${cls[a.status]}`}>{a.status}</span>
@@ -50,13 +55,26 @@ export default async function ApplicationsPage() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <ActionForm action={approveApplicationAction} className="contents">
                   <input type="hidden" name="id" value={a.id} />
-                  {a.status === "new" && <SubmitButton variant="lime" confirm={`Approve ${a.name}? This creates the account and a 7-day invite link.`}>Approve and send invite</SubmitButton>}
+                  {a.status === "new" && <SubmitButton variant="lime" confirm={`Approve ${a.name}? This only changes the status. No account is created and nothing is sent.`}>Approve</SubmitButton>}
                 </ActionForm>
                 <ActionForm action={rejectApplicationAction} className="contents">
                   <input type="hidden" name="id" value={a.id} />
                   {a.status === "new" && <SubmitButton variant="glass" confirm={`Reject ${a.name}'s application?`}>Reject</SubmitButton>}
                 </ActionForm>
               </div>
+              {a.status === "approved" && (
+                // stays mounted after the account is made, so the invite link and its WhatsApp button stay on screen
+                <ActionForm action={createAccountAction} className="mt-3">
+                  <input type="hidden" name="id" value={a.id} />
+                  {!a.affiliate_id && (
+                    <>
+                      <SubmitButton variant="glass" confirm={`Create the ambassador account for ${a.name} and make the invite link? Press this only after talking to them on WhatsApp.`}>Create account / send invite</SubmitButton>
+                      <p className="mt-2 text-[14px] text-body">Manual step: nothing is sent automatically. You get the link to send on WhatsApp.</p>
+                    </>
+                  )}
+                  {a.affiliate_id && <p className="text-[15px] text-body">An ambassador account exists for this application.</p>}
+                </ActionForm>
+              )}
             </Card>
           ))}
         </ul>

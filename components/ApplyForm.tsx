@@ -23,8 +23,8 @@ export function ApplyForm() {
     return (
       <div className="glass p-6 md:p-8" role="status">
         <p className="mono mb-2">APPLICATION RECEIVED</p>
-        <p className="display text-[28px] leading-tight">You&apos;re on the list.</p>
-        <p className="body-lg mt-3">We read every application and reply on Instagram or TikTok. No spam, no pressure.</p>
+        <p className="display text-[28px] leading-tight">Thanks, we received your application.</p>
+        <p className="body-lg mt-3">We&apos;ll contact you on WhatsApp soon.</p>
       </div>
     );
   }
@@ -49,12 +49,12 @@ export function ApplyForm() {
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <div>
-          <label htmlFor="ap-ph" className={label}>Phone / WhatsApp</label>
-          <input id="ap-ph" name="phone" required inputMode="tel" maxLength={30} autoComplete="tel" placeholder="+961 …" className={field} />
+          <label htmlFor="ap-ph" className={label}>WhatsApp number (with country code)</label>
+          <input id="ap-ph" name="phone" required inputMode="tel" maxLength={30} autoComplete="tel" placeholder="+961 70 123 456" className={field} />
         </div>
         <div>
-          <label htmlFor="ap-em" className={label}>Email</label>
-          <input id="ap-em" name="email" type="email" required maxLength={120} autoComplete="email" className={field} />
+          <label htmlFor="ap-em" className={label}>Email (optional)</label>
+          <input id="ap-em" name="email" type="email" maxLength={120} autoComplete="email" className={field} />
         </div>
         <div>
           <label htmlFor="ap-ig" className={label}>Instagram</label>
@@ -78,14 +78,10 @@ export function ApplyForm() {
         <input id="ap-s" name="sport" maxLength={60} placeholder="Running, CrossFit, football…" className={field} />
       </div>
       <div>
-        <label htmlFor="ap-m" className={label}>Why MIEL+?</label>
+        <label htmlFor="ap-m" className={label}>Tell us a bit about you</label>
         <textarea id="ap-m" name="message" rows={4} maxLength={1000} className={field} />
       </div>
       <p className="text-[16px] text-body">Add at least your Instagram or TikTok so we can find you.</p>
-      <label className="flex min-h-12 items-start gap-3 text-[16px] text-fg">
-        <input type="checkbox" name="terms" required className="mt-1 h-6 w-6 shrink-0 accent-[#DAFC69]" />
-        <span>I agree to the <a href="/ambassadors/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">ambassador terms</a>, including saying when a post is an ad and making no health claims.</span>
-      </label>
       <Send pending={pending} />
     </form>
   );

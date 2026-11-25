@@ -39,7 +39,7 @@ export default async function PortalLayout({ children }: { children: React.React
             <PortalForm action={acceptTermsAction} submit="ACCEPT">
               <label className="flex min-h-12 items-start gap-3 text-[17px] text-fg">
                 <input type="checkbox" name="terms" className="mt-1 size-6 accent-[#DAFC69]" />
-                <span>I accept the <Link href="/ambassadors/terms" target="_blank" className="accent underline underline-offset-4">ambassador terms</Link>.</span>
+                <span>I accept the <Link href="/ambassador/terms" target="_blank" className="accent underline underline-offset-4">ambassador terms</Link>.</span>
               </label>
             </PortalForm>
           </section>

@@ -56,7 +56,7 @@ export default async function ProgramSettingsPage() {
 
         <Card>
           <SectionTitle right={<span className="mono !text-[14px]">Version {p.termsVersion}</span>}>Terms</SectionTitle>
-          <p className="mb-3 text-[15px] text-body">The text below is shown on /ambassadors/terms and accepted at sign-up. Change it and the version goes up: every ambassador accepts it again at their next login. Have a lawyer review it before you rely on it.</p>
+          <p className="mb-3 text-[15px] text-body">The text below is shown to ambassadors inside their portal and accepted when they set their password. It is not public. Change it and the version goes up: every ambassador accepts it again at their next login. Have a lawyer review it before you rely on it.</p>
           <textarea name="terms" rows={16} defaultValue={p.termsText} className="a-input" aria-label="Terms text" />
         </Card>
         <SubmitButton variant="lime">Save settings</SubmitButton>

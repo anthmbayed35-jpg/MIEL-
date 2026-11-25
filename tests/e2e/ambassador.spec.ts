@@ -29,22 +29,20 @@ test("apply on /ambassadors, the team approves, an invite link is made", async (
   const ctx = await ctxFor(browser);
   const page = await ctx.newPage();
   await page.goto("/ambassadors");
-  await expect(page.getByRole("link", { name: /AMBASSADOR LOGIN/i }).first()).toBeVisible();
   await page.locator("#ap-name").fill("Journey Runner");
   await page.locator("#ap-ph").fill("+961 70 111 222");
   await page.locator("#ap-em").fill(EMAIL);
-  await page.getByLabel(/I agree to the/).check();
   await page.locator("#ap-ig").fill("@journey.runs");
   await page.locator("#ap-f").fill("5k");
   await page.locator("#ap-c").fill("Beirut");
   await page.locator("#ap-s").fill("Running");
   await page.getByRole("button", { name: "SEND APPLICATION" }).click();
-  await expect(page.getByText("You're on the list.")).toBeVisible({ timeout: 15_000 }).catch(async () => {
+  await expect(page.getByText("Thanks, we received your application.")).toBeVisible({ timeout: 15_000 }).catch(async () => {
     await page.waitForTimeout(3200); // sent too fast for the bot check: press again like a person
     await page.getByRole("button", { name: "SEND APPLICATION" }).click();
-    await expect(page.getByText("You're on the list.")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Thanks, we received your application.")).toBeVisible({ timeout: 15_000 });
   });
-  expect(one("SELECT terms_version, email FROM affiliate_applications WHERE email = ?", EMAIL)).toMatchObject({ terms_version: 1, email: EMAIL });
+  expect(one("SELECT email, status FROM affiliate_applications WHERE email = ?", EMAIL)).toMatchObject({ email: EMAIL, status: "new" });
   await ctx.close();
 
   const admin = await (await ctxFor(browser)).newPage();
@@ -53,8 +51,11 @@ test("apply on /ambassadors, the team approves, an invite link is made", async (
   await admin.goto("/admin/affiliates/applications");
   const card = admin.locator("li", { hasText: "Journey Runner" });
   await expect(card).toContainText(EMAIL);
-  await card.getByRole("button", { name: /Approve and send invite/ }).click();
-  await expect(admin.getByText(/Approved. Code JOURNEY\d\d created/)).toBeVisible();
+  await card.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(admin.getByText(/No account was created/)).toBeVisible();
+  await admin.reload();
+  await admin.locator("li", { hasText: "Journey Runner" }).getByRole("button", { name: /Create account \/ send invite/ }).click();
+  await expect(admin.getByText(/Account created. Code JOURNEY\d\d/)).toBeVisible();
   await expect(admin.getByRole("link", { name: /WhatsApp/i }).first()).toBeVisible(); // a ready-to-send WhatsApp message
   const row = one<{ id: string; code: string }>("SELECT id, code FROM affiliates WHERE email = ?", EMAIL)!;
   state.id = row.id;
@@ -225,4 +226,35 @@ test("an ambassador session never opens the admin, and an admin session is not a
   await signInOwner(admin);
   await admin.goto("/ambassador");
   await expect(admin).toHaveURL(/\/ambassador\/login$/);
+});
+
+test("the public Ambassadors page leaks no program details: not in the HTML, the scripts it loads, the meta tags, the sitemap or any public API", async ({ browser, request }) => {
+  const SECRET = /commission|percent|tier|levels?\b|perk|payout|earn(?:ings?)?\b|threshold|starter kit|free pouch|hold period|follower discount|ambassador login|ambassador terms|#ad\b|health claim/i;
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await ctx.newPage();
+  const scripts: string[] = [];
+  page.on("response", async (r) => {
+    if (r.url().endsWith(".js") || r.url().includes(".js?")) scripts.push(await r.text().catch(() => ""));
+  });
+  await page.goto("/ambassadors");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Become a");
+  await page.waitForLoadState("networkidle");
+  const html = await page.content();
+  const visible = await page.locator("body").innerText();
+  const metas = await page.evaluate(() => [...document.querySelectorAll("meta")].map((m) => m.getAttribute("content") ?? "").join("\n") + document.title);
+  expect(visible).not.toMatch(SECRET);
+  expect(html.replace(/<script[\s\S]*?<\/script>/g, "")).not.toMatch(SECRET);
+  expect(metas).not.toMatch(SECRET);
+  // the form is the only thing: no link to the portal, the terms or the login
+  for (const href of await page.locator("a[href]").evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))) expect(href).not.toMatch(/\/ambassador(\/|$)|ambassadors\/terms/);
+  // framework chunks contain generic words (percent, tier...): scripts are checked for the program-specific phrases
+  const PROGRAM_JS = /commission|payout|starter kit|free pouch|hold period|follower discount|ambassador login|ambassador terms|become an ambassador|athlete tier|seed tier/i;
+  for (const [i, js] of scripts.entries()) expect(js, `script ${i}`).not.toMatch(PROGRAM_JS);
+  const sitemap = await request.get("/sitemap.xml");
+  expect(await sitemap.text()).not.toMatch(SECRET);
+  for (const url of ["/api/health", "/ambassadors/terms", "/robots.txt"]) {
+    const r = await request.get(url, { maxRedirects: 0 });
+    expect(await r.text()).not.toMatch(SECRET);
+  }
+  await ctx.close();
 });
