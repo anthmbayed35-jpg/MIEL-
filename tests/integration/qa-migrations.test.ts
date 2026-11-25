@@ -107,11 +107,12 @@ describe("migrating a copy of a real pre-affiliate database", () => {
 
     const db = openSqlite(copy);
     expect(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name = 'affiliates'").get()).toEqual({ n: 0 });
-    expect(migrate(db, undefined, copy)).toEqual([5, 6, 7, 8, 9, 10]); // exactly the new migrations
+    expect(migrate(db, undefined, copy)).toEqual([5, 6, 7, 8, 9, 10, 11]); // exactly the new migrations
     expect(db.pragma("integrity_check", { simple: true })).toBe("ok");
     expect(db.pragma("foreign_key_check")).toEqual([]);
     // locations (0010): the official data is seeded, and the 200 existing orders gained only EMPTY location columns
-    expect(db.prepare("SELECT type, COUNT(*) n FROM locations GROUP BY type ORDER BY type").all()).toEqual([{ type: "district", n: 26 }, { type: "governorate", n: 8 }, { type: "region", n: 2708 }]);
+    expect(db.prepare("SELECT type, COUNT(*) n FROM locations GROUP BY type ORDER BY type").all()).toEqual([{ type: "district", n: 26 }, { type: "governorate", n: 8 }, { type: "region", n: 4241 }]); // 2708 official + 1533 added by 0011
+    expect(db.prepare("SELECT COUNT(*) n FROM orders WHERE unlisted_area_id = ''").get()).toEqual({ n: 200 }); // 0011 gave old orders only an empty column
     expect(db.prepare("SELECT COUNT(*) n FROM orders WHERE governorate_id = '' AND district_id = '' AND region_id = '' AND region_name = '' AND pin_lat IS NULL AND pin_link = ''").get()).toEqual({ n: 200 });
     // checkout migration (0008): every existing order got its own private token, and the new status works without losing the items
     expect(db.prepare("SELECT COUNT(*) n, COUNT(DISTINCT public_token) d FROM orders WHERE length(public_token) = 32").get()).toEqual({ n: 200, d: 200 });

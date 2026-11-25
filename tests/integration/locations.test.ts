@@ -33,11 +33,12 @@ beforeEach(async () => {
 });
 
 describe("the seeded location data (official HDX sources)", () => {
-  it("8 governorates, 26 districts, 2708 regions, and every district and governorate code from the official list", () => {
+  it("8 governorates, 26 districts, thousands of regions, and every district and governorate code from the official list", () => {
     const n = (t: string) => (sql().prepare("SELECT COUNT(*) n FROM locations WHERE type = ?").get(t) as { n: number }).n;
     expect(n("governorate")).toBe(8);
     expect(n("district")).toBe(26);
-    expect(n("region")).toBe(2708);
+    expect(n("region")).toBeGreaterThan(4000); // 2708 official + OSM / GeoNames / manual (migration 0011)
+    expect((sql().prepare("SELECT COUNT(*) n FROM locations WHERE type = 'region' AND source LIKE 'cas%'").get() as { n: number }).n).toBe(2708);
     const govs = (sql().prepare("SELECT name_en, code FROM locations WHERE type = 'governorate' ORDER BY code").all() as { name_en: string; code: string }[]).map((g) => `${g.code} ${g.name_en}`);
     expect(govs).toEqual(["LB1 Beirut", "LB2 Bekaa", "LB3 Mount Lebanon", "LB4 El Nabatieh", "LB5 North", "LB6 South", "LB7 Akkar", "LB8 Baalbek-El Hermel"]);
     expect(Object.keys(GOVERNORATE_ZONE).sort()).toEqual(["LB1", "LB2", "LB3", "LB4", "LB5", "LB6", "LB7", "LB8"]); // every governorate maps to a free-delivery zone
@@ -53,8 +54,10 @@ describe("the seeded location data (official HDX sources)", () => {
 
   it("every governorate has districts, every district has regions, counts per district match the source report", () => {
     const per = Object.fromEntries((sql().prepare("SELECT d.name_en, COUNT(r.id) n FROM locations d JOIN locations r ON r.parent_id = d.id WHERE d.type = 'district' GROUP BY d.id").all() as { name_en: string; n: number }[]).map((x) => [x.name_en, x.n]));
-    expect(per).toMatchObject({ Beirut: 71, Baalbek: 176, Zahle: 83, Akkar: 286, Jbeil: 215, Tripoli: 27, Bcharre: 27, Hasbaya: 36, Saida: 108, Sour: 113, "El Meten": 187 });
-    expect(Object.values(per).reduce((a, b) => a + b, 0)).toBe(2708);
+    const official = Object.fromEntries((sql().prepare("SELECT d.name_en, COUNT(r.id) n FROM locations d JOIN locations r ON r.parent_id = d.id WHERE d.type = 'district' AND r.source LIKE 'cas%' GROUP BY d.id").all() as { name_en: string; n: number }[]).map((x) => [x.name_en, x.n]));
+    expect(official).toMatchObject({ Beirut: 71, Baalbek: 176, Zahle: 83, Akkar: 286, Jbeil: 215, Tripoli: 27, Bcharre: 27, Hasbaya: 36, Saida: 108, Sour: 113, "El Meten": 187 });
+    for (const [k, v] of Object.entries(official)) expect(per[k], k).toBeGreaterThanOrEqual(v); // the official regions are all kept; v2 only adds
+    expect(Object.values(official).reduce((a, b) => a + b, 0)).toBe(2708);
     expect(Object.keys(per)).toHaveLength(26);
   });
 
@@ -63,8 +66,9 @@ describe("the seeded location data (official HDX sources)", () => {
     for (const r of rows) {
       expect(r.name_en, r.name_en).toBe(r.name_en.trim().replace(/\s+/g, " "));
       expect(r.name_en, r.name_en).not.toMatch(/^[A-Z0-9 .'()\-]{4,}$/); // ALL CAPS names were tidied
-      expect(r.name_ar.length, r.name_en).toBeGreaterThan(0);
-    }
+      }
+    const noArabic = sql().prepare("SELECT name_en FROM locations WHERE type = 'region' AND source LIKE 'cas%' AND name_ar = ''").all();
+    expect(noArabic.length).toBeLessThan(5); // Arabic is on (nearly) every official region; added places may be English-only
     const seen = new Set<string>();
     for (const r of rows) {
       const k = `${r.parent_id}|${r.name_en.toLowerCase()}`;
@@ -87,8 +91,10 @@ describe("the checkout lists (dependent selectors)", () => {
     expect(tree.flatMap((g) => g.districts)).toHaveLength(26);
     const meten = regionsOf(D.meten);
     const beirut = regionsOf(D.beirut);
-    expect(meten).toHaveLength(187);
-    expect(beirut).toHaveLength(71);
+    const count = (d: string) => (sql().prepare("SELECT COUNT(*) n FROM locations WHERE parent_id = ? AND type = 'region' AND hidden = 0").get(d) as { n: number }).n;
+    expect(meten).toHaveLength(count(D.meten));
+    expect(beirut).toHaveLength(count(D.beirut));
+    expect(meten.length).toBeGreaterThanOrEqual(187);
     const ids = new Set(meten.map((r) => r.id));
     for (const r of beirut) expect(ids.has(r.id)).toBe(false);
     // every region of a district belongs to that district in the database
@@ -106,7 +112,7 @@ describe("the checkout lists (dependent selectors)", () => {
     expect(ok.status).toBe(200);
     expect(ok.headers.get("cache-control")).toContain("private");
     const body = (await ok.json()) as { regions: { id: string; en: string; ar: string }[] };
-    expect(body.regions).toHaveLength(83);
+    expect(body.regions.length).toBeGreaterThanOrEqual(83);
     expect(Object.keys(body.regions[0]).sort()).toEqual(["ar", "en", "id"]);
     expect(((await (await get("")).json()) as { regions: unknown[] }).regions).toEqual([]);
     expect(((await (await get("?district=LB3")).json()) as { regions: unknown[] }).regions).toEqual([]); // a governorate
@@ -184,14 +190,15 @@ describe("admin: hide / show, rename, add a region, counts, filters", () => {
   it("a hidden district or region disappears from checkout and is refused by the server; showing it brings it back", async () => {
     owner();
     const beirutRegion = deliveryTo(D.beirut).regionId;
+    const beirutBefore = regionsOf(D.beirut).length;
     expect(await updateLocation(null, form({ id: beirutRegion, op: "hide" }))).toMatchObject({ ok: expect.stringMatching(/Hidden/) });
     expect(regionsOf(D.beirut).some((r) => r.id === beirutRegion)).toBe(false);
-    expect(regionsOf(D.beirut)).toHaveLength(70);
+    expect(regionsOf(D.beirut)).toHaveLength(beirutBefore - 1);
     h.user = null;
     expect(await placeOrder(checkoutInput(S.red.id, { delivery: { ...deliveryTo(D.beirut, 1), regionId: beirutRegion } }))).toMatchObject({ ok: false, field: "region" });
     owner();
     expect(await updateLocation(null, form({ id: beirutRegion, op: "show" }))).toMatchObject({ ok: expect.stringMatching(/Shown/) });
-    expect(regionsOf(D.beirut)).toHaveLength(71);
+    expect(regionsOf(D.beirut)).toHaveLength(beirutBefore);
 
     // a hidden district leaves the list, takes its regions with it, and cannot be ordered to
     expect(await updateLocation(null, form({ id: D.zahle, op: "hide" }))).toMatchObject({ ok: expect.any(String) });
@@ -258,13 +265,13 @@ describe("admin: hide / show, rename, add a region, counts, filters", () => {
     const { default: Page } = await import("@/app/admin/(app)/settings/locations/page");
     const render = async (sp: object) => renderToStaticMarkup(createElement("div", null, await Page({ searchParams: Promise.resolve(sp) })));
     const home = await render({});
-    expect(home).toContain("8 governorates, 26 districts and 2708 regions");
-    expect(home).toMatch(/Jbeil[\s\S]*?215 regions/);
-    expect(home).toMatch(/Beirut[\s\S]*?71 regions/);
+    expect(home).toMatch(/8 governorates, 26 districts and \d+ regions/);
+    expect(home).toMatch(/Jbeil[\s\S]*?\d+ regions/);
     const district = await render({ district: D.akkar });
-    expect(district).toContain("286 regions");
+    const akkarN = (sql().prepare("SELECT COUNT(*) n FROM locations WHERE parent_id = ? AND type = 'region'").get(D.akkar) as { n: number }).n;
+    expect(district).toContain(`${akkarN} regions`);
     expect(district).toContain("Add a missing region to Akkar");
-    expect((district.match(/value="hide"[^>]*name="op"/g) ?? []).length).toBe(287); // 286 regions + the district itself
+    expect((district.match(/value="hide"[^>]*name="op"/g) ?? []).length).toBe(akkarN + 1); // every region + the district itself
     expect(await render({ district: D.akkar, rq: "zzzzzz" })).toContain("No region matches");
     expect(await render({ q: "عكار" })).toContain("Akkar");
   });

@@ -3,6 +3,8 @@ import { E2E_PASSWORD, USERS } from "../support/e2e-env";
 import { one, query } from "../support/e2e-db";
 import { chooseLocation, pickPlace } from "../support/location";
 
+const regionCount = (district: string) => one<{ n: number }>("SELECT COUNT(*) n FROM locations r JOIN locations d ON d.id = r.parent_id WHERE d.name_en = ? AND d.type = 'district' AND r.type = 'region' AND r.hidden = 0", district)!.n;
+
 /**
  * The Lebanon location selector on a 375px phone, against the production build: orders from six districts in six governorates
  * (Beirut, a Bekaa village, Akkar, the South, Baalbek and the North), each district shows only its own regions, the delivery stays
@@ -36,18 +38,18 @@ async function signIn(page: Page) {
   await page.waitForURL(/\/admin(\?.*)?$/);
 }
 
-const CASES: [string, string, string, string, number][] = [
+const CASES: [string, string, string, string, number | null][] = [
   // governorate, district, a region to search for, phone, regions that district must list
-  ["Beirut", "Beirut", "Achrafiye", "03 301 001", 71],
-  ["Bekaa", "Zahle", "Zahle", "03 301 002", 83], // a Bekaa town
-  ["Akkar", "Akkar", "", "03 301 003", 286],
-  ["South", "Saida", "", "03 301 004", 108],
-  ["Baalbek-El Hermel", "Baalbek", "", "03 301 005", 176],
-  ["North", "Tripoli", "", "03 301 006", 27],
+  ["Beirut", "Beirut", "Achrafiye", "03 301 001", null],
+  ["Bekaa", "Zahle", "Zahle", "03 301 002", null], // a Bekaa town
+  ["Akkar", "Akkar", "", "03 301 003", null],
+  ["South", "Saida", "", "03 301 004", null],
+  ["Baalbek-El Hermel", "Baalbek", "", "03 301 005", null],
+  ["North", "Tripoli", "", "03 301 006", null],
 ];
 
 for (const [gov, district, regionQuery, phone, count] of CASES) {
-  test(`order from ${district} (${gov}): only its ${count} regions are listed, delivery is a flat $5, the order carries the location`, async ({ browser }) => {
+  test(`order from ${district} (${gov}): only its own regions are listed, delivery is a flat $5, the order carries the location`, async ({ browser }) => {
     const ctx = await ctxFor(browser);
     const page = await ctx.newPage();
     await startCheckout(page);
@@ -56,7 +58,7 @@ for (const [gov, district, regionQuery, phone, count] of CASES) {
     await pickPlace(page, "#district", district);
     await page.locator("#region").click();
     const options = page.locator('[role="listbox"] [role="option"]');
-    await expect(options).toHaveCount(count); // ALL the regions of this district, and no others
+    await expect(options).toHaveCount(count ?? regionCount(district)); // ALL the regions of this district, and no others
     // every listed region really belongs to this district
     const names = await options.evaluateAll((els) => els.map((e) => (e.querySelector("span")?.textContent ?? "").trim()));
     const inDb = query<{ name_en: string }>("SELECT r.name_en FROM locations r JOIN locations d ON d.id = r.parent_id WHERE d.name_en = ? AND r.type = 'region' AND r.hidden = 0", district).map((r) => r.name_en);
@@ -124,13 +126,13 @@ test("admin Locations: counts per district, search in Arabic and English, hide a
   admin.on("dialog", (d) => void d.accept());
   await signIn(admin);
   await admin.goto("/admin/settings/locations");
-  await expect(admin.getByText("8 governorates, 26 districts and 2708 regions")).toBeVisible();
-  await expect(admin.getByRole("link", { name: /Jbeil.*215 regions/ })).toBeVisible();
+  await expect(admin.getByText(/8 governorates, 26 districts and \d+ regions/)).toBeVisible();
+  await expect(admin.getByRole("link", { name: new RegExp(`Jbeil.*${regionCount("Jbeil")} regions`) })).toBeVisible();
   await admin.getByLabel("Search locations").fill("زحلة");
   await admin.getByRole("button", { name: "Search", exact: true }).click();
   await expect(admin.getByText(/result/).first()).toBeVisible();
   await admin.goto("/admin/settings/locations?district=LB61");
-  await expect(admin.getByText("108 regions").first()).toBeVisible();
+  await expect(admin.getByText(`${regionCount("Saida")} regions`).first()).toBeVisible();
   // add a region to Saida
   await admin.getByLabel("Region name (English)").fill("E2E New Village");
   await admin.getByRole("button", { name: "Add region" }).click();

@@ -12,3 +12,13 @@ export const affiliateTabs = (newApplications = 0): SubItem[] => [
   { href: "/admin/affiliates/reports", label: "Reports", perm: "affiliates.read" },
   { href: "/admin/affiliates/settings", label: "Settings", perm: "affiliates.manage" },
 ];
+
+/** The Settings tabs with the number of unlisted areas (what customers typed because their area was not in the list) as a badge. Plain data: called on the server. */
+export const settingsTabs = (unlisted = 0): SubItem[] => [
+  { href: "/admin/settings", label: "Store", perm: "settings.read" },
+  { href: "/admin/settings/shipping", label: "Shipping & delivery", perm: "shipping.manage" },
+  { href: "/admin/settings/locations", label: "Locations", perm: "shipping.manage" },
+  { href: "/admin/settings/locations/unlisted", label: "Unlisted areas", perm: "shipping.manage", badge: unlisted },
+  { href: "/admin/settings/team", label: "Team", perm: "team.manage" },
+  { href: "/admin/settings/activity", label: "Activity log", perm: "audit.read" },
+];

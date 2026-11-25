@@ -36,6 +36,7 @@ export const SETTINGS_TABS: SubItem[] = [
   { href: "/admin/settings", label: "Store", perm: "settings.read" },
   { href: "/admin/settings/shipping", label: "Shipping & delivery", perm: "shipping.manage" },
   { href: "/admin/settings/locations", label: "Locations", perm: "shipping.manage" },
+  { href: "/admin/settings/locations/unlisted", label: "Unlisted areas", perm: "shipping.manage" },
   { href: "/admin/settings/team", label: "Team", perm: "team.manage" },
   { href: "/admin/settings/activity", label: "Activity log", perm: "audit.read" },
 ];

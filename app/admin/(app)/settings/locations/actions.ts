@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
-import { addRegion, renameLocation, setLocationHidden } from "@/lib/locations";
+import { addRegion, parseAliases, renameLocation, setLocationHidden } from "@/lib/locations";
 import { formVersion, orFail } from "@/lib/version";
 import type { ActionState } from "@/components/admin/ActionForm";
 
@@ -25,7 +25,7 @@ export async function updateLocation(_p: ActionState, fd: FormData): Promise<Act
       done();
       return { ok: op === "hide" ? "Hidden: customers no longer see it at checkout." : "Shown at checkout again." };
     }
-    renameLocation(id, text(fd, "name_en"), text(fd, "name_ar"), formVersion(fd));
+    renameLocation(id, text(fd, "name_en"), text(fd, "name_ar"), formVersion(fd), fd.has("aliases") ? parseAliases(text(fd, "aliases")) : undefined);
     await audit(admin, "location_rename", "location", id, { name_en: text(fd, "name_en"), name_ar: text(fd, "name_ar") });
     done();
     return { ok: "Saved. Orders already placed keep the name they were placed with." };
@@ -36,7 +36,7 @@ export async function updateLocation(_p: ActionState, fd: FormData): Promise<Act
 export async function addRegionAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   return orFail(async () => {
     const admin = await requirePerm("shipping.manage");
-    const id = addRegion(text(fd, "district"), text(fd, "name_en"), text(fd, "name_ar"));
+    const id = addRegion(text(fd, "district"), text(fd, "name_en"), text(fd, "name_ar"), fd.has("aliases") ? parseAliases(text(fd, "aliases")) : []);
     await audit(admin, "location_add", "location", id, { district: text(fd, "district"), name_en: text(fd, "name_en") });
     done();
     return { ok: `Added ${text(fd, "name_en").trim()}.` };

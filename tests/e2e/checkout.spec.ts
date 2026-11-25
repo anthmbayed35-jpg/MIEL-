@@ -4,6 +4,8 @@ import { E2E_PASSWORD, MAINT_URL, USERS } from "../support/e2e-env";
 import { exec, one, query, stockOf } from "../support/e2e-db";
 import { chooseLocation, pickPlace } from "../support/location";
 
+const regionCount = (district: string) => one<{ n: number }>("SELECT COUNT(*) n FROM locations r JOIN locations d ON d.id = r.parent_id WHERE d.name_en = ? AND d.type = 'district' AND r.type = 'region' AND r.hidden = 0", district)!.n;
+
 /**
  * Checkout end to end on the production build, on a 375px phone: add each flavour, change quantities, /checkout with a Lebanese
  * address, place the order, the confirmation page, the order in the admin, its status, and the stock following. Plus the edge cases:
@@ -123,7 +125,7 @@ test("/checkout validates in plain language, the district list depends on the go
   await page.keyboard.press("Escape");
   await pickPlace(page, "#district", "El Meten");
   await page.locator("#region").click();
-  await expect(options).toHaveCount(187); // ALL regions of El Meten, and only those
+  await expect(options).toHaveCount(regionCount("El Meten")); // ALL regions of El Meten, and only those
   await page.locator("#region").fill("Antelias");
   await expect(options.first()).toContainText("Antelias");
   await options.first().click();
@@ -132,7 +134,7 @@ test("/checkout validates in plain language, the district list depends on the go
   await pickPlace(page, "#district", "Jbeil");
   await expect(page.locator("#region")).toHaveValue("");
   await page.locator("#region").click();
-  await expect(options).toHaveCount(215);
+  await expect(options).toHaveCount(regionCount("Jbeil"));
   await page.keyboard.press("Escape");
   // search works in Arabic too
   await pickPlace(page, "#governorate", "بيروت");

@@ -8,6 +8,9 @@ import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
 import { HEARD_FROM_OPTIONS, zoneForGovernorate } from "@/lib/lebanon";
 import type { CheckoutGovernorate } from "@/lib/locations";
+import { usePlaceIndex } from "@/lib/use-place-index";
+import type { PlaceHit } from "@/lib/place-search";
+import { AreaSearch, type Unlisted } from "./AreaSearch";
 import { PinPicker, type Pin } from "./PinPicker";
 import { SearchSelect, type PlaceOption } from "./SearchSelect";
 import { TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
@@ -34,7 +37,7 @@ function Err({ id, children }: { id: string; children?: string }) {
  * /checkout: one page, guest checkout. The cart comes from the browser; EVERYTHING that matters (prices, delivery fee, discount,
  * stock, the zone behind the governorate) is decided again on the server when the order is placed.
  */
-export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { methods: Method[]; whatsapp: string; tree: CheckoutGovernorate[]; mapsKey?: string }) {
+export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "", indexVersion = "" }: { methods: Method[]; whatsapp: string; tree: CheckoutGovernorate[]; mapsKey?: string; indexVersion?: string }) {
   const router = useRouter();
   const { lines, products, deliveryFee, ready, preview, clear, setQty } = useCart();
   const ref = useRefCode();
@@ -52,6 +55,8 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
   const [regionsLoading, setRegionsLoading] = useState(false);
   const regionCache = useRef<Map<string, PlaceOption[]>>(new Map());
   const [pin, setPin] = useState<Pin | null>(null);
+  const [unlisted, setUnlisted] = useState<Unlisted | null>(null); // an area typed by the customer because it is not in the list
+  const index = usePlaceIndex(indexVersion); // the search index of every region, loaded when checkout opens
   const [street, setStreet] = useState("");
   const [landmark, setLandmark] = useState("");
   const [notes, setNotes] = useState("");
@@ -86,10 +91,8 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
 
   // the regions of the chosen district only (loaded from our own database, cached per district)
   useEffect(() => {
-    if (!district) {
-      setRegions([]);
-      return;
-    }
+    if (!district || index) return; // with the index loaded the lists come from it (below)
+
     const cached = regionCache.current.get(district);
     if (cached) {
       setRegions(cached);
@@ -109,7 +112,12 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
     return () => {
       live = false;
     };
-  }, [district]);
+  }, [district, index]);
+  const regionOptions: PlaceOption[] = useMemo(() => {
+    if (!index || !district) return regions;
+    const di = index.data.d.findIndex((d) => d[0] === district);
+    return di < 0 ? [] : index.regions.filter((r) => r.di === di).map((r) => ({ id: index.data.r[r.i][0], en: r.en, ar: r.ar }));
+  }, [index, district, regions]);
   const subtotal = items.reduce((n, i) => n + i.p.price * i.qty, 0);
   const soldOut = items.filter((i) => i.p.soldOut);
 
@@ -132,7 +140,7 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "That email address does not look right. You can also leave it empty.";
     if (!gov) e.governorate = "Choose your governorate.";
     else if (!district) e.district = "Choose your district.";
-    else if (!region) e.region = "Choose your town or village.";
+    else if (!region && !unlisted) e.region = "Choose your town or village, or add your area above.";
     if (street.trim().length < 5) e.street = "Enter your street, building and floor so the courier can find you.";
     return e;
   }
@@ -156,7 +164,7 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
       idempotencyKey: idemKey.current,
       items: cartInput,
       customer: { name: name.trim(), phone: phone.trim(), email: email.trim() },
-      delivery: { governorateId: gov, districtId: district, regionId: region, street: street.trim(), landmark: landmark.trim(), notes: notes.trim(), pin },
+      delivery: { governorateId: gov, districtId: district, regionId: region, unlistedText: !region && unlisted ? unlisted.text : undefined, street: street.trim(), landmark: landmark.trim(), notes: notes.trim(), pin },
       paymentMethod: payment,
       code,
       attribution: fromLink ? "link" : "code",
@@ -270,6 +278,35 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
 
         <section className="glass space-y-5 p-5 md:p-8" aria-labelledby="h-delivery">
           <h2 id="h-delivery" className="display text-[22px]">Delivery in Lebanon</h2>
+          <div>
+            <label htmlFor="area-search" className={label}>Find your area</label>
+            <AreaSearch
+              index={index}
+              tree={tree}
+              loading={!!indexVersion}
+              onPick={(h: PlaceHit) => {
+                setGov(h.governorateId);
+                setDistrict(h.districtId);
+                setRegion(h.id);
+                setUnlisted(null);
+                setErrors((e) => ({ ...e, governorate: undefined, district: undefined, region: undefined }));
+              }}
+              onUnlisted={(u) => {
+                setGov(u.governorateId);
+                setDistrict(u.districtId);
+                setRegion("");
+                setUnlisted(u);
+                setErrors((e) => ({ ...e, governorate: undefined, district: undefined, region: undefined }));
+              }}
+            />
+            {unlisted && !region && (
+              <p role="status" className="mt-3 rounded-2xl border border-acid/40 bg-acid/10 px-4 py-3 text-[17px] text-fg" data-testid="unlisted-notice">
+                Your area: <b>{unlisted.text}</b>. It is not in our list yet: we will confirm it with you on WhatsApp.{" "}
+                <button type="button" className="link" onClick={() => setUnlisted(null)}>Change</button>
+              </p>
+            )}
+          </div>
+          <p className="mono !text-body">OR CHOOSE FROM THE LISTS</p>
           <div className="grid gap-5 md:grid-cols-3">
             <div>
               <label htmlFor="governorate" className={label}>Governorate</label>
@@ -279,6 +316,7 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
                   setGov(id);
                   setDistrict(""); // dependent lists: the district and the region start again
                   setRegion("");
+                  setUnlisted(null);
                 }}
               />
               <Err id="e-governorate">{errors.governorate}</Err>
@@ -290,6 +328,7 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
                 onChange={(id) => {
                   setDistrict(id);
                   setRegion(""); // changing the district resets the region
+                  setUnlisted(null);
                 }}
               />
               <Err id="e-district">{errors.district}</Err>
@@ -297,8 +336,11 @@ export function CheckoutForm({ methods, whatsapp, tree, mapsKey = "" }: { method
             <div>
               <label htmlFor="region" className={label}>Town / village / area</label>
               <SearchSelect
-                id="region" options={regions} value={region} disabled={!district} loading={regionsLoading} placeholder={district ? "Search your town or village" : "Choose a district first"} invalid={!!errors.region} describedBy="e-region"
-                onChange={setRegion}
+                id="region" options={regionOptions} value={region} disabled={!district} loading={regionsLoading && !index} placeholder={district ? "Search your town or village" : "Choose a district first"} invalid={!!errors.region} describedBy="e-region"
+                onChange={(id) => {
+                  setRegion(id);
+                  setUnlisted(null);
+                }}
               />
               <Err id="e-region">{errors.region}</Err>
             </div>

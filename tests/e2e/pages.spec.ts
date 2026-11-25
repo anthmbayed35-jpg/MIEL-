@@ -20,7 +20,7 @@ const VIEWPORTS = [
   { name: "desktop-1440", width: 1440, height: 900 },
 ] as const;
 
-const STORE = ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping", "/ambassadors", "/checkout"];
+const STORE = ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping", "/ambassadors", "/checkout", "/credits"];
 
 /** Admin pages found on disk, with dynamic segments filled with real ids from the database. */
 function adminPages(): string[] {

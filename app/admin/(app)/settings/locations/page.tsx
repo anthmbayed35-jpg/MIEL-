@@ -1,15 +1,25 @@
 import Link from "next/link";
 import { requirePerm } from "@/lib/auth";
-import { adminRegions, adminTree, searchLocations } from "@/lib/locations";
+import { adminRegions, adminTree, searchLocations, unlistedCount } from "@/lib/locations";
+import { settingsTabs } from "@/lib/admin-tabs";
 import { ActionForm } from "@/components/admin/ActionForm";
-import { SETTINGS_TABS, SubNav } from "@/components/admin/SubNav";
+import { SubNav } from "@/components/admin/SubNav";
 import { Card, Empty, Field, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { addRegionAction, updateLocation } from "./actions";
 
 export const metadata = { title: "Locations" };
 export const dynamic = "force-dynamic";
 
-type Row = { id: string; name_en: string; name_ar: string; official_name_en: string; hidden: number; custom: number; version: number; sub?: string; type?: string };
+type Row = { id: string; name_en: string; name_ar: string; official_name_en: string; hidden: number; custom: number; version: number; sub?: string; type?: string; aliases?: string; source?: string };
+
+const aliasText = (json?: string) => {
+  try {
+    const a = JSON.parse(json || "[]");
+    return Array.isArray(a) ? a.join(", ") : "";
+  } catch {
+    return "";
+  }
+};
 
 /** One place: rename (English + Arabic) and hide/show, in a single form so a phone shows one card per place. */
 function PlaceForm({ r }: { r: Row }) {
@@ -17,19 +27,25 @@ function PlaceForm({ r }: { r: Row }) {
     <ActionForm action={updateLocation} className="rounded-2xl bg-white/5 p-3">
       <input type="hidden" name="id" value={r.id} />
       <input type="hidden" name="version" value={r.version} />
-      <div className="grid items-end gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
+      <div className="grid items-end gap-3 md:grid-cols-[1fr_1fr_1.2fr_auto_auto]">
         <Field label={r.type ? `${r.type} · ${r.sub ?? ""}` : "Name"}>
           <input name="name_en" required minLength={2} maxLength={80} defaultValue={r.name_en} className="a-input" aria-label={`English name of ${r.official_name_en || r.name_en}`} />
         </Field>
         <Field label="Arabic name">
           <input name="name_ar" maxLength={80} dir="rtl" lang="ar" defaultValue={r.name_ar} className="a-input" aria-label={`Arabic name of ${r.official_name_en || r.name_en}`} />
         </Field>
+        {r.aliases !== undefined && (!r.type || r.type === "Region") ? (
+          <Field label="Other spellings (aliases)">
+            <input name="aliases" defaultValue={aliasText(r.aliases)} maxLength={400} className="a-input" placeholder="Antilias, Antélias, انطلياس" aria-label={`Aliases of ${r.official_name_en || r.name_en}`} />
+          </Field>
+        ) : <span />}
         <button name="op" value="save" className="pill-btn pill-glass">Save</button>
         <button name="op" value={r.hidden ? "show" : "hide"} className={`pill-btn ${r.hidden ? "pill-lime" : "pill-glass"}`}>{r.hidden ? "Show at checkout" : "Hide"}</button>
       </div>
       <p className="mt-2 text-[13px] text-body">
         {r.hidden ? <span className="text-[#FF8AA0]">Hidden: not offered at checkout. </span> : null}
         {r.custom ? "Added by you. " : r.official_name_en && r.official_name_en !== r.name_en ? `Official name: ${r.official_name_en}. ` : ""}
+        {r.source && r.source !== "cas" ? `Source: ${r.source.replace(/\+/g, ", ")}. ` : ""}
       </p>
     </ActionForm>
   );
@@ -50,11 +66,17 @@ export default async function LocationsPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader eyebrow="Where you deliver" title="Locations" />
-      <SubNav items={SETTINGS_TABS} role={admin.role} />
+      <SubNav items={settingsTabs(unlistedCount())} role={admin.role} />
+      {unlistedCount() > 0 && (
+        <Link href="/admin/settings/locations/unlisted" className="admin-card mb-5 flex min-h-12 items-center justify-between gap-3 !py-3 text-[17px] text-fg">
+          <span>{unlistedCount()} unlisted area{unlistedCount() === 1 ? "" : "s"} typed by customers</span>
+          <span className="accent">Review →</span>
+        </Link>
+      )}
 
       <Card className="mb-5">
         <p className="text-[16px] text-body">
-          {tree.length} governorates, {tree.reduce((n, g) => n + g.districts.length, 0)} districts and {totalRegions} regions from the official open data (Central Administration of Statistics and the CDR/OCHA boundaries). Delivery is a flat fee everywhere.
+          {tree.length} governorates, {tree.reduce((n, g) => n + g.districts.length, 0)} districts and {totalRegions} regions, combined from the official data (CAS, CDR/OCHA), OpenStreetMap and GeoNames, with their other spellings as aliases. Delivery is a flat fee everywhere.
           {hiddenRegions > 0 && <> {hiddenRegions} regions are hidden.</>} Hide a district or region you do not deliver to; customers will not see it. Renaming never changes orders already placed.
         </p>
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" role="search">
@@ -121,10 +143,11 @@ export default async function LocationsPage({ searchParams }: { searchParams: Pr
 
           <Card className="mb-5">
             <SectionTitle>Add a missing region to {district.name_en}</SectionTitle>
-            <ActionForm action={addRegionAction} resetOnSuccess className="grid items-end gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <ActionForm action={addRegionAction} resetOnSuccess className="grid items-end gap-3 md:grid-cols-[1fr_1fr_1.2fr_auto]">
               <input type="hidden" name="district" value={district.id} />
               <Field label="Region name (English)"><input name="name_en" required minLength={2} maxLength={80} className="a-input" /></Field>
               <Field label="Arabic name (optional)"><input name="name_ar" maxLength={80} dir="rtl" lang="ar" className="a-input" /></Field>
+              <Field label="Other spellings (optional)"><input name="aliases" maxLength={400} className="a-input" placeholder="comma separated" /></Field>
               <button className="pill-btn pill-lime">Add region</button>
             </ActionForm>
           </Card>

@@ -7,6 +7,7 @@
     "build": "next build && node scripts/prepare-standalone.mjs",
     "start": "node scripts/start.mjs",
     "locations": "node scripts/build-locations.mjs",
+    "locations:v2": "node --no-warnings scripts/build-locations-v2.mjs",
     "icons": "node scripts/make-icons.mjs",
     "images": "node scripts/make-images.mjs",
     "typecheck": "tsc --noEmit",

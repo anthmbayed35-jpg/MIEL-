@@ -188,6 +188,12 @@ export function Footer({ store, policies }: { store: StoreSettings; policies?: P
         <p className="mt-8 text-[16px] !text-body">
           © {new Date().getFullYear()} {SITE.name}. Made for Lebanon.
         </p>
+        <p className="mt-2 text-[14px] !text-body">
+          Map data © OpenStreetMap contributors, GeoNames.{" "}
+          <Link href="/credits" className="link inline-flex min-h-12 items-center">
+            Credits
+          </Link>
+        </p>
       </div>
     </footer>
   );

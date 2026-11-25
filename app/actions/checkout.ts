@@ -13,7 +13,7 @@ import { previewAdmin } from "@/lib/preview";
 import { inMaintenance, STOREFRONT_CLOSED, TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
 import { notifyCustomerOrder, notifyNewOrder } from "@/lib/notify";
 import { addressLine, mapsPinUrl, zoneForGovernorate } from "@/lib/lebanon";
-import { resolveLocation } from "@/lib/locations";
+import { recordUnlisted, resolveDistrict, resolveLocation, type ResolvedLocation } from "@/lib/locations";
 import { orderRef } from "@/lib/order-ref";
 import { paymentMethod } from "@/lib/payments";
 import { absoluteUrl } from "@/lib/site-url";
@@ -62,7 +62,7 @@ export type PlaceInput = {
   items: CartInput;
   customer: { name: string; phone: string; email?: string };
   /** The location is chosen by id (governorate, district, region): the server checks the chain and stores the names. `pin` is the optional map pin. */
-  delivery: { governorateId: string; districtId: string; regionId: string; street: string; landmark: string; notes: string; pin?: { lat: number; lon: number } | null };
+  delivery: { governorateId: string; districtId: string; regionId: string; /** when the area is not in the list: what the customer typed (the order is never blocked) */ unlistedText?: string; street: string; landmark: string; notes: string; pin?: { lat: number; lon: number } | null };
   paymentMethod?: string;
   code: string;
   utm?: { source?: string; medium?: string; campaign?: string };
@@ -115,8 +115,32 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("That email address does not look right. You can also leave it empty.", "email");
     const d = input.delivery;
     // Governorate, district and region must form a chain (the region belongs to the district, the district to the governorate) and none may be hidden.
-    const loc = usesDb() ? resolveLocation({ governorateId: String(d?.governorateId ?? ""), districtId: String(d?.districtId ?? ""), regionId: String(d?.regionId ?? "") }) : null;
-    if (loc && !loc.ok) return bad(loc.error, loc.field);
+    let loc: { ok: true; value: ResolvedLocation } | null = null;
+    let unlistedAreaId = "";
+    if (usesDb()) {
+      const ids = { governorateId: String(d?.governorateId ?? ""), districtId: String(d?.districtId ?? ""), regionId: String(d?.regionId ?? "") };
+      const typed = String(d?.unlistedText ?? "").trim();
+      if (!ids.regionId && typed) {
+        // "My area is not listed": the order is placed with what the customer typed; the team approves or merges it later
+        const dist = resolveDistrict(ids.governorateId, ids.districtId);
+        if (!dist.ok) return bad(dist.error, dist.field);
+        const u = recordUnlisted(dist.district.id, typed);
+        if (!u.ok) return bad(u.error, "region");
+        if (u.regionId) {
+          const known = resolveLocation({ ...ids, regionId: u.regionId }); // the area already exists under that spelling
+          if (!known.ok) return bad(known.error, known.field);
+          loc = known;
+          unlistedAreaId = u.unlistedId;
+        } else {
+          loc = { ok: true, value: { governorate: dist.governorate, district: dist.district, region: { id: "", name: u.regionName } } };
+          unlistedAreaId = u.unlistedId;
+        }
+      } else {
+        const r = resolveLocation(ids);
+        if (!r.ok) return bad(r.error, r.field);
+        loc = r;
+      }
+    }
     const gov = loc?.ok ? loc.value.governorate.name : "";
     const district = loc?.ok ? loc.value.district.name : "";
     const regionName = loc?.ok ? loc.value.region.name : "";
@@ -168,7 +192,7 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
       region: zoneName,
       delivery: {
         governorate: gov, district, street, landmark,
-        governorateId: loc?.ok ? loc.value.governorate.id : "", districtId: loc?.ok ? loc.value.district.id : "", regionId: loc?.ok ? loc.value.region.id : "", regionName,
+        governorateId: loc?.ok ? loc.value.governorate.id : "", districtId: loc?.ok ? loc.value.district.id : "", regionId: loc?.ok ? loc.value.region.id : "", regionName, unlistedAreaId,
         pin: pin ? { ...pin, link: mapsPinUrl(pin.lat, pin.lon) } : undefined,
       },
       paymentMethod: method.id,

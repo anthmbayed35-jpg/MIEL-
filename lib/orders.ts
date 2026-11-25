@@ -192,6 +192,8 @@ export type CreateOrderInput = {
     governorate: string; district: string; street: string; landmark: string;
     /** The location ids and the region (town or village) name, saved next to the names so a later rename never changes an order. */
     governorateId?: string; districtId?: string; regionId?: string; regionName?: string;
+    /** set when the customer's area was not in the list (the order keeps what they typed in regionName) */
+    unlistedAreaId?: string;
     /** The optional map pin (checked to be inside Lebanon by the checkout action). */
     pin?: { lat: number; lon: number; link: string };
   };
@@ -265,7 +267,7 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
         region: input.region, address: input.customer.address.trim(),
         governorate: input.delivery?.governorate ?? "", district: input.delivery?.district ?? "", street: input.delivery?.street.trim() ?? "", landmark: input.delivery?.landmark.trim() ?? "",
         governorate_id: input.delivery?.governorateId ?? "", district_id: input.delivery?.districtId ?? "", region_id: input.delivery?.regionId ?? "", region_name: input.delivery?.regionName ?? "",
-        pin_lat: input.delivery?.pin?.lat ?? null, pin_lon: input.delivery?.pin?.lon ?? null, pin_link: input.delivery?.pin?.link ?? "", customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
+        unlisted_area_id: input.delivery?.unlistedAreaId ?? "", pin_lat: input.delivery?.pin?.lat ?? null, pin_lon: input.delivery?.pin?.lon ?? null, pin_link: input.delivery?.pin?.link ?? "", customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
         delivery_partner_id: null, tracking_number: "", source: input.source,
         utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
         stock_deducted: false, is_demo: !!input.demo, is_test: !!testBy, created_at: stamp, updated_at: stamp,

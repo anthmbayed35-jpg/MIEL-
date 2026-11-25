@@ -146,7 +146,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[15px]" aria-label="Location">
                 {o.governorate && <><dt className="text-muted">Governorate</dt><dd className="text-fg" data-testid="loc-governorate">{o.governorate}</dd></>}
                 {o.district && <><dt className="text-muted">District</dt><dd className="text-fg" data-testid="loc-district">{o.district}</dd></>}
-                {o.region_name && <><dt className="text-muted">Region</dt><dd className="text-fg" data-testid="loc-region">{o.region_name}</dd></>}
+                {o.region_name && <><dt className="text-muted">Region</dt><dd className="text-fg" data-testid="loc-region">{o.region_name}{o.unlisted_area_id && !o.region_id ? <span className="ml-2 rounded-full border border-[#fcd34d]/50 px-2 py-0.5 text-[13px] text-[#fcd34d]" data-testid="unlisted-flag">typed by the customer, not in the list</span> : null}</dd></>}
                 {o.landmark && <><dt className="text-muted">Landmark</dt><dd className="text-fg">{o.landmark}</dd></>}
               </dl>
             ) : (
