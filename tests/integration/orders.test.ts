@@ -7,6 +7,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 import { createLocalClient } from "../support/local-db";
 import { h, ID, reqHeaders, resetState } from "../support/state";
+import { checkoutInput } from "../support/checkout";
 import { seedStore } from "../support/seed";
 import { createOrder, quoteOrder, setOrderStatus } from "@/lib/orders";
 
@@ -64,13 +65,13 @@ describe("stock", () => {
     expect((await db().from("stock_movements").select("*")).data).toHaveLength(1);
   });
   it("out of stock: the order is refused and nothing is left behind", async () => {
-    await expect(createOrder({ customer: person(1), items: [{ productId: S.gold.id, qty: 6 }], region: "Beirut", source: "web", actor: "customer" })).rejects.toThrow(/out of stock/);
+    await expect(createOrder({ customer: person(1), items: [{ productId: S.gold.id, qty: 6 }], region: "Beirut", source: "web", actor: "customer" })).rejects.toThrow(/out of stock|Only \d+ left of/);
     expect(await stock(S.gold.id)).toBe(5);
     expect((await db().from("orders").select("*")).data).toHaveLength(0);
     expect((await db().from("order_items").select("*")).data).toHaveLength(0);
   });
   it("a multi-product order that fails half-way restores what it took", async () => {
-    await expect(createOrder({ customer: person(1), items: [{ productId: S.red.id, qty: 2 }, { productId: S.gold.id, qty: 9 }], region: "Beirut", source: "web", actor: "customer" })).rejects.toThrow(/out of stock/);
+    await expect(createOrder({ customer: person(1), items: [{ productId: S.red.id, qty: 2 }, { productId: S.gold.id, qty: 9 }], region: "Beirut", source: "web", actor: "customer" })).rejects.toThrow(/out of stock|Only \d+ left of/);
     expect(await stock(S.red.id)).toBe(50);
     expect(await stock(S.gold.id)).toBe(5);
   });
@@ -108,13 +109,7 @@ describe("customers", () => {
 });
 
 describe("storefront checkout (server action)", () => {
-  const input = (n: number, over: Record<string, unknown> = {}) => ({
-    items: [{ productId: S.red.id, qty: 1 }],
-    customer: { ...person(n), notes: "" },
-    region: "Beirut",
-    code: "",
-    ...over,
-  });
+  const input = (n: number, over: Record<string, unknown> = {}) => ({ ...checkoutInput(S.red.id, { name: person(n).name, phone: person(n).phone }), ...over });
   async function placeOrder(i: any) {
     const mod = await import("@/app/actions/checkout");
     return mod.placeOrder(i);
@@ -124,9 +119,9 @@ describe("storefront checkout (server action)", () => {
     await db().from("settings").insert({ key: "store", value: { whatsapp: "96170999111", cod_enabled: true } });
     const r: any = await placeOrder(input(1));
     expect(r.ok).toBe(true);
-    expect(r.orderNumber).toBe("1001");
+    expect(r.orderNumber).toBe("MP-1001");
     expect(r.whatsappUrl).toContain("wa.me/96170999111");
-    expect(decodeURIComponent(r.whatsappUrl)).toContain("#1001");
+    expect(decodeURIComponent(r.whatsappUrl)).toContain("MP-1001");
     expect(await stock(S.red.id)).toBe(49);
     const o = (await db().from("orders").select("*").single()).data;
     expect(o).toMatchObject({ status: "new", payment_method: "cod", cod_amount_due: 33, source: "web" });

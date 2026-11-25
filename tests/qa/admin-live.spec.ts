@@ -88,11 +88,12 @@ test("a new storefront order shows on the dashboard (today's orders) without a r
     const s = await ctx.newPage();
     await s.goto("/products/red-burn");
     await s.getByRole("button", { name: /ADD TO CART/ }).first().click();
-    await s.getByRole("button", { name: "CHECKOUT" }).click();
+    await s.getByRole("link", { name: "CHECKOUT" }).click();
     await s.locator("#name").fill("Live Orderer");
     await s.locator("#phone").fill(`03 ${Math.floor(100000 + Math.random() * 899999)}`);
-    await s.locator("#region").selectOption({ index: 1 });
-    await s.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+    await s.locator("#governorate").selectOption("Beirut");
+    await s.locator("#district").selectOption("Beirut");
+    await s.locator("#street").fill("Beirut, Hamra, test building, floor 2");
     await s.getByRole("button", { name: "PLACE ORDER" }).click();
     await expect(s.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
     await ctx.close();

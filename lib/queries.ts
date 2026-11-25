@@ -1,5 +1,7 @@
 import "server-only";
-import { getDb, must, type Row } from "./db";
+import { getDb, getEngine, must, type Row } from "./db";
+import { parseOrderRef } from "./order-ref";
+import { normalizeLebanesePhone } from "./phone";
 
 export type OrderFilters = { q?: string; status?: string; pay?: string; region?: string; affiliate?: string; from?: string; to?: string; page?: number };
 export const PAGE_SIZE = 25;
@@ -14,7 +16,7 @@ export async function listOrders(f: OrderFilters, paginate = true) {
     // "COD still to collect" excludes cancelled / returned / draft orders IN THE QUERY (it used to filter after paging, so pages
     // could come back short and the count was wrong)
     q = q.eq("cod_collected", false);
-    q = f.status && ["cancelled", "returned", "draft"].includes(f.status) ? q.eq("id", "none") : q.neq("status", "cancelled").neq("status", "returned");
+    q = f.status && ["cancelled", "returned", "refused", "draft"].includes(f.status) ? q.eq("id", "none") : q.neq("status", "cancelled").neq("status", "returned").neq("status", "refused");
   }
   if (f.region) q = q.eq("region", f.region);
   if (f.affiliate) q = q.eq("affiliate_id", f.affiliate); // an id from the menu; anything else simply matches nothing
@@ -22,9 +24,13 @@ export async function listOrders(f: OrderFilters, paginate = true) {
   if (f.to) q = q.lte("created_at", new Date(new Date(f.to).getTime() + 86_399_000).toISOString());
   if (f.q?.trim()) {
     const term = f.q.trim().replace(/[%,()]/g, "");
-    if (/^#?\d{3,6}$/.test(term)) q = q.eq("order_number", Number(term.replace("#", ""))); // order number
+    const asNumber = parseOrderRef(term); // 1001, #1001 or MP-1001
+    // digits are an order number only when such an order exists (a phone fragment like 424242 must still find the customer)
+    const numberHit = asNumber !== null && term.replace(/\D/g, "").length >= 3 && !!getEngine().sqlite.prepare("SELECT 1 FROM orders WHERE order_number = ?").get(asNumber);
+    if (numberHit) q = q.eq("order_number", asNumber as number);
     else {
-      const custs = must(await db.from("customers").select("id").or(`name.ilike.%${term}%,phone.ilike.%${term.replace(/[\s-]/g, "")}%`)) as Row[];
+      const norm = normalizeLebanesePhone(term); // "03 424 242" finds +9613424242
+      const custs = must(await db.from("customers").select("id").or(`name.ilike.%${term}%,phone.ilike.%${term.replace(/[\s-]/g, "")}%${norm ? `,phone.eq.${norm}` : ""}`)) as Row[];
       const ids = custs.map((c) => c.id);
       q = ids.length ? q.in("customer_id", ids) : q.eq("id", "none");
     }
@@ -69,3 +75,12 @@ export const csvCell = (v: unknown) => {
   if (typeof v !== "number" && /^[=+\-@\t\r]/.test(s) && !/^[+-]?[0-9][0-9\s().,-]*$/.test(s)) s = "'" + s;
   return `"${s.replace(/"/g, '""')}"`;
 };
+
+/** How many orders are in each status (drafts excluded from "all"), for the chips on the Orders page. TEST orders are not counted. */
+export function orderStatusCounts(): Record<string, number> {
+  const rows = getEngine().sqlite.prepare("SELECT status, COUNT(*) AS n FROM orders WHERE is_test = 0 GROUP BY status").all() as { status: string; n: number }[];
+  return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+}
+
+/** New orders nobody has looked at yet (status "new"): the badge on the Orders menu item. */
+export const newOrderCount = (): number => (getEngine().sqlite.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'new' AND is_test = 0").get() as { n: number }).n;

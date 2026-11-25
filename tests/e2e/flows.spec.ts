@@ -47,18 +47,19 @@ async function placeOrder(browser: Browser, opts: { slug: string; qty?: number; 
   await page.goto(`/products/${opts.slug}`);
   for (let i = 1; i < (opts.qty ?? 1); i++) await page.getByRole("button", { name: "Increase quantity" }).click();
   await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await page.getByRole("button", { name: "CHECKOUT" }).click();
+  await page.getByRole("link", { name: "CHECKOUT" }).click();
   await page.locator("#name").fill(opts.name ?? "E2E Customer");
   await page.locator("#phone").fill(opts.phone ?? `03 ${Math.floor(100000 + Math.random() * 899999)}`);
-  await page.locator("#region").selectOption({ index: 1 });
-  await page.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+  await page.locator("#governorate").selectOption("Beirut");
+  await page.locator("#district").selectOption("Beirut");
+  await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   if (opts.code) {
     await page.locator("#code").fill(opts.code);
     await expect(page.getByText("Code applied.")).toBeVisible({ timeout: 15_000 });
   }
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
-  const n = Number((await page.getByText(/ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+  const n = Number((await page.getByText(/ORDER MP-\d+/).first().innerText()).match(/\d+/)![0]);
   await ctx.close();
   return n;
 }
@@ -222,13 +223,14 @@ test("stock at 0 disables purchase on the product page and the lineup, and check
   const shopper = await ctx.newPage();
   await shopper.goto("/products/creatine");
   await shopper.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await shopper.getByRole("button", { name: "CHECKOUT" }).click();
+  await shopper.getByRole("link", { name: "CHECKOUT" }).click();
   // ... then it sells out
   exec("UPDATE inventory_items SET on_hand = 0 WHERE product_id = (SELECT id FROM products WHERE slug = 'creatine')");
   await shopper.locator("#name").fill("Late Customer");
   await shopper.locator("#phone").fill("03 765 432");
-  await shopper.locator("#region").selectOption({ index: 1 });
-  await shopper.locator("#address").fill("Beirut, Hamra, test building");
+  await shopper.locator("#governorate").selectOption("Beirut");
+  await shopper.locator("#district").selectOption("Beirut");
+  await shopper.locator("#street").fill("Beirut, Hamra, test building");
   await shopper.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(shopper.getByText(/is out of stock/i)).toBeVisible();
   expect(query("SELECT 1 FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE name = 'Late Customer')")).toHaveLength(0);

@@ -44,14 +44,21 @@ export function migrate(db: Database.Database, dir?: string, file?: string): num
     db.exec(`VACUUM INTO '${path.join(backups, `pre-migration-${new Date().toISOString().replace(/[:.]/g, "-")}.db`).replace(/'/g, "''")}'`);
   }
   for (const m of pending) {
+    // the library keeps sqlite_schema read-only; only a migration that says so (the documented way to relax a CHECK) may edit it
+    const schemaEdit = /PRAGMA\s+writable_schema\s*=\s*ON/i.test(m.sql);
+    if (schemaEdit) db.unsafeMode(true);
     try {
       db.transaction(() => {
         db.exec(m.sql);
         db.prepare("INSERT INTO migrations (version, name, applied_at) VALUES (?, ?, ?)").run(m.version, m.name, new Date().toISOString());
       })();
+      // an edited stored schema is only re-read when the schema version changes: bump it so this connection sees the new CHECK now
+      if (schemaEdit) db.pragma(`schema_version = ${(db.pragma("schema_version", { simple: true }) as number) + 1}`);
       applied.push(m.version);
     } catch (e) {
       throw new Error(`Migration ${m.name} failed and was rolled back: ${(e as Error).message}. The server will not start on a half-migrated database.`);
+    } finally {
+      if (schemaEdit) db.unsafeMode(false);
     }
   }
   return applied;

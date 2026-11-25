@@ -115,20 +115,21 @@ test("a shopper opens the personal link: the code is applied, the visit is count
   await expect.poll(() => one<{ c: number }>("SELECT COALESCE(SUM(count), 0) c FROM ref_clicks WHERE affiliate_id = ?", state.id)?.c, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
   await page.goto("/products/red-burn");
   await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await page.getByRole("button", { name: "CHECKOUT" }).click();
+  await page.getByRole("link", { name: "CHECKOUT" }).click();
   await expect(page.locator("#code")).toHaveValue(state.code); // applied from the link, nothing typed
   await expect(page.getByText(/Code applied: 10% off/)).toBeVisible({ timeout: 15_000 });
-  await page.locator("#region").selectOption({ index: 1 });
+  await page.locator("#governorate").selectOption("Beirut");
+  await page.locator("#district").selectOption("Beirut");
   await page.locator("#name").fill("Jade Customer");
   await page.locator("#phone").fill("03 616 161");
-  await page.locator("#address").fill("Beirut, Hamra, test building, floor 3");
-  await page.locator("#heard_from").fill("Instagram story");
+  await page.locator("#street").fill("Beirut, Hamra, test building, floor 3");
+  await page.locator("#heard_from").selectOption("Instagram");
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
-  state.orderNumber = Number((await page.getByText(/ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+  state.orderNumber = Number((await page.getByText(/ORDER MP-\d+/).first().innerText()).match(/\d+/)![0]);
   const o = one<Record<string, string | number | null>>("SELECT * FROM orders WHERE order_number = ?", state.orderNumber)!;
   state.orderId = String(o.id);
-  expect(o).toMatchObject({ affiliate_id: state.id, attribution: "link", heard_from: "Instagram story", commission_status: "pending" });
+  expect(o).toMatchObject({ affiliate_id: state.id, attribution: "link", heard_from: "Instagram", commission_status: "pending" });
   await ctx.close();
 });
 
@@ -184,7 +185,7 @@ test("delivered: the sale shows in the portal (first name only) and in the admin
   await signInOwner(admin);
   await admin.goto(`/admin/orders/${state.orderId}`);
   await expect(admin.getByText(/via personal link/)).toBeVisible();
-  await expect(admin.getByText("Instagram story")).toBeVisible();
+  await expect(admin.getByText("Instagram", { exact: true }).first()).toBeVisible();
   await admin.goto("/admin/affiliates");
   await expect(admin.getByText(/1 payout request/)).toBeVisible();
   await admin.goto("/admin/affiliates/payouts");

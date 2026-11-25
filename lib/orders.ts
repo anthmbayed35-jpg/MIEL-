@@ -6,6 +6,7 @@ import { publish } from "./events";
 import { notifyAmbassador } from "./ambassador/notify";
 import { affiliateDiscountCents, commissionCents } from "./affiliate-math";
 import { normalizeLebanesePhone } from "./phone";
+import { paymentMethod } from "./payments";
 import { inMaintenance } from "./site-mode";
 import type { OrderStatus } from "./status";
 
@@ -133,7 +134,8 @@ function deductStockSync(orderId: string, orderNumber: number, lines: { productI
       adjustStock(sqlite, { p_item: n.item.id, p_delta: -n.qty, p_reason: "sale", p_note: `Order #${orderNumber}`, p_order: orderId, p_actor: actor, p_demo: demo });
     } catch {
       const name = (one(q1("products").select("name").eq("id", n.productId).single().execute()) as Row).name;
-      throw new Error(`${name} is out of stock.`);
+      const left = (sqlite.prepare("SELECT on_hand FROM inventory_items WHERE id = ?").get(n.item.id) as { on_hand: number } | undefined)?.on_hand ?? 0;
+      throw new Error(left > 0 ? `Only ${left} left of ${name}. Lower the quantity in your cart.` : `${name} is out of stock.`);
     }
   }
 }
@@ -183,6 +185,10 @@ export type CreateOrderInput = {
   attribution?: "code" | "link";
   /** The optional "How did you hear about us?" answer from checkout. */
   heardFrom?: string;
+  /** The address in parts (checkout). `customer.address` stays the one readable line. */
+  delivery?: { governorate: string; district: string; street: string; landmark: string };
+  /** Payment method id (lib/payments.ts). Defaults to cash on delivery. */
+  paymentMethod?: string;
 };
 
 export type PlacedOrder = { order: Row; customer: Row; quote: Quote; replayed?: boolean };
@@ -203,6 +209,8 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
   if (input.customer.name.trim().length < 2) throw new Error("Enter your name.");
   if (input.customer.address.trim().length < 5) throw new Error("Enter your delivery address.");
   const key = input.idempotencyKey?.slice(0, 80);
+  const pay = paymentMethod(input.paymentMethod ?? "cod");
+  if (!pay) throw new Error("That payment method is not available.");
 
   const e = getEngine();
   const out = e.tx((): PlacedOrder => {
@@ -240,13 +248,14 @@ export function placeOrder(input: CreateOrderInput): PlacedOrder {
     const stamp = input.createdAt ?? new Date().toISOString();
     const order = one(
       q1("orders").insert({
-        order_number: number, customer_id: customer.id, status, payment_method: "cod", payment_status: "pending",
-        subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: q.total, cod_collected: false,
+        order_number: number, customer_id: customer.id, status, payment_method: pay.id, payment_status: "pending", public_token: crypto.randomBytes(16).toString("hex"),
+        subtotal: q.subtotal, discount_total: q.discount, shipping_fee: q.shipping, total: q.total, cod_amount_due: pay.collectOnDelivery ? q.total : 0, cod_collected: false,
         discount_code: q.code ?? null, attribution: aff ? (input.attribution === "link" ? "link" : "code") : null,
         heard_from: input.heardFrom?.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80) || null,
         affiliate_id: aff?.id ?? null, code_used: aff?.code ?? null, discount_amount: aff ? q.discount : 0,
         commission_amount: aff ? dollars(commissionCents(subtotalC, discountC, aff.commissionPercentX100)) : 0, commission_status: aff ? "pending" : null,
-        region: input.region, address: input.customer.address.trim(), customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
+        region: input.region, address: input.customer.address.trim(),
+        governorate: input.delivery?.governorate ?? "", district: input.delivery?.district ?? "", street: input.delivery?.street.trim() ?? "", landmark: input.delivery?.landmark.trim() ?? "", customer_notes: (testBy ? "[TEST ORDER] " : "") + (input.customer.notes?.trim() ?? ""),
         delivery_partner_id: null, tracking_number: "", source: input.source,
         utm_source: input.utm?.source ?? null, utm_medium: input.utm?.medium ?? null, utm_campaign: input.utm?.campaign ?? null,
         stock_deducted: false, is_demo: !!input.demo, is_test: !!testBy, created_at: stamp, updated_at: stamp,
@@ -285,7 +294,7 @@ export async function setOrderStatus(orderId: string, to: OrderStatus, actor: st
     const o = one(q1("orders").select("*").eq("id", orderId).single().execute()) as Row;
     const from = o.status as OrderStatus;
     if (from === to) return o;
-    if (["cancelled", "returned"].includes(from)) throw new Error(`A ${from} order can't change status.`);
+    if (["cancelled", "returned", "refused"].includes(from)) throw new Error(`A ${from} order can't change status.`);
     if (to === "cancelled" && !opts.reason?.trim()) throw new Error("Add a reason for cancelling.");
 
     const patch: Row = { status: to, updated_at: new Date().toISOString() };
@@ -299,21 +308,22 @@ export async function setOrderStatus(orderId: string, to: OrderStatus, actor: st
     // a cancelled or returned order earns no commission. If it was ALREADY PAID it keeps its payout link, which makes it a visible
     // correction on the affiliate's balance (deducted from their next payout), never a silent disappearance.
     const wasPaid = o.commission_status === "paid";
-    if ((to === "cancelled" || to === "returned") && (o.commission_status === "pending" || o.commission_status === "approved" || wasPaid)) patch.commission_status = "void";
+    if ((to === "cancelled" || to === "returned" || to === "refused") && (o.commission_status === "pending" || o.commission_status === "approved" || wasPaid)) patch.commission_status = "void";
     if (to === "cancelled") {
       patch.cancel_reason = opts.reason!.trim();
       restoreStockSync(orderId, o.order_number, "cancel_restore", actor);
       patch.cod_collected = false;
     }
-    if (to === "returned") {
+    if (to === "returned" || to === "refused") {
+      // refused at the door: the pouches come back, so stock is restored exactly once, like a return
       restoreStockSync(orderId, o.order_number, "return", actor);
       if (o.cod_collected) patch.payment_status = "refunded";
     }
     const upd = q1("orders").update(patch).eq("id", orderId);
     if (opts.expectedVersion !== undefined) upd.ifVersion(opts.expectedVersion);
     one(upd.execute());
-    if (wasPaid && (to === "cancelled" || to === "returned")) addEventSync(orderId, "commission", `Affiliate commission of ${Number(o.commission_amount).toFixed(2)} was already paid out: a correction of the same amount is recorded on the affiliate's balance.`, actor);
-    addEventSync(orderId, "status", opts.message ?? (to === "cancelled" ? `Cancelled: ${opts.reason}` : to === "returned" ? "Marked as returned (stock restored)" : `Status: ${from} → ${to}`), actor, from, to);
+    if (wasPaid && (to === "cancelled" || to === "returned" || to === "refused")) addEventSync(orderId, "commission", `Affiliate commission of ${Number(o.commission_amount).toFixed(2)} was already paid out: a correction of the same amount is recorded on the affiliate's balance.`, actor);
+    addEventSync(orderId, "status", opts.message ?? (to === "cancelled" ? `Cancelled: ${opts.reason}` : to === "returned" ? "Marked as returned (stock restored)" : to === "refused" ? "Refused by the customer (stock restored)" : `Status: ${from} → ${to}`), actor, from, to);
     return { ...o, ...patch, changed: true };
   });
   if (result.changed) publish({ type: "order.status", orderId, number: result.order_number, status: to });

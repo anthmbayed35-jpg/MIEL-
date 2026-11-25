@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { trackEvent } from "@/lib/track-client";
 
-export type CartProduct = { id: string; name: string; price: number; slug: string };
+export type CartProduct = { id: string; name: string; price: number; slug: string; flavor?: string; soldOut?: boolean };
 export type CartZone = { name: string; fee: number; free_over: number | null; eta: string };
 
 type Lines = Record<string, number>; // productId -> qty
@@ -12,6 +12,8 @@ type CartCtx = {
   products: CartProduct[];
   zones: CartZone[];
   lines: Lines;
+  /** false until the saved cart has been read from the browser (so a page never flashes "empty cart") */
+  ready: boolean;
   count: number;
   total: number;
   open: boolean;
@@ -67,8 +69,8 @@ export function CartProvider({ products, zones, preview = false, children }: { p
     const valid = Object.entries(lines).filter(([id]) => products.some((p) => p.id === id));
     const count = valid.reduce((n, [, q]) => n + q, 0);
     const total = valid.reduce((n, [id, q]) => n + q * (products.find((p) => p.id === id)?.price ?? 0), 0);
-    return { products, zones, lines, count, total, open, preview, setOpen, add, setQty, clear };
-  }, [products, zones, lines, open, preview, add, setQty, clear]);
+    return { products, zones, lines, ready, count, total, open, preview, setOpen, add, setQty, clear };
+  }, [products, zones, lines, ready, open, preview, add, setQty, clear]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

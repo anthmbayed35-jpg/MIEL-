@@ -1,4 +1,4 @@
-export const ORDER_STATUSES = ["draft", "new", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled", "returned"] as const;
+export const ORDER_STATUSES = ["draft", "new", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled", "refused", "returned"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -9,6 +9,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
+  refused: "Refused",
   returned: "Returned",
 };
 

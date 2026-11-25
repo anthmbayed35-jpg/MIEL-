@@ -54,20 +54,22 @@ test("checkout on a phone: lower-case code, clear error for a bad one, discount 
   const page = await ctx.newPage();
   await page.goto("/products/red-burn");
   await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await page.getByRole("button", { name: "CHECKOUT" }).click();
-  await page.locator("#region").selectOption({ index: 1 });
+  await page.getByRole("link", { name: "CHECKOUT" }).click();
+  await page.locator("#governorate").selectOption("Beirut");
+  await page.locator("#district").selectOption("Beirut");
   await page.locator("#code").fill("NOTACODE");
   await expect(page.getByText("That code isn't valid.")).toBeVisible({ timeout: 15_000 });
   await page.locator("#code").fill(state.code.toLowerCase());
   await expect(page.getByText(/Code applied: 10% off/)).toBeVisible({ timeout: 15_000 }); // shown immediately, before placing the order
-  await expect(page.getByText(/^−\$|-\$/).first()).toBeVisible();
+  await page.locator("details", { hasText: "ORDER SUMMARY" }).locator("summary").click(); // the phone summary is collapsed
+  await expect(page.getByText(/^−\$/).locator("visible=true").first()).toBeVisible();
   await page.locator("#name").fill("Affiliate Shopper");
   await page.locator("#phone").fill("03 424 242");
-  await page.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+  await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
-  state.orderNumber = Number((await page.getByText(/ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+  state.orderNumber = Number((await page.getByText(/ORDER MP-\d+/).first().innerText()).match(/\d+/)![0]);
   const o = one<Record<string, number | string | null>>("SELECT * FROM orders WHERE order_number = ?", state.orderNumber)!;
   const subtotal = Number(o.subtotal_cents);
   const discount = Math.round(subtotal * 0.1);
@@ -113,16 +115,17 @@ test("cancelling an order voids its commission and an affiliate list shows the t
   const shop = await ctx.newPage();
   await shop.goto("/products/red-burn");
   await shop.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await shop.getByRole("button", { name: "CHECKOUT" }).click();
+  await shop.getByRole("link", { name: "CHECKOUT" }).click();
   await shop.locator("#name").fill("Cancelling Shopper");
   await shop.locator("#phone").fill("03 535 353");
-  await shop.locator("#region").selectOption({ index: 1 });
-  await shop.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+  await shop.locator("#governorate").selectOption("Beirut");
+  await shop.locator("#district").selectOption("Beirut");
+  await shop.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   await shop.locator("#code").fill(state.code);
   await expect(shop.getByText(/Code applied/)).toBeVisible({ timeout: 15_000 });
   await shop.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(shop.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
-  const n = Number((await shop.getByText(/ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+  const n = Number((await shop.getByText(/ORDER MP-\d+/).first().innerText()).match(/\d+/)![0]);
   await ctx.close();
   const id = one<{ id: string }>("SELECT id FROM orders WHERE order_number = ?", n)!.id;
 

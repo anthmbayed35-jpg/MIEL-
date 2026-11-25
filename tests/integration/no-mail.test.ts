@@ -12,6 +12,7 @@ import { sendMail } from "@/lib/mail";
 import { peekToken, consumeToken } from "@/lib/invites";
 import { notifyNewOrder } from "@/lib/notify";
 import { h, ID, jar, outbox, reqHeaders, resetState, testDir } from "../support/state";
+import { checkoutInput } from "../support/checkout";
 import { seedStore } from "../support/seed";
 
 const sql = () => getEngine().sqlite;
@@ -152,7 +153,7 @@ describe("things that depend on email keep working without it", () => {
     delete process.env.SITE_MODE;
     const { placeOrder } = await import("@/app/actions/checkout");
     const gold = sql().prepare("SELECT id FROM products WHERE slug = 'gold'").get() as { id: string };
-    const res = await placeOrder({ items: [{ productId: gold.id, qty: 1 }], customer: { name: "Live Customer", phone: "03 222 333", address: "Hamra, Bldg 5", notes: "" }, region: "Beirut", code: "" });
+    const res = await placeOrder(checkoutInput(gold.id, { name: "Live Customer", phone: "03 222 333" }));
     expect(res).toMatchObject({ ok: true });
     owner();
     const { GET } = await import("@/app/admin/api/notifications/route");

@@ -10,7 +10,7 @@ export type Point = { label: string; tip: string; value: number; delta: number |
 export type SeriesSet = Record<"day" | "week" | "month" | "year", Point[]>;
 
 /** Orders that count as sales: not drafts, cancelled or returned. */
-export const isSale = (o: Row) => !o.is_test && !["draft", "cancelled", "returned"].includes(o.status);
+export const isSale = (o: Row) => !o.is_test && !["draft", "cancelled", "returned", "refused"].includes(o.status);
 
 export type Data = {
   orders: Row[];

@@ -170,16 +170,17 @@ test("the orders list shows the affiliate and filters by it", async ({ browser }
   const shop = await (await ctxFor(browser, 375, 812)).newPage();
   await shop.goto("/products/red-burn");
   await shop.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await shop.getByRole("button", { name: "CHECKOUT" }).click();
+  await shop.getByRole("link", { name: "CHECKOUT" }).click();
   await shop.locator("#name").fill("Nav Orderer");
   await shop.locator("#phone").fill("03 818 181");
-  await shop.locator("#region").selectOption({ index: 1 });
-  await shop.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+  await shop.locator("#governorate").selectOption("Beirut");
+  await shop.locator("#district").selectOption("Beirut");
+  await shop.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   await shop.locator("#code").fill(CODE);
   await expect(shop.getByText(/Code applied/)).toBeVisible({ timeout: 15_000 });
   await shop.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(shop.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
-  const num = Number((await shop.getByText(/ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+  const num = Number((await shop.getByText(/ORDER MP-\d+/).first().innerText()).match(/\d+/)![0]);
 
   const page = await (await ctxFor(browser, 1440, 900)).newPage();
   await signIn(page);
@@ -205,15 +206,16 @@ test("the personal link: /?ref=CODE fills the discount field at checkout, and a 
   await shop.goto(`/?ref=${CODE.toLowerCase()}`);
   await shop.goto("/products/red-burn"); // another page: the code was remembered
   await shop.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await shop.getByRole("button", { name: "CHECKOUT" }).click();
+  await shop.getByRole("link", { name: "CHECKOUT" }).click();
   await expect(shop.locator("#code")).toHaveValue(CODE);
-  await shop.locator("#region").selectOption({ index: 1 });
+  await shop.locator("#governorate").selectOption("Beirut");
+  await shop.locator("#district").selectOption("Beirut");
   await expect(shop.getByText(/Code applied: 10% off/)).toBeVisible({ timeout: 15_000 });
 
   const other = await (await ctxFor(browser, 375, 812)).newPage();
   await other.goto("/?ref=%3Cscript%3E");
   await other.goto("/products/red-burn");
   await other.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await other.getByRole("button", { name: "CHECKOUT" }).click();
+  await other.getByRole("link", { name: "CHECKOUT" }).click();
   await expect(other.locator("#code")).toHaveValue("");
 });

@@ -263,11 +263,12 @@ test.describe("admin preview: the real storefront, for the signed-in admin only"
     await signIn(page);
     await page.goto("/products/red-burn");
     await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
-    await page.getByRole("button", { name: "CHECKOUT" }).click();
+    await page.getByRole("link", { name: "CHECKOUT" }).click();
     await page.locator("#name").fill("Preview Tester");
     await page.locator("#phone").fill("03 600 700");
-    await page.locator("#region").selectOption({ index: 1 });
-    await page.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+    await page.locator("#governorate").selectOption("Beirut");
+    await page.locator("#district").selectOption("Beirut");
+    await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
     // the button says TEST and stays disabled until the explicit confirmation is ticked
     const place = page.getByRole("button", { name: "PLACE TEST ORDER" });
     await expect(place).toBeDisabled();
@@ -275,11 +276,11 @@ test.describe("admin preview: the real storefront, for the signed-in admin only"
     await page.getByRole("checkbox", { name: /This is a test order/ }).check();
     await expect(place).toBeEnabled();
     await place.click();
-    await expect(page.getByText(/TEST ORDER #\d+/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/TEST ORDER MP-\d+/)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/This was a TEST order/)).toBeVisible();
-    await expect(page.getByRole("link", { name: "OPEN WHATSAPP" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /WHATSAPP/ })).toHaveCount(0);
     expect(popups).toEqual([]); // WhatsApp was not opened
-    const n = Number((await page.getByText(/TEST ORDER #\d+/).first().innerText()).match(/\d+/)![0]);
+    const n = Number((await page.getByText(/TEST ORDER MP-\d+/).first().innerText()).match(/\d+/)![0]);
     const o = one<Record<string, any>>("SELECT * FROM orders WHERE order_number = ?", n)!;
     expect(o).toMatchObject({ is_test: 1, source: "web", status: "new" });
     expect(o.customer_notes).toContain("[TEST ORDER]");

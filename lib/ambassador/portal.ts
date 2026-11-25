@@ -14,7 +14,7 @@ import { notifyAmbassador } from "./notify";
  * name only; no phone, address, email or notes ever leave this module.
  */
 const sql = () => getEngine().sqlite;
-const VALID = "o.status NOT IN ('cancelled','returned','draft') AND o.is_test = 0";
+const VALID = "o.status NOT IN ('cancelled','returned','refused','draft') AND o.is_test = 0";
 const now = () => new Date().toISOString();
 const ORDER = ["seed", "athlete", "ambassador"] as const;
 

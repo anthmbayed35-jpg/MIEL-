@@ -29,7 +29,7 @@ describe("stock cannot go negative under concurrent orders", () => {
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(10);
     const refused = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
     expect(refused).toHaveLength(40);
-    for (const r of refused) expect(String(r.reason.message)).toMatch(/out of stock/);
+    for (const r of refused) expect(String(r.reason.message)).toMatch(/out of stock|Only \d+ left of/);
     expect(stock(S.gold.id)).toBe(0);
     expect(sql().prepare("SELECT COUNT(*) n FROM orders").get()).toEqual({ n: 10 });
     expect(sql().prepare("SELECT COUNT(*) n FROM order_items").get()).toEqual({ n: 10 }); // refused orders left nothing behind
@@ -59,7 +59,7 @@ describe("stock cannot go negative under concurrent orders", () => {
   }, 120_000);
 
   it("a failed order rolls back everything (customer, order, numbering gaps, discount use)", async () => {
-    expect(() => buy(1, 11, { code: "WELCOME10" })).toThrow(/out of stock/);
+    expect(() => buy(1, 11, { code: "WELCOME10" })).toThrow(/out of stock|Only \d+ left of/);
     expect(sql().prepare("SELECT COUNT(*) n FROM customers").get()).toEqual({ n: 0 });
     expect(sql().prepare("SELECT COUNT(*) n FROM orders").get()).toEqual({ n: 0 });
     expect(sql().prepare("SELECT used_count FROM discounts WHERE code = 'WELCOME10'").get()).toEqual({ used_count: 0 });

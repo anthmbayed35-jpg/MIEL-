@@ -53,7 +53,7 @@ export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (path !== "/admin" && !path.startsWith("/admin/")) {
     const res = publicGate(req, path);
-    if (path === "/ambassador" || path.startsWith("/ambassador/") || path.startsWith("/partner/")) Object.entries(SECURITY).forEach(([k, v]) => res.headers.set(k, v)); // the portal is private: never indexed, never cached
+    if (path === "/ambassador" || path.startsWith("/ambassador/") || path.startsWith("/partner/") || path === "/checkout" || path.startsWith("/order/")) Object.entries(SECURITY).forEach(([k, v]) => !res.headers.has(k) && res.headers.set(k, v)); // the portal is private: never indexed, never cached
     return res;
   }
 

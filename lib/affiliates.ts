@@ -23,7 +23,7 @@ export type AffiliateRow = {
 };
 
 /** Orders that count as real affiliate sales: not cancelled, returned, draft or test. */
-const VALID = "o.status NOT IN ('cancelled','returned','draft') AND o.is_test = 0";
+const VALID = "o.status NOT IN ('cancelled','returned','refused','draft') AND o.is_test = 0";
 
 // ---------------------------------------------------------------- codes
 export function codeTaken(code: string, exceptId?: string): boolean {

@@ -48,7 +48,7 @@ export function discountUsage(): Map<string, { orders: number; revenue: number; 
   const rows = getEngine()
     .sqlite.prepare(
       `SELECT discount_code AS code, COUNT(*) AS orders, SUM(total_cents) AS revenue, SUM(discount_total_cents) AS given
-       FROM orders WHERE discount_code IS NOT NULL AND is_test = 0 AND status NOT IN ('draft','cancelled','returned') GROUP BY discount_code`,
+       FROM orders WHERE discount_code IS NOT NULL AND is_test = 0 AND status NOT IN ('draft','cancelled','returned','refused') GROUP BY discount_code`,
     )
     .all() as { code: string; orders: number; revenue: number; given: number }[];
   return new Map(rows.map((r) => [r.code.toUpperCase(), { orders: r.orders, revenue: r.revenue / 100, given: r.given / 100 }]));

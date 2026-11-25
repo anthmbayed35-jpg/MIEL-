@@ -1,4 +1,5 @@
 import { SACHETS_PER_POUCH } from "@/config/site";
+import { orderRef } from "./order-ref";
 import { STATUS_LABEL, type OrderStatus } from "./status";
 
 const m = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
@@ -18,7 +19,7 @@ export function orderMessage(o: {
   customer: { name: string; phone: string; address: string; notes?: string };
 }) {
   const rows = [
-    `New MIEL+ order #${o.number}`,
+    `New MIEL+ order ${o.number}`,
     "",
     ...o.lines.map((l) => `${l.qty} x ${l.name} (${SACHETS_PER_POUCH} sachets) = ${m(l.qty * l.unitPrice)}`),
     "",
@@ -43,19 +44,19 @@ export function customerStatusMessage(o: { number: number; status: OrderStatus; 
   switch (o.status) {
     case "new":
     case "draft":
-      return `${hi} We got your order #${o.number}. We'll confirm delivery details shortly.`;
+      return `${hi} We got your order ${orderRef(o.number)}. We'll confirm delivery details shortly.`;
     case "confirmed":
-      return `${hi} Your order #${o.number} is confirmed.${pay}`;
+      return `${hi} Your order ${orderRef(o.number)} is confirmed.${pay}`;
     case "packed":
-      return `${hi} Your order #${o.number} is packed and will go out soon.`;
+      return `${hi} Your order ${orderRef(o.number)} is packed and will go out soon.`;
     case "out_for_delivery":
-      return `${hi} Your order #${o.number} is out for delivery.${o.tracking ? ` Tracking: ${o.tracking}.` : ""}${pay}`;
+      return `${hi} Your order ${orderRef(o.number)} is out for delivery.${o.tracking ? ` Tracking: ${o.tracking}.` : ""}${pay}`;
     case "delivered":
-      return `${hi} Your order #${o.number} was delivered. Enjoy and fuel the grind!`;
+      return `${hi} Your order ${orderRef(o.number)} was delivered. Enjoy and fuel the grind!`;
     case "cancelled":
-      return `${hi} Your order #${o.number} was cancelled. Message us if you want to reorder.`;
+      return `${hi} Your order ${orderRef(o.number)} was cancelled. Message us if you want to reorder.`;
     default:
-      return `${hi} About your order #${o.number} (${STATUS_LABEL[o.status]}).`;
+      return `${hi} About your order ${orderRef(o.number)} (${STATUS_LABEL[o.status]}).`;
   }
 }
 

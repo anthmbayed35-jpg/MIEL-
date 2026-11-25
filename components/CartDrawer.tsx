@@ -1,71 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { decodeRefEntry, encodeRef, parseRef, REF_KEY } from "@/lib/ref";
+import { useEffect, useRef } from "react";
 import { SACHETS_PER_POUCH } from "@/config/site";
 import { money } from "@/lib/format";
-import { getUtm, trackEvent } from "@/lib/track-client";
-import { captureCheckout, placeOrder, quoteAction, type QuoteView } from "@/app/actions/checkout";
-import { TEST_ORDER_CONFIRMATION } from "@/lib/site-mode";
+import { trackEvent } from "@/lib/track-client";
 import { useCart } from "./CartProvider";
 
-type View = "cart" | "checkout" | "done";
-
-const field =
-  "w-full min-h-14 bg-white/5 border border-white/15 px-4 py-3 text-fg text-[18px] placeholder:text-body/60 focus:border-acid focus:outline-none";
-const label = "mono block mb-2";
-
+/**
+ * The cart: products, flavour, quantity (plus and minus), line totals, subtotal, remove, and the Checkout button, which opens
+ * the /checkout page. The cart lives in the browser (localStorage); prices are never trusted from here: /checkout and the order
+ * action price everything again on the server.
+ */
 export function CartDrawer() {
-  const { open, setOpen, lines, total, count, setQty, clear, products, zones, preview } = useCart();
-  const [wasTest, setWasTest] = useState(false);
-  const [testOk, setTestOk] = useState(false); // preview only: the explicit "this is a test order" confirmation
-  const [view, setView] = useState<View>("cart");
-  const [waLink, setWaLink] = useState("");
-  const [orderId, setOrderId] = useState("");
-  const [busy, setBusy] = useState(false);
-  const idemKey = useRef(""); // one key per checkout attempt: a double click or a retry never places two orders
-  const [error, setError] = useState("");
-  const [region, setRegion] = useState("");
-  const [code, setCode] = useState("");
-  const [fromLink, setFromLink] = useState(false); // the code was filled in from an ambassador's personal link and not edited since
-  // An ambassador's personal link (/?ref=CODE): remember the code (cookie and browser storage, 30 days), count the visit once a day
-  // (a number, no personal data) and put the code in the discount field. The server still checks it. A code typed by hand wins.
-  useEffect(() => {
-    try {
-      const fromUrl = parseRef(window.location.search);
-      const stored = decodeRefEntry(localStorage.getItem(REF_KEY));
-      if (fromUrl) {
-        const today = new Date().toISOString().slice(0, 10);
-        const counted = stored?.code === fromUrl && stored.countedDay === today;
-        localStorage.setItem(REF_KEY, encodeRef(fromUrl, Date.now(), today));
-        if (!counted) void fetch("/api/ref", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: fromUrl }), keepalive: true }).catch(() => {});
-      }
-      const c = fromUrl ?? stored?.code ?? null;
-      if (c) {
-        setCode((cur) => cur || c);
-        setFromLink(true);
-      }
-    } catch {
-      /* storage blocked: the customer can still type the code */
-    }
-  }, []);
-  const [quote, setQuote] = useState<QuoteView | null>(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const { open, setOpen, lines, total, count, setQty, products } = useCart();
   const panel = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
 
   const items = Object.entries(lines)
     .map(([id, qty]) => ({ p: products.find((x) => x.id === id), qty }))
     .filter((x): x is { p: (typeof products)[number]; qty: number } => !!x.p && x.qty > 0);
-  const cartInput = items.map((i) => ({ productId: i.p.id, qty: i.qty }));
-  const cartKey = JSON.stringify(cartInput);
-
-  const close = () => {
-    setOpen(false);
-    if (view === "done") setView("cart");
-  };
+  const close = () => setOpen(false);
 
   useEffect(() => {
     if (!open) return;
@@ -97,65 +52,7 @@ export function CartDrawer() {
     };
   }, [open, setOpen]);
 
-  useEffect(() => {
-    if (view === "checkout" && items.length === 0) setView("cart");
-  }, [view, items.length]);
-
-  // Live price (delivery zone + discount code), computed on the server
-  useEffect(() => {
-    if (view !== "checkout" || !cartInput.length) return;
-    let live = true;
-    quoteAction(cartInput, region, code).then((q) => live && setQuote(q));
-    return () => {
-      live = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, cartKey, region, code]);
-
-  function startCheckout() {
-    setError("");
-    setView("checkout");
-    trackEvent("begin_checkout");
-  }
-
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (busy) return;
-    const fd = new FormData(e.currentTarget);
-    setBusy(true);
-    setError("");
-    idemKey.current ||= crypto.randomUUID();
-    const res = await placeOrder({
-      idempotencyKey: idemKey.current,
-      items: cartInput,
-      customer: {
-        name: String(fd.get("name") ?? "").trim(),
-        phone: String(fd.get("phone") ?? "").trim(),
-        address: String(fd.get("address") ?? "").trim(),
-        notes: String(fd.get("notes") ?? "").trim(),
-      },
-      region,
-      code,
-      attribution: fromLink ? "link" : "code",
-      heardFrom: String(fd.get("heard_from") ?? ""),
-      utm: getUtm(),
-      website: String(fd.get("website") ?? ""),
-      confirmation: preview && testOk ? TEST_ORDER_CONFIRMATION : undefined,
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    setWaLink(res.whatsappUrl);
-    setOrderId(res.orderNumber);
-    setWasTest(!!res.test);
-    if (!res.test) window.open(res.whatsappUrl, "_blank", "noopener");
-    clear();
-    setView("done");
-  }
-
-  const shown = quote?.ok ? quote : null;
+  const soldOut = items.some((i) => i.p.soldOut);
 
   return (
     <div className={`fixed inset-0 z-50 ${open ? "visible" : "pointer-events-none invisible delay-300"}`} aria-hidden={!open} inert={!open}>
@@ -168,168 +65,71 @@ export function CartDrawer() {
         className={`glass-strong absolute right-0 top-0 flex h-full w-full flex-col !rounded-none sm:max-w-[480px] sm:!rounded-l-[20px] transition-transform duration-300 motion-reduce:transition-none ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <h2 className="display text-[22px]">{view === "checkout" ? "Checkout" : view === "done" ? "Order sent" : `Cart (${count})`}</h2>
+          <h2 className="display text-[22px]">Cart ({count})</h2>
           <button ref={closeBtn} onClick={close} className="btn btn-ghost btn-sm" aria-label="Close cart">
             CLOSE
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-6">
-          {view === "cart" &&
-            (items.length === 0 ? (
-              <div>
-                <p className="body-lg mb-6">Your cart is empty. Fuel up.</p>
-                <Link href="/#lineup" onClick={close} className="btn btn-block">
-                  SHOP THE LINEUP
-                </Link>
-              </div>
-            ) : (
-              <ul className="divide-y divide-white/10">
-                {items.map(({ p, qty }) => (
-                  <li key={p.id} className="py-5 first:pt-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="display text-[20px]">{p.name}</p>
-                        <p className="mono mt-1">
-                          {SACHETS_PER_POUCH} SACHETS · {money(p.price)}
-                        </p>
-                      </div>
-                      <p className="display text-[20px]">{money(p.price * qty)}</p>
-                    </div>
-                    <div className="mt-4 flex items-center">
-                      <button className="btn btn-ghost btn-sm !min-w-14 !px-0" onClick={() => setQty(p.id, qty - 1)} aria-label={`Remove one ${p.name}`}>
-                        −
-                      </button>
-                      <span className="display w-14 text-center text-[20px]" aria-live="polite">
-                        {qty}
-                      </span>
-                      <button className="btn btn-ghost btn-sm !min-w-14 !px-0" onClick={() => setQty(p.id, qty + 1)} aria-label={`Add one ${p.name}`}>
-                        +
-                      </button>
-                      <button className="link ml-auto text-[16px]" onClick={() => setQty(p.id, 0)} aria-label={`Remove ${p.name} from cart`}>
-                        Remove
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ))}
-
-          {view === "checkout" && (
-            <form id="checkout" onSubmit={submit} className="space-y-5">
-              <div>
-                <label htmlFor="name" className={label}>Full name</label>
-                <input id="name" name="name" required autoComplete="name" className={field} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="phone" className={label}>Phone (WhatsApp)</label>
-                <input
-                  id="phone" name="phone" type="tel" required minLength={7} autoComplete="tel" inputMode="tel" className={field}
-                  placeholder="03 123 456 or +961 70 123 456" value={phone} onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => phone.length >= 7 && captureCheckout({ name, phone, items: cartInput, utm_source: getUtm().source })}
-                />
-              </div>
-              {zones.length > 0 && (
-                <div>
-                  <label htmlFor="region" className={label}>Delivery area</label>
-                  <select id="region" name="region" required className={field} value={region} onChange={(e) => setRegion(e.target.value)}>
-                    <option value="">Choose your area</option>
-                    {zones.map((z) => (
-                      <option key={z.name} value={z.name}>
-                        {z.name} ({z.fee ? money(z.fee) : "free"}{z.free_over ? `, free over ${money(z.free_over)}` : ""})
-                      </option>
-                    ))}
-                  </select>
-                  {shown?.eta && <p className="mt-2 text-[15px]">Estimated delivery: {shown.eta}</p>}
-                </div>
-              )}
-              <div>
-                <label htmlFor="address" className={label}>Delivery address</label>
-                <textarea id="address" name="address" required rows={3} autoComplete="street-address" className={field} placeholder="City, street, building, floor" />
-              </div>
-              <div>
-                <label htmlFor="notes" className={label}>Notes (optional)</label>
-                <textarea id="notes" name="notes" rows={2} className={field} placeholder="Anything we should know" />
-              </div>
-              <div>
-                <label htmlFor="heard_from" className={label}>How did you hear about us? (optional)</label>
-                <input id="heard_from" name="heard_from" maxLength={80} className={field} placeholder="Instagram, a friend, my gym…" />
-              </div>
-              <div>
-                <label htmlFor="code" className={label}>Discount code (optional)</label>
-                <input id="code" className={field} placeholder="CODE" value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setFromLink(false); }} autoCapitalize="characters" />
-                {shown?.codeMessage && <p className={`mt-2 text-[15px] ${shown.discount || shown.freeDelivery ? "text-acid" : ""}`}>{shown.codeMessage}</p>}
-              </div>
-              {/* honeypot: real people never see or fill this */}
-              <input name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute left-[-9999px] h-0 w-0 opacity-0" />
-              <div className="glass p-4">
-                <p className="mono">PAYMENT</p>
-                <p className="display mt-1 text-[18px]">Cash on delivery</p>
-                <p className="mt-1 text-[16px]">Pay when it arrives. We confirm delivery details on WhatsApp.</p>
-              </div>
-              {error && (
-                <p role="alert" className="border border-[#FF5C7A]/50 bg-[#FF5C7A]/10 p-3 text-[16px] text-fg">
-                  {error}
-                </p>
-              )}
-            </form>
-          )}
-
-          {view === "done" && (
+          {items.length === 0 ? (
             <div>
-              <p className="mono">{wasTest ? "TEST ORDER" : "ORDER"} #{orderId}</p>
-              <p className="display mt-2 text-[26px]">
-                Order placed<span className="accent">.</span>
-              </p>
-              {wasTest ? (
-                <p className="body-lg mt-4 mb-6">This was a TEST order. It is marked TEST in the admin, stock was taken as for a real order, and it is not counted in your sales. Cancel it there to put the stock back. Nothing was sent to WhatsApp.</p>
-              ) : (
-                <>
-                  <p className="body-lg mt-4 mb-6">
-                    Your order is in. WhatsApp should have opened with your order. Hit send there and we&apos;ll confirm delivery. Didn&apos;t open?
-                  </p>
-                  <a href={waLink} target="_blank" rel="noopener noreferrer" className="btn btn-block">
-                    OPEN WHATSAPP
-                  </a>
-                </>
-              )}
+              <p className="body-lg mb-6">Your cart is empty. Fuel up.</p>
+              <Link href="/#lineup" onClick={close} className="btn btn-block">
+                SHOP THE LINEUP
+              </Link>
             </div>
+          ) : (
+            <ul className="divide-y divide-white/10">
+              {items.map(({ p, qty }) => (
+                <li key={p.id} className="py-5 first:pt-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="display text-[20px]">{p.name}</p>
+                      {p.flavor && <p className="mt-1 text-[16px] text-fg">{p.flavor}</p>}
+                      <p className="mono mt-1">
+                        {SACHETS_PER_POUCH} SACHETS · {money(p.price)}
+                      </p>
+                      {p.soldOut && <p className="mt-1 text-[15px] text-[#FF8AA0]">Sold out right now. Remove it to check out.</p>}
+                    </div>
+                    <p className="display text-[20px]">{money(p.price * qty)}</p>
+                  </div>
+                  <div className="mt-4 flex items-center">
+                    <button className="btn btn-ghost btn-sm !min-w-14 !px-0" onClick={() => setQty(p.id, qty - 1)} aria-label={`Remove one ${p.name}`}>
+                      −
+                    </button>
+                    <span className="display w-14 text-center text-[20px]" aria-live="polite">
+                      {qty}
+                    </span>
+                    <button className="btn btn-ghost btn-sm !min-w-14 !px-0" onClick={() => setQty(p.id, qty + 1)} aria-label={`Add one ${p.name}`}>
+                      +
+                    </button>
+                    <button className="link ml-auto text-[16px]" onClick={() => setQty(p.id, 0)} aria-label={`Remove ${p.name} from cart`}>
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
-        {view === "cart" && items.length > 0 && (
+        {items.length > 0 && (
           <div className="border-t border-white/10 px-5 py-5">
-            <div className="mb-4 flex items-baseline justify-between">
+            <div className="mb-1 flex items-baseline justify-between">
               <span className="mono">SUBTOTAL</span>
               <span className="display accent text-[28px]">{money(total)}</span>
             </div>
-            <button className="btn btn-block" onClick={startCheckout}>
-              CHECKOUT
-            </button>
-          </div>
-        )}
-        {view === "checkout" && (
-          <div className="border-t border-white/10 px-5 py-5">
-            <dl className="mb-4 space-y-1 text-[16px]">
-              <div className="flex justify-between"><dt>Subtotal</dt><dd>{money(shown?.subtotal ?? total)}</dd></div>
-              {!!shown?.discount && <div className="flex justify-between text-acid"><dt>Discount</dt><dd>−{money(shown.discount)}</dd></div>}
-              {region && <div className="flex justify-between"><dt>Delivery</dt><dd>{shown ? (shown.shipping ? money(shown.shipping) : "Free") : "…"}</dd></div>}
-              <div className="flex items-baseline justify-between pt-1"><dt className="mono">TOTAL</dt><dd className="display accent text-[28px]">{money(shown?.total ?? total)}</dd></div>
-            </dl>
-            {preview && (
-              <label className="mb-3 flex items-start gap-3 rounded-2xl border border-acid/40 bg-acid/10 p-3 text-[15px] text-fg">
-                <input type="checkbox" checked={testOk} onChange={(e) => setTestOk(e.target.checked)} className="mt-1 h-6 w-6 shrink-0 accent-[#DAFC69]" />
-                <span>
-                  <b>This is a test order.</b> The storefront is hidden, so only a clearly marked TEST order can be placed. It takes real stock (cancel it in the admin to restore it) and is not counted in sales.
-                </span>
-              </label>
+            <p className="mb-4 text-[15px] text-body">Delivery is calculated at checkout.</p>
+            {soldOut ? (
+              <button className="btn btn-block opacity-60" disabled aria-disabled="true">
+                REMOVE SOLD OUT ITEMS
+              </button>
+            ) : (
+              <Link href="/checkout" onClick={() => { close(); trackEvent("begin_checkout"); }} className="btn btn-block">
+                CHECKOUT
+              </Link>
             )}
-            <button type="submit" form="checkout" disabled={busy || (preview && !testOk)} className="btn btn-block disabled:opacity-60">
-              {busy ? "PLACING ORDER…" : preview ? "PLACE TEST ORDER" : "PLACE ORDER"}
-            </button>
-            <button type="button" onClick={() => setView("cart")} className="link mt-2 w-full text-center text-[16px]">
-              Back to cart
-            </button>
           </div>
         )}
       </div>

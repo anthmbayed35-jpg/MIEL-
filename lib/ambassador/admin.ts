@@ -153,7 +153,7 @@ export function salesReport(month: string): ReportRow[] {
             COALESCE(SUM(CASE WHEN o.commission_status <> 'void' THEN o.commission_amount_cents ELSE 0 END), 0) AS commission_cents,
             COALESCE(SUM(CASE WHEN o.commission_status = 'paid' THEN o.commission_amount_cents ELSE 0 END), 0) AS paid_cents,
             (SELECT COALESCE(SUM(c.count), 0) FROM ref_clicks c WHERE c.affiliate_id = a.id AND c.day >= ? AND c.day <= ?) AS clicks
-     FROM affiliates a JOIN orders o ON o.affiliate_id = a.id AND o.is_test = 0 AND o.status NOT IN ('cancelled','returned','draft') AND o.created_at >= ? AND o.created_at < ?
+     FROM affiliates a JOIN orders o ON o.affiliate_id = a.id AND o.is_test = 0 AND o.status NOT IN ('cancelled','returned','refused','draft') AND o.created_at >= ? AND o.created_at < ?
      GROUP BY a.id ORDER BY sales_cents DESC`,
     `${month}-01`, `${month}-31`, from.toISOString(), to.toISOString(),
   );
@@ -163,6 +163,6 @@ export function salesByMonth() {
   return all<{ month: string; orders: number; sales_cents: number; commission_cents: number }>(
     `SELECT substr(created_at, 1, 7) AS month, COUNT(*) AS orders, SUM(subtotal_cents - discount_amount_cents) AS sales_cents,
             SUM(CASE WHEN commission_status <> 'void' THEN commission_amount_cents ELSE 0 END) AS commission_cents
-     FROM orders WHERE affiliate_id IS NOT NULL AND is_test = 0 AND status NOT IN ('cancelled','returned','draft') GROUP BY month ORDER BY month DESC LIMIT 12`,
+     FROM orders WHERE affiliate_id IS NOT NULL AND is_test = 0 AND status NOT IN ('cancelled','returned','refused','draft') GROUP BY month ORDER BY month DESC LIMIT 12`,
   );
 }

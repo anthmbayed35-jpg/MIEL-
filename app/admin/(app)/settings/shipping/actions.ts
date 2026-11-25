@@ -63,7 +63,7 @@ export async function settlePartner(_p: ActionState, fd: FormData): Promise<Acti
   const db = getDb();
   const partner = String(fd.get("partner") ?? "");
   const q = db.from("orders").select("*").eq("cod_collected", true).is("cod_settled_at", null);
-  const orders = (must(await (partner ? q.eq("delivery_partner_id", partner) : q.is("delivery_partner_id", null))) as Row[]).filter((o) => !["cancelled", "returned"].includes(o.status));
+  const orders = (must(await (partner ? q.eq("delivery_partner_id", partner) : q.is("delivery_partner_id", null))) as Row[]).filter((o) => !["cancelled", "returned", "refused"].includes(o.status));
   if (!orders.length) return { error: "Nothing to settle." };
   const now = new Date().toISOString();
   let sum = 0;

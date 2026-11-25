@@ -26,7 +26,7 @@ export default async function ShippingPage() {
   const db = getDb();
   const zones = must(await db.from("shipping_zones").select("*").order("sort", { ascending: true })) as Row[];
   const partners = must(await db.from("delivery_partners").select("*")) as Row[];
-  const orders = (must(await db.from("orders").select("*")) as Row[]).filter((o) => !["draft", "cancelled", "returned"].includes(o.status));
+  const orders = (must(await db.from("orders").select("*")) as Row[]).filter((o) => !["draft", "cancelled", "returned", "refused"].includes(o.status));
 
   // COD reconciliation per partner
   const groups = [...partners.map((p) => ({ id: p.id as string | null, name: p.name as string })), { id: null as string | null, name: "Unassigned / self-delivered" }];

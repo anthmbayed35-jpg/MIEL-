@@ -23,7 +23,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const affiliate = o.affiliate_id ? (getEngine().sqlite.prepare("SELECT id, name FROM affiliates WHERE id = ?").get(o.affiliate_id) as { id: string; name: string } | undefined) : undefined;
   const status = o.status as OrderStatus;
   const next = NEXT_STATUS[status];
-  const closed = ["cancelled", "returned"].includes(status);
+  const closed = ["cancelled", "returned", "refused"].includes(status);
   const msg = customerStatusMessage({ number: o.order_number, status, total: Number(o.cod_amount_due), customerName: customer?.name ?? "there", tracking: o.tracking_number, cod: !o.cod_collected });
 
   return (
@@ -62,7 +62,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <ActionForm action={changeStatus} className="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="id" value={o.id} /><input type="hidden" name="version" value={o.version} />
                 <select name="to" defaultValue={status} className="a-input !w-auto" aria-label="Set status">
-                  {ORDER_STATUSES.filter((s) => !["cancelled", "returned", "draft"].includes(s)).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                  {ORDER_STATUSES.filter((s) => !["cancelled", "returned", "refused", "draft"].includes(s)).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                 </select>
                 <SubmitButton variant="glass">Set status</SubmitButton>
               </ActionForm>
@@ -161,7 +161,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </ActionForm>
           </Card>
 
-          {!["cancelled", "returned"].includes(status) && (
+          {!["cancelled", "returned", "refused"].includes(status) && (
             <Card>
               <SectionTitle>{status === "delivered" ? "Return" : "Cancel order"}</SectionTitle>
               {status === "delivered" ? (

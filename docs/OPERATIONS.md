@@ -238,3 +238,17 @@ Admin: **Marketing → Affiliates** (`/admin/affiliates`, owner and manager). Pu
 **Privacy:** an ambassador sees only their own data; customers appear as FIRST NAME only, no phone, address or email. Link visits are a daily count per ambassador with no IP or cookie id. Proof screenshots are stored on the volume (`/data/ambassador/proofs`) and served only to the owner and the team.
 
 **Launch checklist:** set `SITE_MODE=live` when you open the store; configure email if you want invites mailed; review terms, rates, perks and the minimum payout in Settings.
+
+## 17. Checkout, orders and the Ambassadors page
+
+**Customer flow:** cart drawer, then `/checkout` (one page, no account), then `/order/<private link>` with the order number (MP-1001), the items, the address, a cash-on-delivery message and a WhatsApp button prefilled with the order number. The WhatsApp number is the one in Settings > Store.
+
+**Delivery fee and free delivery:** Settings > Shipping. Each zone has a fee and a free-delivery line ("free over"). The 8 governorates map to zones by name: Beirut, Mount Lebanon, North Lebanon (North and Akkar), Bekaa (Baalbek-Hermel and Beqaa), South Lebanon, Nabatieh. Keep those zone names, or rename them and tell the developer; a governorate whose zone is missing or switched off is shown as "not available yet" and cannot be ordered. The free-delivery line counts the products after any discount.
+
+**Payment:** cash on delivery is the only method. It can be paused in Settings > Store (cod_enabled), which pauses online ordering. Online methods are added in `lib/payments.ts` without changing the checkout screen.
+
+**Orders (admin):** Orders list with counts per status, a badge on the menu for new orders, search by MP number, name or phone, filters by status and date. The order page: status buttons, internal notes, WhatsApp button, packing slip and invoice, and the full change log. Statuses: new, confirmed, packed, out for delivery, delivered, cancelled, refused, returned. Cancelled, refused and returned give the stock back exactly once. Stock per flavour is edited in Inventory (low-stock warning there).
+
+**Email:** the order confirmation to the customer is sent only if they typed an email and mail is configured (`MAIL_FROM` plus `BREVO_API_KEY` or `SMTP_URL`); otherwise nothing is sent and nothing fails. You see new orders in the admin immediately (live bell and the Orders badge).
+
+**Ambassadors page:** public `/ambassadors` shows only the application form. Applications arrive in Ambassadors > Applications with the WhatsApp number and an Open WhatsApp button. Approve only changes the status; after you spoke to them press Create account / send invite to make the account and the invite link (you send it yourself).

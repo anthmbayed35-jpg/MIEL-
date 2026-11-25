@@ -2,7 +2,7 @@ import Link from "next/link";
 import { can, requirePerm } from "@/lib/auth";
 import { affiliateOptions } from "@/lib/affiliates";
 import { getDb, must, type Row } from "@/lib/db";
-import { listOrders, PAGE_SIZE } from "@/lib/queries";
+import { listOrders, orderStatusCounts, PAGE_SIZE } from "@/lib/queries";
 import { ORDER_STATUSES, STATUS_LABEL } from "@/lib/status";
 import { Card, ErrorState, PageHeader, PillLink } from "@/components/admin/ui";
 import { OrdersTable } from "@/components/admin/OrdersTable";
@@ -23,6 +23,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const zones = must(await getDb().from("shipping_zones").select("name").order("sort", { ascending: true })) as Row[];
   const affiliates = can(admin.role, "affiliates.read") ? affiliateOptions() : [];
   const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+  const counts = orderStatusCounts();
   const qs = (over: Record<string, string | number>) => {
     const p = new URLSearchParams(Object.entries({ ...sp, ...over }).filter(([, v]) => v !== undefined && v !== "") as [string, string][]);
     return `/admin/orders?${p}`;
@@ -42,9 +43,20 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           </>
         }
       />
+      <nav aria-label="Orders by status" className="no-scrollbar -mx-1 mb-5 flex gap-2 overflow-x-auto px-1">
+        <Link href="/admin/orders" aria-current={!sp.status ? "page" : undefined} className={`flex min-h-12 shrink-0 items-center rounded-full px-5 text-[15px] font-medium ${!sp.status ? "bg-acid !text-black" : "bg-white/8 text-body hover:text-fg"}`}>
+          All
+        </Link>
+        {ORDER_STATUSES.filter((s) => s !== "draft").map((s) => (
+          <Link key={s} href={`/admin/orders?status=${s}`} aria-current={sp.status === s ? "page" : undefined} className={`flex min-h-12 shrink-0 items-center gap-2 rounded-full px-5 text-[15px] font-medium ${sp.status === s ? "bg-acid !text-black" : "bg-white/8 text-body hover:text-fg"}`}>
+            {STATUS_LABEL[s]}
+            <span className={`tnum ${sp.status === s ? "" : "text-fg"}`}>{counts[s] ?? 0}</span>
+          </Link>
+        ))}
+      </nav>
       <Card>
         <form className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6" role="search">
-          <input name="q" defaultValue={sp.q} placeholder="Search #order, name, phone" className="a-input xl:col-span-2" aria-label="Search orders" />
+          <input name="q" defaultValue={sp.q} placeholder="Search MP-1001, name, phone" className="a-input xl:col-span-2" aria-label="Search orders" />
           <select name="status" defaultValue={sp.status ?? ""} className="a-input" aria-label="Status">
             <option value="">All statuses</option>
             {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}

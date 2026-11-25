@@ -7,11 +7,16 @@ import { logout } from "../login/actions";
 import { SearchButton } from "@/components/admin/SearchButton";
 import { StatusBanners } from "@/components/admin/StatusBanners";
 import { needsAction } from "@/lib/ambassador/admin";
+import { newOrderCount } from "@/lib/queries";
 
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
   // the number of new ambassador applications shows as a badge on the Affiliates menu item (refreshed with every page and live update)
-  const badges: Record<string, number> = can(admin.role, "affiliates.read") ? { "/admin/affiliates": needsAction().total } : {};
+  // numbers on menu items: new orders on Orders, things to decide on Ambassadors
+  const badges: Record<string, number> = {
+    ...(can(admin.role, "orders.read") ? { "/admin/orders": newOrderCount() } : {}),
+    ...(can(admin.role, "affiliates.read") ? { "/admin/affiliates": needsAction().total } : {}),
+  };
 
   return (
     <div className="relative min-h-screen pb-32 lg:pb-12">

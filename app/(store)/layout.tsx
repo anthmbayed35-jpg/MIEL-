@@ -5,6 +5,7 @@ import { CartDrawer } from "@/components/CartDrawer";
 import { Tracker } from "@/components/Tracker";
 import { PreviewBar } from "@/components/PreviewBar";
 import { AmbassadorStrip, TopOffsets } from "@/components/TopBars";
+import { RefCapture } from "@/components/RefCapture";
 import { getProgram } from "@/lib/program";
 import { previewAdmin } from "@/lib/preview";
 
@@ -19,7 +20,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   const banner = getProgram().banner;
   return (
     <CartProvider
-      products={cat.products.map((p) => ({ id: p.id, name: p.name, price: p.price, slug: p.slug }))}
+      products={cat.products.map((p) => ({ id: p.id, name: p.name, price: p.price, slug: p.slug, flavor: p.flavor, soldOut: !!p.soldOut }))}
       zones={cat.zones.map((z) => ({ name: z.name, fee: z.fee, free_over: z.free_over, eta: z.eta }))}
       preview={preview}
     >
@@ -27,6 +28,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       {preview && <PreviewBar />}
       {banner.enabled && <AmbassadorStrip text={banner.text} />}
       <TopOffsets />
+      <RefCapture />
       {announcement.enabled && announcement.text && (
         <div className="bg-acid px-4 py-2.5 text-center text-[14px] font-semibold text-black">
           {announcement.link ? (

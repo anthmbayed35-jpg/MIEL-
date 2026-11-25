@@ -19,7 +19,7 @@ const VIEWPORTS = [
   { name: "desktop-1440", width: 1440, height: 900 },
 ] as const;
 
-const STORE = ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping", "/ambassadors"];
+const STORE = ["/", "/products/red-burn", "/products/gold", "/products/creatine", "/policies/shipping", "/ambassadors", "/checkout"];
 
 /** Admin pages found on disk, with dynamic segments filled with real ids from the database. */
 function adminPages(): string[] {
@@ -127,11 +127,12 @@ test("setup: make sure an order and a customer exist, so the order and customer 
   const page = await ctx.newPage();
   await page.goto("/products/red-burn");
   await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
-  await page.getByRole("button", { name: "CHECKOUT" }).click();
+  await page.getByRole("link", { name: "CHECKOUT" }).click();
   await page.locator("#name").fill("Pages Customer");
   await page.locator("#phone").fill("03 555 123");
-  await page.locator("#region").selectOption({ index: 1 });
-  await page.locator("#address").fill("Beirut, Hamra, test building, floor 2");
+  await page.locator("#governorate").selectOption("Beirut");
+  await page.locator("#district").selectOption("Beirut");
+  await page.locator("#street").fill("Beirut, Hamra, test building, floor 2");
   await page.getByRole("button", { name: "PLACE ORDER" }).click();
   await expect(page.getByText(/Order placed/)).toBeVisible({ timeout: 20_000 });
   await ctx.close();
@@ -148,7 +149,7 @@ for (const vp of VIEWPORTS) {
     await page.goto("/products/red-burn");
     await page.getByRole("button", { name: /ADD TO CART/ }).first().click();
     await page.screenshot({ path: path.join(ROOT, "test-results/pages", `${vp.name}_cart-drawer.png`) });
-    await page.getByRole("button", { name: "CHECKOUT" }).click();
+    await page.getByRole("link", { name: "CHECKOUT" }).click();
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), "checkout overflow").toBeLessThanOrEqual(1);
     await page.screenshot({ path: path.join(ROOT, "test-results/pages", `${vp.name}_checkout.png`) });

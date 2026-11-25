@@ -36,7 +36,7 @@ function build(f: CustomerFilters) {
 
 const SELECT = `
   SELECT c.*, COUNT(o.id) AS orders,
-         COALESCE(SUM(CASE WHEN o.status NOT IN ('cancelled','returned','draft') AND o.is_test = 0 THEN o.total_cents END), 0) AS spent_cents,
+         COALESCE(SUM(CASE WHEN o.status NOT IN ('cancelled','returned','refused','draft') AND o.is_test = 0 THEN o.total_cents END), 0) AS spent_cents,
          MAX(o.created_at) AS last
   FROM customers c LEFT JOIN orders o ON o.customer_id = c.id AND o.status <> 'draft'`;
 

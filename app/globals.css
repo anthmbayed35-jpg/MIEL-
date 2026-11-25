@@ -282,6 +282,7 @@ input, textarea { border-radius: 14px; }
 .st-delivered { color: #4ade80; border-color: rgba(74, 222, 128, 0.5); background: rgba(74, 222, 128, 0.12); }
 .st-cancelled { color: #b4b0a8; border-color: rgba(180, 176, 168, 0.4); background: rgba(180, 176, 168, 0.1); }
 .st-returned { color: #ff8aa0; border-color: rgba(255, 92, 122, 0.5); background: rgba(255, 92, 122, 0.12); }
+.st-refused { color: #ff8aa0; border-color: rgba(255, 92, 122, 0.5); background: rgba(255, 92, 122, 0.12); }
 .st-draft { color: #cfccc4; border-color: rgba(207, 204, 196, 0.4); border-style: dashed; }
 
 .a-input { width: 100%; min-height: 48px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 14px;

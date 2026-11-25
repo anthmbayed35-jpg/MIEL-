@@ -52,7 +52,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
         ),
     },
     { key: "total", label: "Total", render: (r) => <Money value={r.total} className="text-[18px]" />, className: "tnum" },
-    { key: "pay", label: "Payment", render: (r) => (["cancelled", "draft"].includes(r.status) ? <span className="text-muted">—</span> : <PayBadge collected={r.collected} refunded={r.status === "returned" && r.collected} />) },
+    { key: "pay", label: "Payment", render: (r) => (["cancelled", "refused", "draft"].includes(r.status) ? <span className="text-muted">—</span> : <PayBadge collected={r.collected} refunded={r.status === "returned" && r.collected} />) },
     { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
     {
       key: "sel", label: "Select", noLink: true, className: "w-12",

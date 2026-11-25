@@ -14,6 +14,7 @@ import { createSession, SESSION_COOKIE } from "@/lib/session";
 import { inMaintenance, siteMode, staysOpenInMaintenance } from "@/lib/site-mode";
 import { placeOrder as placeOrderLib } from "@/lib/orders";
 import { h, ID, jar, reqHeaders, resetState } from "../support/state";
+import { checkoutInput } from "../support/checkout";
 import { seedStore } from "../support/seed";
 
 let S: Awaited<ReturnType<typeof seedStore>>;
@@ -130,17 +131,12 @@ describe("the maintenance page", () => {
     maintenance();
     expect(robots()).toEqual({ rules: { userAgent: "*", disallow: "/" } });
     delete process.env.SITE_MODE;
-    expect(robots()).toMatchObject({ rules: { allow: "/", disallow: ["/admin", "/api", "/partner", "/ambassador/"] }, sitemap: expect.stringContaining("/sitemap.xml") });
+    expect(robots()).toMatchObject({ rules: { allow: "/", disallow: ["/admin", "/api", "/partner", "/ambassador/", "/checkout", "/order/"] }, sitemap: expect.stringContaining("/sitemap.xml") });
   });
 });
 
 describe("no real order can be placed in maintenance mode (server-side, whatever the proxy does)", () => {
-  const input = (productId: string) => ({
-    items: [{ productId, qty: 1 }],
-    customer: { name: "Late Customer", phone: "03 123 456", address: "Hamra, Bldg 5", notes: "" },
-    region: "Beirut",
-    code: "",
-  });
+  const input = (productId: string) => checkoutInput(productId, { name: "Late Customer" });
 
   it("the checkout server actions refuse by themselves", async () => {
     maintenance();

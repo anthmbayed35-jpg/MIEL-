@@ -259,8 +259,9 @@ test("flavour switcher, quantity, add to cart across all three flavours, cart dr
   await expect(drawer).toBeVisible();
   for (const n of ["RED BURN", "GOLD", "CREATINE"]) await expect(drawer.getByText(n).first()).toBeVisible();
   await shot(page, "cart-drawer-375");
-  await drawer.getByRole("button", { name: "CHECKOUT" }).click();
-  await page.locator("#region").selectOption({ index: 1 });
+  await drawer.getByRole("link", { name: "CHECKOUT" }).click();
+  await page.locator("#governorate").selectOption("Beirut");
+  await page.locator("#district").selectOption("Beirut");
   await page.locator("#code").fill("NOTACODE");
   await expect(page.getByText("That code isn't valid.")).toBeVisible({ timeout: 15_000 });
   await shot(page, "checkout-375");
