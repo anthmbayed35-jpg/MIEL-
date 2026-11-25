@@ -34,7 +34,7 @@ describe("order numbering", () => {
 describe("pricing is computed on the server", () => {
   it("uses database prices; the browser sends only product ids and quantities", async () => {
     const q = await quoteOrder({ items: [{ productId: S.red.id, qty: 2 }], region: "Bekaa" });
-    expect(q).toMatchObject({ ok: true, subtotal: 60, shipping: 6, total: 66 });
+    expect(q).toMatchObject({ ok: true, subtotal: 60, shipping: 5, total: 65 });
     await db().from("products").update({ price: 35 }).eq("id", S.red.id);
     expect((await quoteOrder({ items: [{ productId: S.red.id, qty: 1 }], region: "Beirut" })).subtotal).toBe(35);
   });
@@ -51,7 +51,7 @@ describe("pricing is computed on the server", () => {
   });
   it("discount codes apply once and respect their usage limit", async () => {
     const a = await createOrder({ customer: person(1), items: [{ productId: S.red.id, qty: 1 }], region: "Beirut", code: "welcome10", source: "web", actor: "customer" });
-    expect(a.order).toMatchObject({ discount_code: "WELCOME10", discount_total: 3, total: 30 }); // 30 - 3 + 3 delivery
+    expect(a.order).toMatchObject({ discount_code: "WELCOME10", discount_total: 3, total: 32 }); // 30 - 3 + 5 delivery
     const q = await quoteOrder({ items: [{ productId: S.red.id, qty: 1 }], region: "Beirut", code: "WELCOME10" });
     expect(q.codeMessage).toMatch(/fully used/);
     expect(q.discount).toBe(0);
@@ -124,7 +124,7 @@ describe("storefront checkout (server action)", () => {
     expect(decodeURIComponent(r.whatsappUrl)).toContain("MP-1001");
     expect(await stock(S.red.id)).toBe(49);
     const o = (await db().from("orders").select("*").single()).data;
-    expect(o).toMatchObject({ status: "new", payment_method: "cod", cod_amount_due: 33, source: "web" });
+    expect(o).toMatchObject({ status: "new", payment_method: "cod", cod_amount_due: 35, source: "web" });
     expect((await db().from("order_events").select("*")).data.map((e: any) => e.type)).toContain("created");
   });
   it("refuses the honeypot, bad phones, and can be paused by the owner", async () => {

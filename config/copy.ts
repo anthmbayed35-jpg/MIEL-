@@ -39,7 +39,10 @@ export const COPY = {
     chips: ["12 SACHETS", "REAL HONEY", "HALAL CERTIFIED"],
     cta: "SHOP THE LINEUP",
   },
-  proofStrip: ["REAL HONEY", "12 SACHETS PER POUCH", "HALAL CERTIFIED", "DELIVERED IN LEBANON"],
+  /** The delivery fact is added where it is shown, with the live flat fee: "$5 DELIVERY ACROSS LEBANON". */
+  proofStrip: ["REAL HONEY", "12 SACHETS PER POUCH", "HALAL CERTIFIED"],
+  deliveryFact: (fee: string) => `${fee} DELIVERY ACROSS LEBANON`,
+  deliveryNote: (fee: string) => `+ ${fee} delivery across Lebanon`,
   lineup: { kicker: "THE LINEUP", title1: "Pick your", title2: "flavour." },
   howTo: {
     kicker: "HOW TO USE",
@@ -75,7 +78,7 @@ export const COPY = {
     { q: "How many sachets are in a pouch?", a: "12 sachets in every pouch." },
     { q: "How do I store it?", a: TBC_NOTE },
     { q: "Is it stim-free?", a: "RED BURN and CREATINE are stim-free. GOLD contains 150 mg of caffeine per sachet." },
-    { q: "Do you deliver in Lebanon?", a: "Yes. We deliver across Lebanon, cash on delivery. We confirm delivery details with you on WhatsApp." },
+    { q: "Do you deliver in Lebanon?", a: "Yes. We deliver across Lebanon for a flat {fee} delivery fee, cash on delivery. We confirm delivery details with you on WhatsApp." },
   ] as Qa[],
   product: {
     inside: { kicker: "WHAT'S INSIDE", title: "The facts." },

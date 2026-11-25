@@ -51,13 +51,14 @@ export function Notice({ product }: { product: Product }) {
   );
 }
 
-export function PriceBlock({ product }: { product: Product }) {
+export function PriceBlock({ product, deliveryFee }: { product: Product; deliveryFee: number }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
       <span className="display text-[40px] leading-none md:text-[48px]">{money(product.price)}</span>
       <span className="mono !text-[15px]">
         {money(perSachet(product.price), 2)} / SACHET
       </span>
+      <span className="w-full text-[16px] text-body">{COPY.deliveryNote(money(deliveryFee))}</span>
     </div>
   );
 }

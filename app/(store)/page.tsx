@@ -31,7 +31,7 @@ export default async function Home() {
       <Header />
       <main>
         <Hero products={products} hero={cat.hero} />
-        <ProofStrip />
+        <ProofStrip deliveryFee={cat.deliveryFee} />
         <Lineup products={products.slice(0, HOME_LINEUP_LIMIT)} total={products.length} />
         {[featured, ...products.filter((p) => p !== featured)].filter((p) => p && findPhoto(p, "ingredients")).map((p) => (
           <FeatureBand key={p.slug} product={p} />

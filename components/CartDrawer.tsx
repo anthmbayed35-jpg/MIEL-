@@ -13,7 +13,7 @@ import { useCart } from "./CartProvider";
  * action price everything again on the server.
  */
 export function CartDrawer() {
-  const { open, setOpen, lines, total, count, setQty, products } = useCart();
+  const { open, setOpen, lines, total, count, setQty, products, deliveryFee } = useCart();
   const panel = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
 
@@ -120,7 +120,7 @@ export function CartDrawer() {
               <span className="mono">SUBTOTAL</span>
               <span className="display accent text-[28px]">{money(total)}</span>
             </div>
-            <p className="mb-4 text-[15px] text-body">Delivery is calculated at checkout.</p>
+            <p className="mb-4 text-[15px] text-body">Delivery {money(deliveryFee)} across Lebanon. Your total is confirmed at checkout.</p>
             {soldOut ? (
               <button className="btn btn-block opacity-60" disabled aria-disabled="true">
                 REMOVE SOLD OUT ITEMS

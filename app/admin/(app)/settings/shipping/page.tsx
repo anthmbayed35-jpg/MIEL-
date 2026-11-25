@@ -3,20 +3,18 @@ import { getDb, must, type Row } from "@/lib/db";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card, Field, Money, PageHeader, SectionTitle } from "@/components/admin/ui";
 import { SETTINGS_TABS, SubNav } from "@/components/admin/SubNav";
-import { savePartner, saveZone, settlePartner } from "./actions";
+import { deliveryFee, deliveryFeeVersion } from "@/lib/delivery";
+import { saveDeliveryFee, saveFreeOver, savePartner, settlePartner } from "./actions";
 
 export const metadata = { title: "Shipping & delivery" };
 
-function ZoneForm({ z }: { z?: Row }) {
+function FreeOverForm({ z }: { z: Row }) {
   return (
-    <ActionForm action={saveZone} resetOnSuccess={!z} className="grid items-end gap-3 md:grid-cols-[1.3fr_100px_130px_1.3fr_auto_auto]">
-      {z && <><input type="hidden" name="id" value={z.id} /><input type="hidden" name="version" value={z.version} /></>}
-      <Field label="Zone"><input name="name" required defaultValue={z?.name} placeholder="Beirut" className="a-input" /></Field>
-      <Field label="Fee ($)"><input name="fee" type="number" step="0.01" min="0" required defaultValue={z?.fee ?? 3} className="a-input" /></Field>
-      <Field label="Free over ($)"><input name="free_over" type="number" step="0.01" min="0" defaultValue={z?.free_over ?? ""} placeholder="none" className="a-input" /></Field>
-      <Field label="Estimated time"><input name="eta" defaultValue={z?.eta} placeholder="1 to 2 days" className="a-input" /></Field>
-      <label className="flex min-h-12 items-center gap-2 text-[15px] text-fg"><input type="checkbox" name="active" defaultChecked={z ? z.active : true} className="h-6 w-6 accent-[#DAFC69]" />Active</label>
-      <SubmitButton variant={z ? "glass" : "lime"}>{z ? "Save" : "Add zone"}</SubmitButton>
+    <ActionForm action={saveFreeOver} className="grid items-end gap-3 md:grid-cols-[1.3fr_200px_auto]">
+      <input type="hidden" name="id" value={z.id} /><input type="hidden" name="version" value={z.version} />
+      <div><p className="a-label">Zone</p><p className="flex min-h-12 items-center text-[17px] text-fg">{z.name}</p></div>
+      <Field label="Free over ($)"><input name="free_over" type="number" step="0.01" min="0" defaultValue={z.free_over ?? ""} placeholder="none" className="a-input" /></Field>
+      <SubmitButton variant="glass">Save</SubmitButton>
     </ActionForm>
   );
 }
@@ -41,7 +39,7 @@ export default async function ShippingPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Where you deliver, who delivers, and the cash" title="Shipping & delivery" />
+      <PageHeader eyebrow="The delivery fee, who delivers, and the cash" title="Shipping & delivery" />
       <SubNav items={SETTINGS_TABS} role={admin.role} />
 
       <Card>
@@ -63,15 +61,21 @@ export default async function ShippingPage() {
         </div>
       </Card>
 
+      <Card>
+        <SectionTitle>Delivery fee</SectionTitle>
+        <p className="mb-4 text-[14px] text-body">One flat fee for every order in every region. Customers see it in the cart, at checkout and on their confirmation. Orders already placed keep the fee they were created with.</p>
+        <ActionForm action={saveDeliveryFee} className="grid items-end gap-3 md:grid-cols-[220px_auto]">
+          <input type="hidden" name="version" value={deliveryFeeVersion()} />
+          <Field label="Delivery fee ($)"><input name="fee" type="number" step="0.01" min="0" max="1000" required defaultValue={deliveryFee()} className="a-input" /></Field>
+          <SubmitButton variant="lime">Save delivery fee</SubmitButton>
+        </ActionForm>
+      </Card>
+
       <Card className="mt-5">
-        <SectionTitle>Delivery zones (Lebanon)</SectionTitle>
-        <p className="mb-4 text-[14px] text-body">Fees apply at checkout. &ldquo;Free over&rdquo; gives free delivery above that order value. The fees below are starting placeholders, so set your real ones.</p>
+        <SectionTitle>Free-delivery lines (unchanged)</SectionTitle>
+        <p className="mb-4 text-[14px] text-body">When the products in an order (after any discount) reach the line of the customer&apos;s area, delivery is free instead of the flat fee. Leave a line empty for no free delivery in that zone.</p>
         <div className="space-y-4">
-          {zones.map((z) => <ZoneForm key={z.id} z={z} />)}
-        </div>
-        <div className="mt-6 border-t border-white/10 pt-5">
-          <p className="a-label">Add a zone</p>
-          <ZoneForm />
+          {zones.map((z) => <FreeOverForm key={z.id} z={z} />)}
         </div>
       </Card>
 

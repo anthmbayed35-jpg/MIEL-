@@ -31,30 +31,30 @@ beforeEach(async () => {
 const place = (over: Parameters<typeof checkoutInput>[1] = {}, product = S.red.id) => placeOrder(checkoutInput(product, over));
 
 describe("prices, delivery fee and free delivery", () => {
-  it("prices come from the database: subtotal, delivery by zone, total", async () => {
+  it("prices come from the database: subtotal, the flat $5 delivery, total", async () => {
     const q = await quoteAction([{ productId: S.red.id, qty: 2 }, { productId: S.gold.id, qty: 1 }], "Beirut", "");
     expect(q).toMatchObject({ ok: true, subtotal: 90, shipping: 0, total: 90, freeDelivery: true }); // $90 is over the Beirut free-delivery line ($60)
     const small = await quoteAction([{ productId: S.red.id, qty: 1 }], "Beirut", "");
-    expect(small).toMatchObject({ subtotal: 30, shipping: 3, total: 33, freeDelivery: false });
+    expect(small).toMatchObject({ subtotal: 30, shipping: 5, total: 35, freeDelivery: false });
     const bekaa = await quoteAction([{ productId: S.red.id, qty: 3 }], "Bekaa", "");
-    expect(bekaa).toMatchObject({ subtotal: 90, shipping: 6, total: 96 }); // Bekaa has no free-delivery line
-    expect(await quoteAction([{ productId: S.red.id, qty: 1 }], "", "")).toMatchObject({ shipping: 0, total: 30 }); // no area chosen yet
+    expect(bekaa).toMatchObject({ subtotal: 90, shipping: 5, total: 95 }); // the same $5 as Beirut (Bekaa has no free-delivery line in this seed)
+    expect(await quoteAction([{ productId: S.red.id, qty: 1 }], "", "")).toMatchObject({ shipping: 5, total: 35 }); // no area chosen yet: the flat fee is already shown
   });
 
   it("the free-delivery line counts the products AFTER the discount; a promo code keeps working", async () => {
     // 2 pouches = $60 = exactly the line. With 10% off the products are $54, under the line: delivery is charged.
     expect(await quoteAction([{ productId: S.red.id, qty: 2 }], "Beirut", "")).toMatchObject({ total: 60, shipping: 0 });
-    expect(await quoteAction([{ productId: S.red.id, qty: 2 }], "Beirut", "WELCOME10")).toMatchObject({ subtotal: 60, discount: 6, shipping: 3, total: 57 });
+    expect(await quoteAction([{ productId: S.red.id, qty: 2 }], "Beirut", "WELCOME10")).toMatchObject({ subtotal: 60, discount: 6, shipping: 5, total: 59 });
     const r = await place({ qty: 2, code: "WELCOME10" });
     expect(r).toMatchObject({ ok: true });
-    expect(orders()[0]).toMatchObject({ discount_code: "WELCOME10", total_cents: 5700, shipping_fee_cents: 300 });
+    expect(orders()[0]).toMatchObject({ discount_code: "WELCOME10", total_cents: 5900, shipping_fee_cents: 500 });
   });
 
   it("a tampered request cannot change a price: only product ids and quantities are read; bad quantities are refused", async () => {
     const tampered = { ...checkoutInput(S.red.id), items: [{ productId: S.red.id, qty: 1, price: 0.01, unitPrice: 0.01 }], total: 0.01, shipping: 0, region: "Nowhere" } as never;
     const r = await placeOrder(tampered);
     expect(r).toMatchObject({ ok: true });
-    expect(orders()[0]).toMatchObject({ subtotal_cents: 3000, shipping_fee_cents: 300, total_cents: 3300, region: "Beirut" });
+    expect(orders()[0]).toMatchObject({ subtotal_cents: 3000, shipping_fee_cents: 500, total_cents: 3500, region: "Beirut" });
     expect(sql().prepare("SELECT unit_price_cents FROM order_items").get()).toEqual({ unit_price_cents: 3000 });
     for (const qty of [0, -3, 1.5, 100, Number.NaN]) {
       const bad = await place({ qty });
@@ -66,7 +66,7 @@ describe("prices, delivery fee and free delivery", () => {
 
 describe("order creation", () => {
   it("creates the order with a readable number, a private token, the address in parts and the payment method", async () => {
-    sql().prepare("INSERT INTO shipping_zones (id, name, fee_cents, eta, active, sort) VALUES (?, 'Mount Lebanon', 400, '1 to 2 days', 1, 3)").run(crypto.randomUUID());
+    sql().prepare("INSERT INTO shipping_zones (id, name, fee_cents, eta, active, sort) VALUES (?, 'Mount Lebanon', 400, '1 to 2 days', 1, 3)").run(crypto.randomUUID()); // an old per-zone fee in the database is ignored
     const r = await place({
       customer: { name: "  Lina   Haddad ", phone: "+961 70 123 456", email: "lina@example.com" },
       delivery: { governorate: "Mount Lebanon", district: "Matn", street: "Main street, Bldg 12, floor 4", landmark: "the pharmacy", notes: "Call before" },
@@ -76,7 +76,7 @@ describe("order creation", () => {
     const o = orders()[0];
     expect(o).toMatchObject({
       order_number: 1001, status: "new", payment_method: "cod", payment_status: "pending", governorate: "Mount Lebanon", district: "Matn", street: "Main street, Bldg 12, floor 4",
-      landmark: "the pharmacy", region: "Mount Lebanon", heard_from: "Instagram", shipping_fee_cents: 400, total_cents: 3400, cod_amount_due_cents: 3400, // the courier collects the whole total
+      landmark: "the pharmacy", region: "Mount Lebanon", heard_from: "Instagram", shipping_fee_cents: 500, total_cents: 3500, cod_amount_due_cents: 3500, // the courier collects the whole total
     });
     expect(String(o.address)).toBe("Main street, Bldg 12, floor 4 · Matn, Mount Lebanon · Near the pharmacy");
     expect(String(o.customer_notes)).toBe("Call before");
@@ -140,12 +140,13 @@ describe("validation in plain language", () => {
     for (const c of sql().prepare("SELECT phone FROM customers").all() as { phone: string }[]) expect(c.phone).toMatch(/^\+961\d{7,8}$/);
   });
 
-  it("a governorate whose delivery zone is not set up (or switched off) is refused with a clear message", async () => {
-    // the seed has the Beirut and Bekaa zones only: the South is not available
-    expect(await place({ delivery: { governorate: "South", district: "Sidon", street: "Main street, Bldg 3", landmark: "", notes: "" } })).toMatchObject({ ok: false, field: "governorate", error: expect.stringMatching(/don't deliver to South/) });
+  it("every governorate is delivered to, whatever is (or is not) set up as a zone, at the same flat fee", async () => {
+    // the seed has the Beirut and Bekaa zones only; the South has no zone at all, and Beirut's zone is switched off
     sql().prepare("UPDATE shipping_zones SET active = 0 WHERE name = 'Beirut'").run();
-    expect(await place()).toMatchObject({ ok: false, field: "governorate" });
-    expect(orders()).toHaveLength(0);
+    expect(await place({ delivery: { governorate: "South", district: "Sidon", street: "Main street, Bldg 3", landmark: "", notes: "" } })).toMatchObject({ ok: true });
+    reqHeaders["x-forwarded-for"] = "10.8.8.8";
+    expect(await place({ phone: "03 818 000" })).toMatchObject({ ok: true });
+    expect(orders().map((o) => o.shipping_fee_cents)).toEqual([500, 500]);
   });
 
   it("the spam checks stay: honeypot, and a connection cannot place more than 5 orders in 10 minutes", async () => {
@@ -224,7 +225,7 @@ describe("status flow and the confirmation page", () => {
     const [a, b] = orders() as { public_token: string; order_number: number }[];
     expect(a.public_token).not.toBe(b.public_token);
     const va = orderByToken(a.public_token)!;
-    expect(va).toMatchObject({ number: 1001, name: "Alpha One", total: 33, items: [{ name: "RED BURN", qty: 1, unitPrice: 30 }] });
+    expect(va).toMatchObject({ number: 1001, name: "Alpha One", total: 35, items: [{ name: "RED BURN", qty: 1, unitPrice: 30 }] });
     const dump = JSON.stringify(va);
     for (const secret of ["Beta", "03 222", "9613222", "9613111", b.public_token]) expect(dump, secret).not.toContain(secret);
     for (const bad of ["", "abc", "1001", "../x", "a".repeat(32), a.public_token.toUpperCase(), a.public_token + "0", "' OR 1=1 --"]) expect(orderByToken(bad), bad).toBeNull();

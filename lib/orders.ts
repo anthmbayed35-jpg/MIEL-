@@ -6,6 +6,7 @@ import { publish } from "./events";
 import { notifyAmbassador } from "./ambassador/notify";
 import { affiliateDiscountCents, commissionCents } from "./affiliate-math";
 import { normalizeLebanesePhone } from "./phone";
+import { deliveryFee } from "./delivery";
 import { paymentMethod } from "./payments";
 import { inMaintenance } from "./site-mode";
 import type { OrderStatus } from "./status";
@@ -55,7 +56,8 @@ export function quoteSync(input: { items: LineInput[]; region?: string; code?: s
 
   let zone: Row | undefined;
   if (input.region) zone = (one(q1("shipping_zones").select("*").eq("name", input.region).eq("active", true).execute()) as Row[])[0];
-  let shippingC = zone ? cents(zone.fee) : 0;
+  // ONE flat delivery fee for every order and every region (Settings > Shipping & delivery). The zone only matters for the free-delivery line below.
+  let shippingC = cents(deliveryFee());
 
   let discountC = 0;
   let code: string | undefined;

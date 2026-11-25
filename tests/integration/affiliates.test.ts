@@ -31,17 +31,17 @@ describe("checkout with an affiliate code", () => {
   it("is case-insensitive and discounts 10% of the PRODUCTS subtotal, not delivery", () => {
     rami();
     const q = quoteSync({ items: [{ productId: S.red.id, qty: 1 }], region: "Beirut", code: "rAmI10" });
-    expect(q).toMatchObject({ ok: true, subtotal: 30, discount: 3, shipping: 3, total: 30, code: "RAMI10" });
+    expect(q).toMatchObject({ ok: true, subtotal: 30, discount: 3, shipping: 5, total: 32, code: "RAMI10" });
     expect(q.codeMessage).toMatch(/Code applied/);
     const bekaa = quoteSync({ items: [{ productId: S.red.id, qty: 1 }], region: "Bekaa", code: "RAMI10" });
-    expect(bekaa).toMatchObject({ discount: 3, shipping: 6, total: 33 }); // the delivery fee is untouched
+    expect(bekaa).toMatchObject({ discount: 3, shipping: 5, total: 32 }); // the delivery fee is the same flat $5 everywhere and is never discounted
   });
 
   it("stores the affiliate, code, discount and commission (15% of the discounted subtotal, no delivery), commission pending", () => {
     const a = rami();
     const { order: o } = buy(1, 2, "rami10"); // 60.00, -6.00, delivery 3.00
     const row = order(o.id);
-    expect(row).toMatchObject({ affiliate_id: a.id, code_used: "RAMI10", discount_amount_cents: 600, commission_amount_cents: 810, commission_status: "pending", subtotal_cents: 6000, discount_total_cents: 600, total_cents: 5700 });
+    expect(row).toMatchObject({ affiliate_id: a.id, code_used: "RAMI10", discount_amount_cents: 600, commission_amount_cents: 810, commission_status: "pending", subtotal_cents: 6000, discount_total_cents: 600, total_cents: 5900 });
   });
 
   it("a plain order has no affiliate fields, and a normal discount code still works exactly as before", () => {

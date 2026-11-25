@@ -107,7 +107,7 @@ describe("migrating a copy of a real pre-affiliate database", () => {
 
     const db = openSqlite(copy);
     expect(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name = 'affiliates'").get()).toEqual({ n: 0 });
-    expect(migrate(db, undefined, copy)).toEqual([5, 6, 7, 8]); // exactly the new migrations
+    expect(migrate(db, undefined, copy)).toEqual([5, 6, 7, 8, 9]); // exactly the new migrations
     expect(db.pragma("integrity_check", { simple: true })).toBe("ok");
     expect(db.pragma("foreign_key_check")).toEqual([]);
     // checkout migration (0008): every existing order got its own private token, and the new status works without losing the items

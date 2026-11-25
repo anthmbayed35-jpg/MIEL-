@@ -33,7 +33,7 @@ function Err({ id, children }: { id: string; children?: string }) {
  */
 export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsapp: string }) {
   const router = useRouter();
-  const { lines, products, zones, ready, preview, clear, setQty } = useCart();
+  const { lines, products, deliveryFee, ready, preview, clear, setQty } = useCart();
   const ref = useRefCode();
   const idemKey = useRef(""); // one key per attempt: a double click or a retry never places two orders
   const [busy, setBusy] = useState(false);
@@ -75,9 +75,8 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
   const zoneName = zoneFor(gov, district);
   const subtotal = items.reduce((n, i) => n + i.p.price * i.qty, 0);
   const soldOut = items.filter((i) => i.p.soldOut);
-  const open = (name: string) => zones.some((z) => z.name === name);
 
-  // live price from the server: delivery zone + discount code
+  // live price from the server: the flat delivery fee, a free-delivery line and the discount code
   useEffect(() => {
     if (!cartInput.length) return;
     let live = true;
@@ -186,9 +185,8 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
         )}
         <div className="flex justify-between">
           <dt>Delivery</dt>
-          <dd>{!zoneName ? "Choose your area" : shown ? (shown.shipping ? money(shown.shipping) : "Free") : "…"}</dd>
+          <dd>{shown ? (shown.shipping ? money(shown.shipping) : "Free") : money(deliveryFee)}</dd>
         </div>
-        {shown?.eta && zoneName && <p className="text-[15px] text-body">Estimated delivery: {shown.eta}</p>}
         <div className="flex items-baseline justify-between pt-1">
           <dt className="mono">TOTAL</dt>
           <dd className="display accent text-[30px]" data-testid="total">{money(shown?.total ?? subtotal)}</dd>
@@ -246,9 +244,7 @@ export function CheckoutForm({ methods, whatsapp }: { methods: Method[]; whatsap
               >
                 <option value="">Choose your governorate</option>
                 {GOVERNORATES.map((g) => (
-                  <option key={g.name} value={g.name} disabled={!open(g.zone)}>
-                    {g.name}{open(g.zone) ? "" : " (not available yet)"}
-                  </option>
+                  <option key={g.name} value={g.name}>{g.name}</option>
                 ))}
               </select>
               <Err id="e-governorate">{errors.governorate}</Err>

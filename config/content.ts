@@ -49,12 +49,12 @@ export const DEFAULT_NOTIFICATIONS: NotificationSettings = { email: "", whatsapp
 export type Policies = { shipping: string; returns: string; privacy: string; terms: string };
 export const DEFAULT_POLICIES: Policies = { shipping: "", returns: "", privacy: "", terms: "" };
 
-/** Default Lebanon delivery zones (fees are placeholders: edit in admin → Settings → Shipping). */
+/** Default Lebanon delivery zones. The delivery FEE is one flat setting (lib/delivery.ts); a zone only carries its free-delivery line. */
 export const DEFAULT_ZONES = [
-  { name: "Beirut", fee: 3, free_over: 60, eta: "Same day or next day", sort: 1 },
-  { name: "Mount Lebanon", fee: 4, free_over: 70, eta: "1 to 2 days", sort: 2 },
+  { name: "Beirut", fee: 5, free_over: 60, eta: "Same day or next day", sort: 1 },
+  { name: "Mount Lebanon", fee: 5, free_over: 70, eta: "1 to 2 days", sort: 2 },
   { name: "North Lebanon", fee: 5, free_over: 80, eta: "2 to 3 days", sort: 3 },
   { name: "South Lebanon", fee: 5, free_over: 80, eta: "2 to 3 days", sort: 4 },
   { name: "Nabatieh", fee: 5, free_over: 80, eta: "2 to 3 days", sort: 5 },
-  { name: "Bekaa", fee: 6, free_over: 90, eta: "2 to 4 days", sort: 6 },
+  { name: "Bekaa", fee: 5, free_over: 90, eta: "2 to 4 days", sort: 6 },
 ];

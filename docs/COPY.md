@@ -15,7 +15,7 @@ Generated from `config/copy.ts` (do not edit here). Review the wording there. Re
 - Subline: Real honey energy in a sachet. Rip. Sip. Go. No mixing, no bottle, no mess.
 - Chips: 12 SACHETS · REAL HONEY · HALAL CERTIFIED
 - Button: SHOP THE LINEUP
-- Facts strip: REAL HONEY · 12 SACHETS PER POUCH · HALAL CERTIFIED · DELIVERED IN LEBANON
+- Facts strip: REAL HONEY · 12 SACHETS PER POUCH · HALAL CERTIFIED
 - Lineup heading: Pick your flavour.
 - How to: Rip. Sip. Go. Rip: Tear open a sachet. No tools, no scoop. | Sip: Take it straight from the sachet. No mixing, no bottle. | Go: Toss the sachet and get on with your day.
 - "Real honey. Real easy.": Real honey taste: Made with real honey. Sweet, smooth and easy to like. | Grab and go: One sachet fits any pocket or gym bag. | Zero mess: No powder, no shaker, no sticky fingers.
@@ -40,7 +40,7 @@ TBC. We are confirming this and will update it here.
 RED BURN and CREATINE are stim-free. GOLD contains 150 mg of caffeine per sachet.
 
 **Do you deliver in Lebanon?**
-Yes. We deliver across Lebanon, cash on delivery. We confirm delivery details with you on WhatsApp.
+Yes. We deliver across Lebanon for a flat {fee} delivery fee, cash on delivery. We confirm delivery details with you on WhatsApp.
 
 ## RED BURN (Endurance Honey, Pomegranate + beet)
 

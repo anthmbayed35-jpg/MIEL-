@@ -90,7 +90,7 @@ export default async function ProductPage({ params }: Props) {
                 <Benefits product={p} />
                 <Notice product={p} />
                 <div className="mt-6">
-                  <PriceBlock product={p} />
+                  <PriceBlock product={p} deliveryFee={cat.deliveryFee} />
                 </div>
                 <div className="mt-7">
                   <FlavorSwitcher current={p.slug} products={cat.products} />

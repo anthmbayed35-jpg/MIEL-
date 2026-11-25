@@ -243,7 +243,7 @@ Admin: **Marketing → Affiliates** (`/admin/affiliates`, owner and manager). Pu
 
 **Customer flow:** cart drawer, then `/checkout` (one page, no account), then `/order/<private link>` with the order number (MP-1001), the items, the address, a cash-on-delivery message and a WhatsApp button prefilled with the order number. The WhatsApp number is the one in Settings > Store.
 
-**Delivery fee and free delivery:** Settings > Shipping. Each zone has a fee and a free-delivery line ("free over"). The 8 governorates map to zones by name: Beirut, Mount Lebanon, North Lebanon (North and Akkar), Bekaa (Baalbek-Hermel and Beqaa), South Lebanon, Nabatieh. Keep those zone names, or rename them and tell the developer; a governorate whose zone is missing or switched off is shown as "not available yet" and cannot be ordered. The free-delivery line counts the products after any discount.
+**Delivery fee:** ONE flat fee for every order in every region, default $5.00. Change it in Settings > Shipping & delivery ("Delivery fee"); it is read by the server for every quote and order, and shown in the cart, at checkout, on product pages, in the home FAQ and on the confirmation page. Orders already placed keep the fee they were created with. **Free delivery** (unchanged): each zone still has a free-delivery line ("Free over", shown under "Free-delivery lines"); when the products of an order, after any discount, reach the line of the customer's area, delivery is free instead of the flat fee. Every governorate is delivered to.
 
 **Payment:** cash on delivery is the only method. It can be paused in Settings > Store (cod_enabled), which pauses online ordering. Online methods are added in `lib/payments.ts` without changing the checkout screen.
 

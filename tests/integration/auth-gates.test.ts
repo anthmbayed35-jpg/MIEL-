@@ -35,7 +35,7 @@ const MATRIX: Record<string, Min> = {
   "marketing/actions::saveTracking": "manager", "marketing/actions::saveAnnouncement": "manager", "marketing/actions::saveHero": "manager",
   "marketing/actions::saveFaq": "manager", "marketing/actions::addTestimonial": "manager", "marketing/actions::setTestimonial": "manager",
   // shipping
-  "settings/shipping/actions::saveZone": "manager", "settings/shipping/actions::savePartner": "manager", "settings/shipping/actions::settlePartner": "manager",
+  "settings/shipping/actions::saveDeliveryFee": "manager", "settings/shipping/actions::saveFreeOver": "manager", "settings/shipping/actions::savePartner": "manager", "settings/shipping/actions::settlePartner": "manager",
   // settings & team: owner only
   "settings/actions::seedStoreAction": "owner", "settings/actions::saveStore": "owner", "settings/actions::saveNotifications": "owner",
   "settings/actions::savePolicies": "owner", "settings/actions::saveSecurity": "owner", "settings/actions::backupNow": "owner",

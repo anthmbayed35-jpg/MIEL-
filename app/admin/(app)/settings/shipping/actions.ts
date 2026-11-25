@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { guarded, orFail } from "@/lib/version";
+import { saveVersioned } from "@/lib/versioned";
 import { audit } from "@/lib/audit";
 import { requirePerm } from "@/lib/auth";
 import { getDb, must, type Row } from "@/lib/db";
@@ -10,33 +11,40 @@ import type { ActionState } from "@/components/admin/ActionForm";
 
 const done = () => {
   revalidatePath("/admin/settings/shipping");
-  revalidatePath("/", "layout"); // zones appear at checkout
+  revalidatePath("/", "layout"); // the fee appears in the cart and at checkout
 };
 
-export async function saveZone(_p: ActionState, fd: FormData): Promise<ActionState> {
+/** The ONE delivery fee for every order in every region (USD). Orders already placed keep the fee they were created with. */
+export async function saveDeliveryFee(_p: ActionState, fd: FormData): Promise<ActionState> {
+  return orFail(async () => {
+    const admin = await requirePerm("shipping.manage");
+    const raw = String(fd.get("fee") ?? "").trim();
+    const fee = Number(raw);
+    if (raw === "" || !Number.isFinite(fee) || fee < 0 || fee > 1000) return { error: "Enter a delivery fee between 0 and 1000 (for example 5)." };
+    const value = { fee: Math.round(fee * 100) / 100 };
+    saveVersioned("settings", "delivery", value, fd);
+    await audit(admin, "delivery_fee_update", "settings", "delivery", value);
+    done();
+    return { ok: `Delivery fee saved: $${value.fee.toFixed(2)} for every order.` };
+  });
+}
+
+/** The free-delivery line of a zone (unchanged behaviour: above this products value, after discounts, delivery is free). */
+export async function saveFreeOver(_p: ActionState, fd: FormData): Promise<ActionState> {
   const admin = await requirePerm("shipping.manage");
   const db = getDb();
   const id = String(fd.get("id") ?? "");
-  const name = String(fd.get("name") ?? "").trim();
-  if (!name) return { error: "Give the zone a name." };
-  const fee = Number(fd.get("fee"));
-  if (!Number.isFinite(fee) || fee < 0) return { error: "Enter a valid delivery fee." };
-  const row = {
-    name, fee, free_over: String(fd.get("free_over") ?? "").trim() === "" ? null : Number(fd.get("free_over")),
-    eta: String(fd.get("eta") ?? "").trim(), active: fd.get("active") === "on",
-  };
+  const raw = String(fd.get("free_over") ?? "").trim();
+  const freeOver = raw === "" ? null : Number(raw);
+  if (freeOver !== null && (!Number.isFinite(freeOver) || freeOver < 0)) return { error: "Enter a valid amount, or leave it empty for no free-delivery line." };
   try {
-    if (id) must(await guarded(db.from("shipping_zones").update(row).eq("id", id), fd));
-    else {
-      const n = (must(await db.from("shipping_zones").select("id")) as Row[]).length;
-      must(await db.from("shipping_zones").insert({ ...row, sort: n + 1 }));
-    }
+    must(await guarded(db.from("shipping_zones").update({ free_over: freeOver }).eq("id", id), fd));
   } catch (e) {
-    return { error: /duplicate|unique/i.test((e as Error).message) ? "A zone with that name exists." : (e as Error).message };
+    return { error: (e as Error).message };
   }
-  await audit(admin, id ? "zone_update" : "zone_create", "shipping_zone", id || name, row);
+  await audit(admin, "free_delivery_line_update", "shipping_zone", id, { free_over: freeOver });
   done();
-  return { ok: id ? "Zone saved." : `Zone ${name} added.` };
+  return { ok: "Saved." };
 }
 
 export async function savePartner(_p: ActionState, fd: FormData): Promise<ActionState> {

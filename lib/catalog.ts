@@ -6,13 +6,18 @@ import {
   DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
   type Policies, type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
 } from "@/config/content";
+import { DEFAULT_DELIVERY_FEE, deliveryFee } from "./delivery";
+import { money } from "./format";
 import { getDb, usesDb, type Row } from "./db";
 
 export type Zone = { id: string; name: string; fee: number; free_over: number | null; eta: string; active: boolean; sort: number };
 
 export type Catalog = {
   products: Product[];
+  /** Zones only carry the free-delivery line now (the fee is flat). */
   zones: Zone[];
+  /** The one flat delivery fee (USD), the same for every region. */
+  deliveryFee: number;
   faq: FaqItem[];
   announcement: Announcement;
   hero: HeroContent;
@@ -41,10 +46,14 @@ export function rowToProduct(r: Row, imgs: Row[]): Product {
   };
 }
 
+/** The default FAQ mentions the flat delivery fee as {fee}: fill in the live value. */
+const withFee = (items: FaqItem[], fee: number): FaqItem[] => items.map((i) => ({ ...i, a: i.a.split("{fee}").join(money(fee)) }));
+
 const configCatalog = (): Catalog => ({
   products: configProducts,
   zones: DEFAULT_ZONES.map((z, i) => ({ id: `z${i}`, active: true, ...z })),
-  faq: DEFAULT_FAQ, announcement: DEFAULT_ANNOUNCEMENT, hero: DEFAULT_HERO, testimonials: [],
+  deliveryFee: DEFAULT_DELIVERY_FEE,
+  faq: withFee(DEFAULT_FAQ, DEFAULT_DELIVERY_FEE), announcement: DEFAULT_ANNOUNCEMENT, hero: DEFAULT_HERO, testimonials: [],
   store: DEFAULT_STORE, tracking: DEFAULT_TRACKING, policies: DEFAULT_POLICIES, live: false,
 });
 
@@ -73,9 +82,10 @@ export async function getCatalog(): Promise<Catalog> {
     const s = (k: string) => (settings ?? []).find((x: Row) => x.key === k)?.value;
     return {
       products: (prods as Row[]).map((p) => applyCopy({ ...rowToProduct(p, imgs ?? []), soldOut: isSoldOut(p, stock) })),
+      deliveryFee: deliveryFee(),
       zones: (zones ?? []).map((z: Row) => ({ ...z, fee: Number(z.fee), free_over: z.free_over != null ? Number(z.free_over) : null })),
       // databases seeded with the old placeholder wording get the reviewed copy; anything the team edited since stays
-      faq: (c("faq") as FaqItem[] | undefined)?.[0]?.q === LEGACY_FAQ_FIRST_Q ? DEFAULT_FAQ : (c("faq") ?? DEFAULT_FAQ),
+      faq: withFee((c("faq") as FaqItem[] | undefined)?.[0]?.q === LEGACY_FAQ_FIRST_Q ? DEFAULT_FAQ : (c("faq") ?? DEFAULT_FAQ), deliveryFee()),
       announcement: { ...DEFAULT_ANNOUNCEMENT, ...(c("announcement") ?? {}) },
       hero: { ...DEFAULT_HERO, ...(c("hero")?.sub === LEGACY_HERO_SUB ? {} : (c("hero") ?? {})) },
       testimonials: (c("testimonials") ?? []).filter((t: Testimonial) => t.approved),

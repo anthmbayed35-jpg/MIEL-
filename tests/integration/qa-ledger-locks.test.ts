@@ -9,7 +9,7 @@ import { getEngine } from "../../lib/db/core";
 import { checkLedger } from "@/lib/ledger";
 import { placeOrder, setOrderStatus } from "@/lib/orders";
 import { saveDiscount } from "@/app/admin/(app)/marketing/actions";
-import { saveZone } from "@/app/admin/(app)/settings/shipping/actions";
+import { saveFreeOver } from "@/app/admin/(app)/settings/shipping/actions";
 import { saveCustomer } from "@/app/admin/(app)/customers/actions";
 import { changeStatus, saveDelivery } from "@/app/admin/(app)/orders/actions";
 import { h, ID, resetState } from "../support/state";
@@ -109,9 +109,9 @@ describe("two admin tabs: a stale save is refused with a clear message, never a 
     expect((sql().prepare("SELECT value_x100 v FROM discounts WHERE id = ?").get(d.id) as { v: number }).v).toBe(1500);
 
     const z = sql().prepare("SELECT id, version FROM shipping_zones LIMIT 1").get() as { id: string; version: number };
-    const zf = { id: z.id, version: String(z.version), name: "Zone A", fee: "4", active: "on" };
-    expect((await saveZone({}, form(zf)))?.error).toBeUndefined();
-    expect((await saveZone({}, form({ ...zf, fee: "9" })))?.error).toMatch(/Someone else changed/);
+    const zf = { id: z.id, version: String(z.version), free_over: "70" };
+    expect((await saveFreeOver({}, form(zf)))?.error).toBeUndefined();
+    expect((await saveFreeOver({}, form({ ...zf, free_over: "99" })))?.error).toMatch(/Someone else changed/);
 
     const c = placeOrderCustomer();
     const cf = { id: c.id, version: String(c.version), name: "First", tags: "vip", notes: "" };

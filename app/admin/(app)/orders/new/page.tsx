@@ -1,4 +1,5 @@
 import { requirePerm } from "@/lib/auth";
+import { deliveryFee } from "@/lib/delivery";
 import { getDb, must, type Row } from "@/lib/db";
 import { PageHeader } from "@/components/admin/ui";
 import { NewOrderForm } from "@/components/admin/NewOrderForm";
@@ -15,7 +16,8 @@ export default async function NewOrderPage() {
       <PageHeader eyebrow="For WhatsApp chats and phone orders" title="New order" />
       <NewOrderForm
         products={products.map((p) => ({ id: p.id, name: p.name, descriptor: p.descriptor, price: Number(p.price) }))}
-        zones={zones.map((z) => ({ name: z.name, fee: Number(z.fee) }))}
+        zones={zones.map((z) => ({ name: z.name }))}
+        fee={deliveryFee()}
       />
     </>
   );

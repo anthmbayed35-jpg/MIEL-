@@ -54,7 +54,7 @@ describe("money: integer cents, checked against an independent calculation", () 
       sql().prepare("INSERT INTO inventory_items (id, product_id, sku, on_hand) VALUES (?,?,?,100000)").run(crypto.randomUUID(), id, `R${i}`);
       return { id, cents: BigInt(cents) };
     });
-    const zones = [{ name: "Beirut", fee: BigInt(300) }, { name: "Bekaa", fee: BigInt(600) }];
+    const zones = [{ name: "Beirut", fee: BigInt(500) }, { name: "Bekaa", fee: BigInt(500) }]; // one flat delivery fee ($5) in every region
     for (let i = 0; i < 100; i++) {
       const pct = rnd(10001); // 0.00% .. 100.00%
       const rate = rnd(10001);

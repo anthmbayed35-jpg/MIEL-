@@ -6,14 +6,13 @@ import { ActionForm, SubmitButton } from "./ActionForm";
 import { Money } from "./ui";
 
 type P = { id: string; name: string; descriptor: string; price: number };
-type Z = { name: string; fee: number };
+type Z = { name: string };
 
 /** Create an order by hand (e.g. from a WhatsApp chat) or save it as a draft. The server re-prices everything. */
-export function NewOrderForm({ products, zones }: { products: P[]; zones: Z[] }) {
+export function NewOrderForm({ products, zones, fee }: { products: P[]; zones: Z[]; fee: number }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [region, setRegion] = useState("");
   const sub = products.reduce((n, p) => n + (qty[p.id] ?? 0) * p.price, 0);
-  const fee = zones.find((z) => z.name === region)?.fee ?? 0;
 
   return (
     <ActionForm action={createManualOrder} className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -48,7 +47,7 @@ export function NewOrderForm({ products, zones }: { products: P[]; zones: Z[] })
         <label className="block"><span className="a-label">Region</span>
           <select name="region" required value={region} onChange={(e) => setRegion(e.target.value)} className="a-input">
             <option value="">Choose region</option>
-            {zones.map((z) => <option key={z.name} value={z.name}>{z.name} (${z.fee})</option>)}
+            {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
           </select>
         </label>
         <label className="block"><span className="a-label">Address</span><textarea name="address" required rows={3} className="a-input" /></label>

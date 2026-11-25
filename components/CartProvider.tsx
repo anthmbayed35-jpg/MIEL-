@@ -4,13 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { trackEvent } from "@/lib/track-client";
 
 export type CartProduct = { id: string; name: string; price: number; slug: string; flavor?: string; soldOut?: boolean };
-export type CartZone = { name: string; fee: number; free_over: number | null; eta: string };
 
 type Lines = Record<string, number>; // productId -> qty
 
 type CartCtx = {
   products: CartProduct[];
-  zones: CartZone[];
+  /** The one flat delivery fee (USD). Display only: the server prices every order. */
+  deliveryFee: number;
   lines: Lines;
   /** false until the saved cart has been read from the browser (so a page never flashes "empty cart") */
   ready: boolean;
@@ -28,7 +28,7 @@ type CartCtx = {
 const Ctx = createContext<CartCtx | null>(null);
 const KEY = "miel_cart_v1";
 
-export function CartProvider({ products, zones, preview = false, children }: { products: CartProduct[]; zones: CartZone[]; preview?: boolean; children: React.ReactNode }) {
+export function CartProvider({ products, deliveryFee = 5, preview = false, children }: { products: CartProduct[]; deliveryFee?: number; preview?: boolean; children: React.ReactNode }) {
   const [lines, setLines] = useState<Lines>({});
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -69,8 +69,8 @@ export function CartProvider({ products, zones, preview = false, children }: { p
     const valid = Object.entries(lines).filter(([id]) => products.some((p) => p.id === id));
     const count = valid.reduce((n, [, q]) => n + q, 0);
     const total = valid.reduce((n, [id, q]) => n + q * (products.find((p) => p.id === id)?.price ?? 0), 0);
-    return { products, zones, lines, ready, count, total, open, preview, setOpen, add, setQty, clear };
-  }, [products, zones, lines, ready, open, preview, add, setQty, clear]);
+    return { products, deliveryFee, lines, ready, count, total, open, preview, setOpen, add, setQty, clear };
+  }, [products, deliveryFee, lines, ready, open, preview, add, setQty, clear]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -49,7 +49,8 @@ export async function quoteAction(items: CartInput, region: string, code: string
 async function fallbackQuote(items: CartInput): Promise<QuoteView> {
   const cat = await getCatalog();
   const subtotal = items.reduce((n, i) => n + i.qty * (cat.products.find((p) => p.id === i.productId)?.price ?? 0), 0);
-  return { ok: subtotal > 0, subtotal, discount: 0, shipping: 0, total: subtotal, freeDelivery: false };
+  const shipping = subtotal > 0 ? cat.deliveryFee : 0;
+  return { ok: subtotal > 0, subtotal, discount: 0, shipping, total: subtotal + shipping, freeDelivery: false };
 }
 
 export type PlaceResult =
@@ -131,12 +132,12 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
       if (!lines.length) return bad("Your cart is empty.");
       const subtotal = lines.reduce((n, l) => n + l.qty * l.unitPrice, 0);
       const number = "M" + Date.now().toString(36).toUpperCase();
-      const text = orderMessage({ number, lines, subtotal, discount: 0, shipping: 0, total: subtotal, region: zoneName, customer: { name, phone, address, notes } });
-      return { ok: true, orderNumber: number, token: null, whatsappUrl: waLink(wa, text), total: subtotal };
+      const shipping = cat.deliveryFee;
+      const text = orderMessage({ number, lines, subtotal, discount: 0, shipping, total: subtotal + shipping, region: zoneName, customer: { name, phone, address, notes } });
+      return { ok: true, orderNumber: number, token: null, whatsappUrl: waLink(wa, text), total: subtotal + shipping };
     }
 
-    // The zone must exist and be switched on in the admin (Settings > Shipping), else we do not deliver there (yet).
-    if (!cat.zones.some((z) => z.name === zoneName && z.active)) return bad(`We don't deliver to ${gov} yet. Message us on WhatsApp and we'll find a way.`, "governorate");
+    // One flat delivery fee for every region: there is nothing to refuse by area (the server prices the order from the setting).
 
     // Per-phone limit against the database (works across serverless instances)
     const db = getDb();

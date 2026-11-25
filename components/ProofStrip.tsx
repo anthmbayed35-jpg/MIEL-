@@ -1,8 +1,8 @@
 import { COPY } from "@/config/copy";
+import { money } from "@/lib/format";
 
-const facts = COPY.proofStrip;
-
-export function ProofStrip() {
+export function ProofStrip({ deliveryFee }: { deliveryFee: number }) {
+  const facts = [...COPY.proofStrip, COPY.deliveryFact(money(deliveryFee))];
   return (
     <section aria-label="Key facts" className="mx-auto max-w-7xl px-5 md:px-8">
       <div className="glass overflow-hidden">

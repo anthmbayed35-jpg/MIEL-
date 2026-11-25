@@ -21,7 +21,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   return (
     <CartProvider
       products={cat.products.map((p) => ({ id: p.id, name: p.name, price: p.price, slug: p.slug, flavor: p.flavor, soldOut: !!p.soldOut }))}
-      zones={cat.zones.map((z) => ({ name: z.name, fee: z.fee, free_over: z.free_over, eta: z.eta }))}
+      deliveryFee={cat.deliveryFee}
       preview={preview}
     >
       {/* The top of every page, in this order: preview bar (admins), ambassador strip, then the floating header (sticky, below the bars). */}
