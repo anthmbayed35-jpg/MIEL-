@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build && node scripts/prepare-standalone.mjs",
     "start": "node scripts/start.mjs",
+    "locations": "node scripts/build-locations.mjs",
     "icons": "node scripts/make-icons.mjs",
     "images": "node scripts/make-images.mjs",
     "typecheck": "tsc --noEmit",
@@ -53,7 +54,8 @@
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^5.1.1"
+    "vitest": "^5.1.1",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=22"

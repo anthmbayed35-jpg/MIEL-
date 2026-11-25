@@ -37,3 +37,6 @@ qa-results
 /.dbg.cjs
 /.qa-*.cjs
 /.scratch*
+
+# raw HDX downloads for npm run locations (the generated migration is committed)
+data-src
