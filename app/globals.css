@@ -18,14 +18,15 @@ html {
 
 body {
   background: var(--color-bg);
-  color: var(--color-body);
   font-family: var(--font-archivo);
+  color: var(--color-body);
   font-stretch: 100%;
   font-weight: 400;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.55;
   -webkit-tap-highlight-color: transparent;
 }
+@media (min-width: 640px) { body { font-size: 18px; } }
 
 /* Headlines, product names, buttons, nav: Archivo 125 / 800 / uppercase */
 .display {
@@ -38,7 +39,7 @@ body {
 }
 
 .h-hero { font-size: clamp(2.5rem, 1.2rem + 6vw, 7.5rem); }
-.h-section { font-size: clamp(1.875rem, 1.2rem + 3vw, 4rem); }
+.h-section { font-size: clamp(1.75rem, 1.2rem + 3vw, 4rem); }
 .h-product { font-size: clamp(1.625rem, 1.3rem + 1vw, 2.25rem); }
 
 /* Nutrition numbers and spec labels */
@@ -51,7 +52,11 @@ body {
   letter-spacing: 0.04em;
 }
 
-.body-lg { font-size: 18px; line-height: 1.55; color: var(--color-body); }
+.body-lg { font-size: 17px; line-height: 1.55; color: var(--color-body); }
+@media (min-width: 640px) { .body-lg { font-size: 18px; } }
+/* Hero logo: smaller on phones so the pouch, the label and the headline share the first screen. */
+.hero-logo { --lw: min(56vw, 520px); }
+@media (min-width: 640px) { .hero-logo { --lw: min(80vw, 520px); } }
 @media (min-width: 768px) { .body-lg { font-size: 20px; } }
 
 .accent { color: var(--color-acid); }

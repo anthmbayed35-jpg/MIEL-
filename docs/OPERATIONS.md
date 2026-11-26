@@ -33,6 +33,7 @@ Set these as **Railway service variables** (project → environment → the web 
 | `DATABASE_PATH` | all hosted | no | absolute path of the database file. Production: `/data/miel.db` (the volume mount path + file name) |
 | `AUTH_SECRET` | all hosted | **YES** | 32+ random characters. Encrypts two-factor secrets and salts hashes in logs and rate limits. Changing it invalidates every enrolled authenticator (people re-enrol) |
 | `SITE_MODE` | optional | no | `live` (default) or `maintenance`. In maintenance the public storefront is the 503 "MIEL+ is under development" page and no order can be placed; admin, sign-in, `/api/health` and uploads stay open. Read at runtime: change the variable and restart, no rebuild. Anything else is refused at build and start |
+| `COPY_CLAIMS` | optional | no | Storefront wording. Default ON (full product copy). `off` switches every product line to the facts-only fallback (see `docs/COPY.md`). Read per request: change it and restart, no rebuild |
 | `MAIL_FROM` | optional until mail is set up | no | sender, e.g. `MIEL+ <orders@your-domain.com>` (a verified sender, see section 7) |
 | `BREVO_API_KEY` | optional until mail is set up | **YES** | Brevo API key |
 | `MAIL_PROVIDER` | optional | no | `brevo` (default) or `smtp` |

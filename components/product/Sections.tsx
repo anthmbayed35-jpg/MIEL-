@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { COPY } from "@/config/copy";
+import { copy } from "@/config/copy";
 import { findPhoto, type Product } from "@/config/products";
-import { SACHETS_PER_POUCH } from "@/config/site";
 import { money, perSachet } from "@/lib/format";
 import { Blobs } from "../Blobs";
 import { Photo } from "../Photo";
@@ -58,7 +57,7 @@ export function PriceBlock({ product, deliveryFee }: { product: Product; deliver
       <span className="mono !text-[15px]">
         {money(perSachet(product.price), 2)} / SACHET
       </span>
-      <span className="w-full text-[16px] text-body">{COPY.deliveryNote(money(deliveryFee))}</span>
+      <span className="w-full text-[16px] text-body">{copy().deliveryNote(money(deliveryFee))}</span>
     </div>
   );
 }
@@ -88,7 +87,7 @@ export function FlavorSwitcher({ current, products }: { current: string; product
 }
 
 export function TrustRow() {
-  const items = COPY.product.trust;
+  const items = copy().product.trust;
   return (
     <ul className="mt-5 grid grid-cols-3 gap-2">
       {items.map((t) => (
@@ -111,8 +110,8 @@ export function Inside({ product }: { product: Product }) {
       <Blobs spots={[{ x: "-10%", y: "0%" }, { x: "65%", y: "40%", delay: -9 }]} />
       <div className={`${wrap} py-14 md:py-20`}>
         <Reveal>
-          <p className="mono mb-3">WHAT&apos;S INSIDE</p>
-          <h2 className="display h-section mb-8">The facts.</h2>
+          <p className="mono mb-3">{copy().product.insideKicker}</p>
+          <h2 className="display h-section mb-8">{copy().product.insideTitle}</h2>
         </Reveal>
         <Reveal className="glass p-5 md:p-8">
           <dl className="divide-y divide-white/10">
@@ -140,37 +139,38 @@ export function Inside({ product }: { product: Product }) {
   );
 }
 
-/** "12 sachets per pouch": the flat lay in a large glass frame. Rendered only when the product has a flat-lay photo. */
-export function PouchBlock({ product }: { product: Product }) {
+/** JOB: make the value clear and soften the price: 12 sachets, the size and spec chips, the price per pouch and per sachet. The flat lay sits beside it when there is one. */
+export function WhatYouGet({ product }: { product: Product }) {
   const photo = findPhoto(product, "flat-lay");
-  if (!photo) return null;
-  const size = product.facts.find((f) => f.label === "Sachet size")?.value;
+  const t = copy().product;
+  const text = (
+    <Reveal>
+      <p className="mono mb-3">{t.getKicker}</p>
+      <h2 className="display h-section">{t.getTitle}</h2>
+      <p className="body-lg mt-5 max-w-lg">{t.getLine}</p>
+      <div className="mt-5">
+        <Chips product={product} />
+      </div>
+      <p className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span className="display text-[32px] leading-none">{money(product.price)}</span>
+        <span className="mono !text-[15px]">per pouch · {money(perSachet(product.price), 2)} / sachet</span>
+      </p>
+    </Reveal>
+  );
   return (
     <section className="relative isolate overflow-x-clip">
       <Blobs spots={[{ x: "55%", y: "10%", color: product.glow }, { x: "-10%", y: "50%", delay: -9 }]} />
-      <div className={`${wrap} py-14 md:py-20`}>
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
-          <Reveal>
-            <p className="mono mb-3">{COPY.product.pouch.kicker}</p>
-            <h2 className="display h-section">
-              {SACHETS_PER_POUCH} sachets <span className="accent">per pouch.</span>
-            </h2>
-            <p className="body-lg mt-5 max-w-lg">
-              {COPY.product.pouch.text}{size ? ` ${size.toLowerCase()} in every sachet.` : ""}
-            </p>
-            <p className="mono mt-5 !text-[15px]">
-              {money(product.price)} · {money(perSachet(product.price), 2)} / SACHET
-            </p>
-          </Reveal>
-          <Reveal delay={80} className="glass mx-auto w-full max-w-[560px] p-2 sm:p-3">
-            <Photo
-              src={photo.src}
-              alt={photo.alt}
-              sizes="(min-width: 1024px) 540px, calc(100vw - 56px)"
-              className="aspect-[4/5] w-full rounded-[12px]"
-            />
-          </Reveal>
-        </div>
+      <div className={`${wrap} py-12 md:py-20`}>
+        {photo ? (
+          <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
+            {text}
+            <Reveal delay={80} className="glass mx-auto w-full max-w-[560px] p-2 sm:p-3">
+              <Photo src={photo.src} alt={photo.alt} sizes="(min-width: 1024px) 540px, calc(100vw - 56px)" className="aspect-[4/5] w-full rounded-[12px]" />
+            </Reveal>
+          </div>
+        ) : (
+          <div className="glass max-w-2xl p-5 md:p-8">{text}</div>
+        )}
       </div>
     </section>
   );
@@ -182,9 +182,9 @@ export function ProductHowTo({ product }: { product: Product }) {
   return (
     <section className={`${wrap} py-14 md:py-20`}>
       <Reveal>
-        <p className="mono mb-3">HOW TO USE</p>
-        <h2 className="display h-section mb-8">{COPY.howTo.title}</h2>
-        <p className="mono !text-body -mt-5 mb-8 !text-[14px]">{COPY.howTo.timingNote}</p>
+        <p className="mono mb-3">{copy().howTo.kicker}</p>
+        <h2 className="display h-section mb-8">{copy().howTo.title}</h2>
+        <p className="mono !text-body -mt-5 mb-8 !text-[14px]">{copy().howTo.timingNote}</p>
       </Reveal>
       {photo ? (
         // Image beside the steps on desktop, stacked on mobile. Photo stays 4:5 so the sachet label is never cropped.
@@ -234,53 +234,86 @@ export function ProductHowTo({ product }: { product: Product }) {
   );
 }
 
-/** Three short benefit bullets under the headline, in the product's info column. */
-export function Benefits({ product }: { product: Product }) {
+/** JOB: the headline block: the tagline, the headline and the one-paragraph body. */
+export function HeadlineBlock({ product }: { product: Product }) {
+  const c = product.pageCopy;
   return (
-    <ul className="mt-5 space-y-3">
-      {product.why.map((b) => (
-        <li key={b.title} className="flex gap-3 text-[18px] leading-snug text-fg">
-          <span aria-hidden className="accent mt-0.5 shrink-0">+</span>
-          <span><strong className="font-semibold">{b.title}.</strong> <span className="text-body">{b.text}</span></span>
-        </li>
-      ))}
-    </ul>
+    <>
+      {c && <p className="mono mt-3 !text-[14px] leading-snug sm:!text-[15px]" data-testid="tagline">{c.tagline}</p>}
+      {product.headline && <p className="display mt-3 text-[clamp(1.5rem,1rem+2vw,2.25rem)] leading-tight">{product.headline}</p>}
+      <p className="body-lg mt-4 max-w-xl">{c?.body ?? product.description}</p>
+    </>
   );
 }
 
-export function Compare({ current, products }: { current: string; products: Product[] }) {
+/** JOB: a reason to act now, without pressure, next to the price and the button. */
+export function WhyToday({ product }: { product: Product }) {
+  if (!product.pageCopy?.whyToday) return null;
+  return <p className="mt-4 text-[17px] leading-snug text-fg" data-testid="why-today">{product.pageCopy.whyToday}</p>;
+}
+
+/** JOB: make them picture the exact moment of use. Suggestions, not instructions. */
+export function TakeWhen({ product }: { product: Product }) {
+  const tags = product.pageCopy?.takeWhen;
+  if (!tags?.length) return null;
   return (
-    <section className={`${wrap} py-14 md:py-20`}>
-      <Reveal>
-        <p className="mono mb-3">COMPARE</p>
-        <h2 className="display h-section mb-8">The lineup.</h2>
-      </Reveal>
-      <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0 lg:grid lg:grid-cols-3 lg:overflow-visible">
-        {products.filter((p) => p.kind !== "bundle").map((p) => {
-          const on = p.slug === current;
-          return (
-            <li key={p.id} className="w-[78%] shrink-0 snap-center md:w-[44%] lg:w-auto">
-              <div className={`glass flex h-full flex-col p-5 ${on ? "glass-accent" : "glass-hover"}`}>
-                <h3 className="display h-product">{p.name}</h3>
-                <p className="mt-1 text-[18px] text-fg">{p.descriptor}</p>
-                <p className="mono mt-3">{p.compareSpec}</p>
-                <p className="mono !text-body mt-1">{SACHETS_PER_POUCH} SACHETS</p>
-                <div className="mt-5 flex flex-wrap items-baseline gap-x-3 border-t border-white/10 pt-4">
-                  <span className="display text-[32px]">{money(p.price)}</span>
-                  <span className="mono !text-[13px]">{money(perSachet(p.price), 2)} / SACHET</span>
-                </div>
-                <Link
-                  href={`/products/${p.slug}`}
-                  aria-current={on ? "page" : undefined}
-                  className={`btn btn-block mt-5 ${on ? "btn-ghost" : ""}`}
-                >
-                  {on ? "VIEWING" : "VIEW"}
-                </Link>
-              </div>
-            </li>
-          );
-        })}
+    <section className={`${wrap} pt-2 pb-6 md:pb-10`} aria-label={copy().product.takeWhenLabel}>
+      <p className="mono mb-3">{copy().product.takeWhenLabel}</p>
+      <ul className="flex flex-wrap gap-2">
+        {tags.map((t) => (
+          <li key={t} className="glass-flat flex min-h-12 items-center px-5 text-[17px] text-fg">{t}</li>
+        ))}
       </ul>
+    </section>
+  );
+}
+
+/** JOB: three reasons to believe it. */
+export function BenefitBlocks({ product }: { product: Product }) {
+  const t = copy().product;
+  return (
+    <section className="relative isolate overflow-x-clip">
+      <Blobs spots={[{ x: "60%", y: "-10%", color: product.glow }]} />
+      <div className={`${wrap} py-12 md:py-20`}>
+        <Reveal>
+          <p className="mono mb-3">{t.benefitsKicker}</p>
+          <h2 className="display h-section mb-8">{t.benefitsTitle}</h2>
+        </Reveal>
+        <ul className="grid gap-4 lg:grid-cols-3">
+          {product.why.map((b, i) => (
+            <Reveal as="li" key={b.title} delay={i * 80} className="glass p-5 md:p-8">
+              <span aria-hidden className="display accent block text-[40px] leading-none">{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="display mt-4 text-[20px] leading-tight md:text-[22px]">{b.title}</h3>
+              <p className="body-lg mt-3">{b.text}</p>
+            </Reveal>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/** JOB: show what they gain by switching. Two columns, no brand names. */
+export function OldVsSachet({ product }: { product: Product }) {
+  const c = product.pageCopy?.compare;
+  if (!c) return null;
+  const t = copy().product;
+  return (
+    <section className={`${wrap} py-12 md:py-20`}>
+      <Reveal>
+        <p className="mono mb-3">{t.compareKicker}</p>
+        <h2 className="display h-section mb-8">{t.compareTitle}</h2>
+      </Reveal>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Reveal className="glass-flat p-5 md:p-8">
+          <p className="mono !text-body">{t.compareOld}</p>
+          <p className="display mt-3 text-[22px] leading-tight text-body md:text-[28px]">{c.old}</p>
+        </Reveal>
+        <Reveal delay={80} className="glass glass-accent p-5 md:p-8">
+          <p className="mono">{t.compareNew}</p>
+          <p className="display mt-3 text-[22px] leading-tight md:text-[28px]">{c.now}</p>
+        </Reveal>
+      </div>
     </section>
   );
 }
@@ -291,8 +324,8 @@ export function ProductFaq({ product }: { product: Product }) {
       <Blobs spots={[{ x: "-12%", y: "10%" }, { x: "70%", y: "60%", delay: -9 }]} />
       <div className={`${wrap} pb-14 pt-6 md:pb-20`}>
         <Reveal>
-          <p className="mono mb-3">{COPY.product.faqKicker}</p>
-          <h2 className="display h-section mb-8">{COPY.product.faqTitle}</h2>
+          <p className="mono mb-3">{copy().product.faqKicker}</p>
+          <h2 className="display h-section mb-8">{copy().product.faqTitle}</h2>
         </Reveal>
         <Reveal className="space-y-3">
           {product.faqs.map((f) => (

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const cat = await getCatalog();
   const preview = !!(await previewAdmin()); // SITE_MODE=maintenance and a signed-in admin: the real storefront, for them only
-  const { announcement, tracking } = cat;
+  const { tracking } = cat;
   const banner = getProgram().banner;
   return (
     <CartProvider
@@ -29,17 +29,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       {banner.enabled && <AmbassadorStrip text={banner.text} />}
       <TopOffsets />
       <RefCapture />
-      {announcement.enabled && announcement.text && (
-        <div className="bg-acid px-4 py-2.5 text-center text-[14px] font-semibold text-black">
-          {announcement.link ? (
-            <a href={announcement.link} className="underline underline-offset-2">
-              {announcement.text}
-            </a>
-          ) : (
-            announcement.text
-          )}
-        </div>
-      )}
+      {/* No announcement bar: the storefront shows no offers, countdowns or scarcity (the admin keeps its discount and inventory tools). */}
       <div data-preview={preview ? "1" : undefined}>{children}</div>
       <CartDrawer />
       {!preview && <Tracker />}

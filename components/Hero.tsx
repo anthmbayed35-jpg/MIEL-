@@ -2,7 +2,7 @@ import { preload } from "react-dom";
 import { findPhoto, type Product } from "@/config/products";
 import type { HeroContent } from "@/config/content";
 import { FEATURED_SLUG } from "@/config/site";
-import { COPY } from "@/config/copy";
+import { copy } from "@/config/copy";
 import { Blobs } from "./Blobs";
 import { photoPreload } from "./Photo";
 import { HeroPouches, type HeroPouch } from "./HeroPouches";
@@ -10,6 +10,7 @@ import { HeroPouches, type HeroPouch } from "./HeroPouches";
 const HERO_SIZES = "(min-width: 1024px) 520px, calc(100vw - 56px)";
 
 export function Hero({ products, hero }: { products: Product[]; hero: HeroContent }) {
+  const c = copy();
   const product = products.find((p) => p.slug === FEATURED_SLUG) ?? products[0];
   const photo = product && findPhoto(product, "pouch-hero");
   // All flavours, the featured one first (it is the visible, prioritised, preloaded image).
@@ -34,15 +35,18 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
         ]}
       />
       <div className="mx-auto grid max-w-7xl gap-10 px-5 pb-14 pt-[calc(var(--header-h,72px)+32px)] md:px-8 md:pt-[calc(var(--header-h,88px)+40px)] lg:min-h-[100svh] lg:grid-cols-2 lg:items-center lg:gap-12 lg:pb-16">
-        <div>
-          {/* Logo width = min(80vw, 520px). Padding = half its height (height = 0.2169 × width) on all sides. */}
+        <div className="order-2 lg:order-1">
+          {/* Logo width = min(56vw, 520px) on phones, min(80vw, 520px) from 640px up (so the pouch, the label and the headline share the
+              first screen). Padding = half its height (height = 0.2169 × width) on all sides. */}
           <div
-            className="logo-slide"
-            style={{ ["--lw" as string]: "min(80vw, 520px)", width: "var(--lw)", padding: "calc(var(--lw) * 0.1085) 0" }}
+            className="logo-slide hero-logo hidden sm:block"
+            style={{ width: "var(--lw)", padding: "calc(var(--lw) * 0.1085) 0" }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} className="block h-auto w-full" />
           </div>
+          {/* JOB: say what this is in a line, right under the logo. */}
+          <p className="mono mb-3 sm:-mt-2 sm:mb-4">{c.brandTagline}</p>
           <h1 className="display h-hero">
             {hero.headline1}
             <br />
@@ -51,12 +55,12 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
           <p className="body-lg mt-5 max-w-xl">{hero.sub}</p>
           <div className="mt-6">
             <a href="#lineup" className="btn">
-              {COPY.hero.cta}
+              {c.hero.cta}
             </a>
           </div>
           <ul className="mt-5 flex flex-wrap gap-2" aria-label="Key facts">
-            {COPY.hero.chips.map((c) => (
-              <li key={c} className="glass-flat mono flex min-h-10 items-center px-4 !text-[13px]">{c}</li>
+            {c.heroChips.map((chip) => (
+              <li key={chip} className="glass-flat mono flex min-h-10 items-center px-4 !text-[13px]">{chip}</li>
             ))}
           </ul>
         </div>
@@ -64,9 +68,11 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
         {/* Pouch photos in a glass-bordered rounded panel: right of the headline on desktop, full width below it on mobile.
             Its own grid cell, so the headline can never overlap the pouch. Panel and photos are all 4:5. */}
         {pouches.length ? (
-          <HeroPouches pouches={pouches} sizes={HERO_SIZES} />
+          <div className="order-1 mx-auto w-full max-w-[clamp(180px,calc(100svh_-_425px),250px)] sm:max-w-[520px] lg:order-2 lg:mx-0 lg:max-w-none lg:justify-self-end">
+            <HeroPouches pouches={pouches} sizes={HERO_SIZES} />
+          </div>
         ) : (
-          <div className="glass mx-auto w-full max-w-[520px] p-2 sm:p-3 lg:mx-0 lg:justify-self-end">
+          <div className="glass order-1 mx-auto w-full max-w-[clamp(180px,calc(100svh_-_425px),250px)] p-2 sm:max-w-[520px] sm:p-3 lg:order-2 lg:mx-0 lg:justify-self-end">
             <div role="img" aria-label="MIEL+ honey sachet pouch (image placeholder)" className="flex aspect-[4/5] w-full items-center justify-center rounded-[12px]">
               <span className="mono !text-body opacity-70">HERO POUCH IMAGE</span>
             </div>

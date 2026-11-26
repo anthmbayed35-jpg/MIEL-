@@ -73,21 +73,13 @@ test.describe("home page", () => {
     await ctx.close();
   });
 
-  test("the lineup shows every flavour's pouch and there is one ingredients band per flavour in its own colour", async ({ page }) => {
+  test("the hero switcher has every flavour's pouch and the all-products lineup shows each pouch", async ({ page }) => {
     await page.goto("/");
+    for (const slug of FLAVOURS) await expect(page.locator(`#top img[src*='${slug}-pouch-hero']`), slug).toHaveCount(1);
+    expect(await loaded(page, "#top img[src*='red-burn-pouch-hero']")).toBe(true);
+    await page.goto("/products");
     await scrollThrough(page);
-    for (const slug of FLAVOURS) {
-      expect(await loaded(page, `#lineup img[src*='${slug}-pouch-hero']`), `lineup ${slug}`).toBe(true);
-      const band = page.locator(`section[aria-label="Featured: ${NAME[slug]}"]`);
-      await expect(band, slug).toHaveCount(1);
-      expect(await loaded(page, `section[aria-label="Featured: ${NAME[slug]}"] img[src*='${slug}-ingredients']`), `band ${slug}`).toBe(true);
-      await expect(band.getByRole("heading", { name: NAME[slug] })).toBeVisible();
-      await expect(band.getByRole("link", { name: `SHOP ${NAME[slug]}` })).toHaveAttribute("href", `/products/${slug}`);
-    }
-    const gold = await page.locator('section[aria-label="Featured: GOLD"] .blob').first().evaluate((el) => (el as HTMLElement).style.background);
-    expect(gold).toContain("245, 180, 0");
-    const cre = await page.locator('section[aria-label="Featured: CREATINE"] .blob').first().evaluate((el) => (el as HTMLElement).style.background);
-    expect(cre).toContain("77, 163, 255");
+    for (const slug of FLAVOURS) expect(await loaded(page, `#lineup img[src*='${slug}-pouch-hero']`), `lineup ${slug}`).toBe(true);
   });
 
   test("only the featured hero is preloaded, every photo has explicit width/height, and photos below the fold are lazy", async ({ page }) => {
@@ -98,7 +90,7 @@ test.describe("home page", () => {
     const imgs = await page.locator("img[src*='/images/products/']").evaluateAll((els) =>
       (els as HTMLImageElement[]).map((i) => ({ src: i.getAttribute("src")!, w: i.getAttribute("width"), h: i.getAttribute("height"), loading: i.getAttribute("loading"), fetchpriority: i.getAttribute("fetchpriority") })),
     );
-    expect(imgs.length).toBeGreaterThanOrEqual(9); // 3 hero + 3 lineup + 3 bands
+    expect(imgs.length).toBeGreaterThanOrEqual(3); // the 3 hero pouches (the home page has no lineup photos or ingredients bands any more)
     for (const i of imgs.filter((x) => !x.src.includes("ingredients"))) {
       expect(i.w, i.src).toBe("1611");
       expect(i.h, i.src).toBe("2000");

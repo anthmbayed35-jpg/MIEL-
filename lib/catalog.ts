@@ -1,9 +1,9 @@
 import "server-only";
 import { applyCopy } from "@/config/apply-copy";
-import { LEGACY_FAQ_FIRST_Q, LEGACY_HERO_SUB } from "@/config/copy";
+import { isDefaultHeroSub, isLegacyFaq } from "@/config/copy";
 import { products as configProducts, type Product, type ProductPhoto } from "@/config/products";
 import {
-  DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, DEFAULT_HERO, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
+  DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, defaultHero, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
   type Policies, type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
 } from "@/config/content";
 import { DEFAULT_DELIVERY_FEE, deliveryFee } from "./delivery";
@@ -50,10 +50,10 @@ export function rowToProduct(r: Row, imgs: Row[]): Product {
 const withFee = (items: FaqItem[], fee: number): FaqItem[] => items.map((i) => ({ ...i, a: i.a.split("{fee}").join(money(fee)) }));
 
 const configCatalog = (): Catalog => ({
-  products: configProducts,
+  products: configProducts.map((p) => applyCopy(p)),
   zones: DEFAULT_ZONES.map((z, i) => ({ id: `z${i}`, active: true, ...z })),
   deliveryFee: DEFAULT_DELIVERY_FEE,
-  faq: withFee(DEFAULT_FAQ, DEFAULT_DELIVERY_FEE), announcement: DEFAULT_ANNOUNCEMENT, hero: DEFAULT_HERO, testimonials: [],
+  faq: withFee(DEFAULT_FAQ, DEFAULT_DELIVERY_FEE), announcement: DEFAULT_ANNOUNCEMENT, hero: defaultHero(), testimonials: [],
   store: DEFAULT_STORE, tracking: DEFAULT_TRACKING, policies: DEFAULT_POLICIES, live: false,
 });
 
@@ -85,9 +85,9 @@ export async function getCatalog(): Promise<Catalog> {
       deliveryFee: deliveryFee(),
       zones: (zones ?? []).map((z: Row) => ({ ...z, fee: Number(z.fee), free_over: z.free_over != null ? Number(z.free_over) : null })),
       // databases seeded with the old placeholder wording get the reviewed copy; anything the team edited since stays
-      faq: withFee((c("faq") as FaqItem[] | undefined)?.[0]?.q === LEGACY_FAQ_FIRST_Q ? DEFAULT_FAQ : (c("faq") ?? DEFAULT_FAQ), deliveryFee()),
+      faq: withFee(isLegacyFaq(c("faq") as FaqItem[] | undefined) ? DEFAULT_FAQ : (c("faq") ?? DEFAULT_FAQ), deliveryFee()),
       announcement: { ...DEFAULT_ANNOUNCEMENT, ...(c("announcement") ?? {}) },
-      hero: { ...DEFAULT_HERO, ...(c("hero")?.sub === LEGACY_HERO_SUB ? {} : (c("hero") ?? {})) },
+      hero: { ...defaultHero(), ...(isDefaultHeroSub(c("hero")?.sub) ? {} : (c("hero") ?? {})) },
       testimonials: (c("testimonials") ?? []).filter((t: Testimonial) => t.approved),
       store: { ...DEFAULT_STORE, ...(s("store") ?? {}) },
       tracking: { ...DEFAULT_TRACKING, ...(s("tracking") ?? {}) },

@@ -67,6 +67,16 @@ export type Product = {
   howTo: Step[];
   why: Block[];
   faqs: Faq[];
+  /** Page copy added by applyCopy() (config/copy.ts): tagline, body, why-today line, take-it-when tags, old-routine comparison, home moment card. */
+  pageCopy?: {
+    tagline: string;
+    taglineShort: string;
+    body: string;
+    whyToday: string;
+    takeWhen: string[];
+    compare: { old: string; now: string };
+    moment: { label: string; category: string; line: string };
+  };
 };
 
 /** Labels for gallery slots that have no photo yet (same order as photos). */
@@ -234,7 +244,7 @@ const baseProducts: Product[] = [
   },
 ];
 
-export const products: Product[] = baseProducts.map(applyCopy);
+export const products: Product[] = baseProducts.map((p) => applyCopy(p));
 
 export const getProduct = (slug: string) => products.find((p) => p.slug === slug);
 

@@ -1,4 +1,4 @@
-import { COPY } from "./copy";
+import { copy, copyFor } from "./copy";
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL, SITE, WHATSAPP_NUMBER } from "./site";
 
 /**
@@ -10,10 +10,12 @@ export type Announcement = { enabled: boolean; text: string; link: string };
 export type HeroContent = { headline1: string; headline2: string; sub: string };
 export type Testimonial = { id: string; name: string; text: string; rating: number; approved: boolean };
 
-export const DEFAULT_FAQ: FaqItem[] = COPY.homeFaq.map((f) => ({ ...f }));
+export const DEFAULT_FAQ: FaqItem[] = copyFor(true).homeFaq.map((f) => ({ ...f }));
 
-export const DEFAULT_ANNOUNCEMENT: Announcement = { enabled: false, text: "Free delivery on orders over $60 in Beirut.", link: "" };
-export const DEFAULT_HERO: HeroContent = { headline1: COPY.hero.headline1, headline2: COPY.hero.headline2, sub: COPY.hero.sub };
+/** The storefront no longer shows an announcement bar (no offers on the storefront); the record stays so the admin screen keeps working. */
+export const DEFAULT_ANNOUNCEMENT: Announcement = { enabled: false, text: "", link: "" };
+export const defaultHero = (claims?: boolean): HeroContent => { const h = (claims === undefined ? copy() : copyFor(claims)).hero; return { headline1: h.headline1, headline2: h.headline2, sub: h.sub }; };
+export const DEFAULT_HERO: HeroContent = defaultHero(true);
 
 export type StoreSettings = {
   name: string;

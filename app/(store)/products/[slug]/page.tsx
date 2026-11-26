@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCatalog } from "@/lib/catalog";
 import { CURRENCY, SITE } from "@/config/site";
+import { sentence } from "@/config/copy";
 import { Header } from "@/components/Header";
 import { Blobs } from "@/components/Blobs";
 import { FinalCta, Footer } from "@/components/Sections";
@@ -9,17 +10,19 @@ import { Gallery } from "@/components/product/Gallery";
 import { AddOneButton, BuyBox } from "@/components/product/BuyBox";
 import {
   Breadcrumb,
-  Chips,
-  Compare,
+  BenefitBlocks,
   FlavorSwitcher,
+  HeadlineBlock,
   Inside,
   Notice,
-  PouchBlock,
+  OldVsSachet,
   PriceBlock,
   ProductFaq,
   ProductHowTo,
+  TakeWhen,
   TrustRow,
-  Benefits,
+  WhatYouGet,
+  WhyToday,
 } from "@/components/product/Sections";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -31,8 +34,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const p = (await getCatalog()).products.find((x) => x.slug === slug);
   if (!p) return {};
-  const title = p.seoTitle || `${p.name} ${p.descriptor}`;
-  const description = p.seoDescription || `${p.description} ${p.sachetCount ?? 12} sachets per pouch. Delivered across Lebanon.`;
+  const tag = p.pageCopy?.tagline;
+  const title = p.seoTitle || (tag ? `${p.name} | ${tag}` : `${p.name} ${p.descriptor}`);
+  const description = p.seoDescription || `${tag ? `${sentence(tag)}. ` : ""}${p.description} ${p.sachetCount ?? 12} sachets per pouch. Delivered across Lebanon.`;
   return {
     title,
     description,
@@ -81,17 +85,12 @@ export default async function ProductPage({ params }: Props) {
               <Gallery product={p} />
               <div>
                 <h1 className="display text-[clamp(2.25rem,1.4rem+4vw,4.5rem)]">{p.name}</h1>
-                <p className="mono mt-3 !text-[15px]">{p.descriptor}</p>
-                {p.headline && <p className="display mt-4 text-[clamp(1.375rem,1rem+1.6vw,2rem)] leading-tight">{p.headline}</p>}
-                <div className="mt-5">
-                  <Chips product={p} />
-                </div>
-                <p className="body-lg mt-4 max-w-xl">{p.description}</p>
-                <Benefits product={p} />
+                <HeadlineBlock product={p} />
                 <Notice product={p} />
                 <div className="mt-6">
                   <PriceBlock product={p} deliveryFee={cat.deliveryFee} />
                 </div>
+                <WhyToday product={p} />
                 <div className="mt-7">
                   <FlavorSwitcher current={p.slug} products={cat.products} />
                 </div>
@@ -103,10 +102,12 @@ export default async function ProductPage({ params }: Props) {
             </div>
           </div>
         </section>
-        <PouchBlock product={p} />
+        <TakeWhen product={p} />
+        <BenefitBlocks product={p} />
+        <OldVsSachet product={p} />
         <ProductHowTo product={p} />
+        <WhatYouGet product={p} />
         <Inside product={p} />
-        <Compare current={p.slug} products={cat.products} />
         <ProductFaq product={p} />
         <FinalCta action={<AddOneButton product={p} />} />
       </main>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Space_Mono } from "next/font/google";
 import { SITE } from "@/config/site";
+import { copy } from "@/config/copy";
 import "./globals.css";
 
 // One family: Archivo variable with the width axis (62–125) + weight axis.
@@ -18,20 +19,18 @@ const spaceMono = Space_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE.url),
-  title: { default: "MIEL+ | Honey Sports Nutrition, Lebanon", template: "%s | MIEL+" },
-  description: SITE.description,
-  openGraph: {
-    title: "MIEL+ | Fuel the grind.",
-    description: SITE.description,
-    siteName: SITE.name,
-    type: "website",
-    locale: "en_LB",
-  },
-  twitter: { card: "summary_large_image", title: "MIEL+ | Fuel the grind.", description: SITE.description },
-  alternates: { canonical: "/" },
-};
+// The brand tagline (config/copy.ts) is in the title and the share text.
+export function generateMetadata(): Metadata {
+  const site = copy().site;
+  return {
+    metadataBase: new URL(SITE.url),
+    title: { default: site.title, template: "%s | MIEL+" },
+    description: site.description,
+    openGraph: { title: site.title, description: site.description, siteName: SITE.name, type: "website", locale: "en_LB" },
+    twitter: { card: "summary_large_image", title: site.title, description: site.description },
+    alternates: { canonical: "/" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#23201C",

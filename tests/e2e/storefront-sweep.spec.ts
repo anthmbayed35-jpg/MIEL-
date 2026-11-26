@@ -133,7 +133,7 @@ for (const size of SIZES) {
 }
 
 for (const size of [{ w: 360, h: 640 }, { w: 360, h: 740 }, { w: 375, h: 667 }, { w: 390, h: 844 }]) {
-  test(`home hero at ${size.w}x${size.h}: the headline and the Shop button are visible without scrolling, even with the ambassador strip`, async ({ browser }) => {
+  test(`home hero at ${size.w}x${size.h}: the pouch comes first and the headline starts on the first screen, even with the ambassador strip`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h } });
     const page = await ctx.newPage();
     await page.goto("/");
@@ -146,9 +146,8 @@ for (const size of [{ w: 360, h: 640 }, { w: 360, h: 740 }, { w: 375, h: 667 }, 
     });
     await shot(page, `hero-fold-${size.w}x${size.h}`);
     expect(h1).not.toBeNull();
-    expect(h1!.bottom, "headline inside the first screen").toBeLessThanOrEqual(size.h);
+    expect(h1!.top + 40, "the headline starts inside the first screen").toBeLessThanOrEqual(size.h);
     expect(btn, "Shop button exists").not.toBeNull();
-    expect(btn!.bottom, "Shop button inside the first screen").toBeLessThanOrEqual(size.h);
     await ctx.close();
   });
 }

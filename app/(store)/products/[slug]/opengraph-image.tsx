@@ -50,7 +50,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         <img src={logoSrc} alt="" width={196} height={125} />
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 28, letterSpacing: 4, color: "#DAFC69", textTransform: "uppercase" }}>
-            {p?.descriptor ?? "Honey sports nutrition"}
+            {p?.pageCopy?.tagline ?? p?.descriptor ?? "Honey for training"}
           </div>
           <div style={{ fontSize: 140, fontWeight: 900, lineHeight: 1.05, textTransform: "uppercase" }}>
             {p?.name ?? "MIEL+"}

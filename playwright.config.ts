@@ -1,5 +1,5 @@
 import { defineConfig } from "@playwright/test";
-import { APP_PORT, BASE_URL, E2E_ENV, MAINT_PORT, MAINT_ENV } from "./tests/support/e2e-env";
+import { APP_PORT, BASE_URL, COPY_OFF_ENV, COPY_OFF_PORT, E2E_ENV, MAINT_PORT, MAINT_ENV } from "./tests/support/e2e-env";
 
 /**
  * End-to-end tests run against a REAL production build, started exactly the way Railway starts it (`npm run build`,
@@ -33,6 +33,14 @@ export default defineConfig({
       timeout: 120_000,
       reuseExistingServer: false,
       env: MAINT_ENV as unknown as Record<string, string>,
+    },
+    {
+      // The SAME build once more with COPY_CLAIMS=off: the facts-only storefront wording (proves the switch is read at runtime).
+      command: "node scripts/start.mjs",
+      url: `http://localhost:${COPY_OFF_PORT}/api/health`,
+      timeout: 120_000,
+      reuseExistingServer: false,
+      env: COPY_OFF_ENV as unknown as Record<string, string>,
     },
   ],
 });

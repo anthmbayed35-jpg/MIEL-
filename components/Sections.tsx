@@ -1,96 +1,33 @@
-import { SACHETS_PER_POUCH, SITE } from "@/config/site";
-import { COPY } from "@/config/copy";
+import { SITE } from "@/config/site";
+import { copy } from "@/config/copy";
 import Link from "next/link";
 import type { FaqItem, Policies, StoreSettings, Testimonial } from "@/config/content";
-import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
 import { Reveal } from "./Reveal";
 
 const wrap = "mx-auto max-w-7xl px-5 md:px-8";
 
-const steps = COPY.howTo.steps.map((s, i) => ({ n: String(i + 1).padStart(2, "0"), t: s.title, d: s.text }));
-
-export function HowTo() {
-  return (
-    <section className="relative isolate overflow-x-clip">
-      <Blobs spots={[{ x: "-10%", y: "10%" }, { x: "60%", y: "55%", delay: -8 }]} />
-      <div className={`${wrap} py-16 md:py-24`}>
-      <Reveal>
-        <p className="mono mb-3">{COPY.howTo.kicker}</p>
-        <h2 className="display h-section mb-10 md:mb-14">{COPY.howTo.title}</h2>
-        <p className="mono !text-body -mt-7 mb-10 !text-[14px] md:-mt-10 md:mb-14">{COPY.howTo.timingNote}</p>
-      </Reveal>
-      <ol className="grid gap-4 lg:grid-cols-3">
-        {steps.map((s, i) => (
-          <Reveal as="li" key={s.n} delay={i * 80} className="glass p-5 md:p-8">
-            <span className="display accent block text-[96px] leading-none md:text-[128px]" aria-hidden>
-              {s.n}
-            </span>
-            <h3 className="display mt-4 text-[26px]">
-              <span className="sr-only">Step {i + 1}: </span>
-              {s.t}
-            </h3>
-            <p className="body-lg mt-3">{s.d}</p>
-          </Reveal>
-        ))}
-      </ol>
-      </div>
-    </section>
-  );
-}
-
-const benefits = COPY.whyHoney.items.map((i) => ({ t: i.title, d: i.text }));
-
-export function WhyHoney() {
+/** JOB: attack the old routine (scoop, shaker, mixing) in four short lines. */
+export function WhySachet() {
+  const w = copy().whySachet;
   return (
     <section className="relative isolate overflow-x-clip">
       <Blobs spots={[{ x: "65%", y: "-10%" }, { x: "-15%", y: "60%", delay: -11 }]} />
-      <div className={`${wrap} py-16 md:py-24`}>
+      <div className={`${wrap} py-14 md:py-24`}>
         <Reveal>
-          <p className="mono mb-3">{COPY.whyHoney.kicker}</p>
-          <h2 className="display h-section mb-10 md:mb-14">
-            {COPY.whyHoney.title1} <span className="accent">{COPY.whyHoney.title2}</span>
+          <p className="mono mb-3">{w.kicker}</p>
+          <h2 className="display h-section mb-8 md:mb-12">
+            {w.title1} <span className="accent">{w.title2}</span>
           </h2>
         </Reveal>
-        <div className="grid gap-10 lg:grid-cols-3 lg:gap-8">
-          {benefits.map((b, i) => (
-            <Reveal key={b.t} delay={i * 80} className="border-t-2 border-acid pt-5">
-              <h3 className="display text-[26px]">{b.t}</h3>
-              <p className="body-lg mt-3">{b.d}</p>
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {w.lines.map((line, i) => (
+            <Reveal as="li" key={line} delay={i * 60} className="glass-flat flex min-h-20 items-center gap-4 p-5 md:p-6">
+              <span aria-hidden className="display accent text-[28px] leading-none">{String(i + 1).padStart(2, "0")}</span>
+              <span className="text-[18px] leading-snug text-fg md:text-[20px]">{line}</span>
             </Reveal>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function Value({ price }: { price: number }) {
-  const POUCH_PRICE = price;
-  const per = POUCH_PRICE / SACHETS_PER_POUCH;
-  return (
-    <section className="relative isolate overflow-x-clip">
-      <Blobs spots={[{ x: "30%", y: "-20%" }, { x: "75%", y: "40%", delay: -6 }, { x: "-10%", y: "50%", delay: -13 }]} />
-      <div className={`${wrap} py-16 md:py-24`}>
-      <Reveal className="glass p-5 md:p-12">
-        <p className="mono mb-6">{COPY.value.kicker}</p>
-        <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
-          <div>
-            <p className="mono !text-body">{COPY.value.pouchLabel} · {SACHETS_PER_POUCH} SACHETS</p>
-            <p className="display mt-1 text-[64px] leading-none md:text-[96px]">{money(POUCH_PRICE)}</p>
-          </div>
-          <div>
-            <p className="display accent text-[48px] leading-none md:text-[80px]">{money(per, 2)}</p>
-            <p className="display mt-2 text-[22px] md:text-[28px]">{COPY.value.perSachetUnit}</p>
-          </div>
-        </div>
-        <p className="body-lg mt-8 max-w-xl">{COPY.value.line}</p>
-        <div className="mt-8">
-          <a href="#lineup" className="btn">
-            {COPY.value.cta}
-          </a>
-        </div>
-      </Reveal>
+        </ul>
       </div>
     </section>
   );
@@ -123,20 +60,21 @@ export function Faq({ items: faqs }: { items: FaqItem[] }) {
   );
 }
 
+/** JOB: one last clear action. */
 export function FinalCta({ action }: { action?: React.ReactNode }) {
+  const f = copy().finalCta;
   return (
     <section className="relative isolate overflow-x-clip bg-black">
       <Blobs spots={[{ x: "50%", y: "-30%" }, { x: "-10%", y: "30%", delay: -8 }]} />
-      <div className={`${wrap} py-20 md:py-32`}>
+      <div className={`${wrap} py-16 md:py-32`}>
         <Reveal>
-          <h2 className="display h-hero">
-            {COPY.finalCta.title1} <span className="accent">{COPY.finalCta.title2}</span>
+          <h2 className="display h-section">
+            {f.title1} <span className="accent">{f.title2}</span>
           </h2>
-          <p className="body-lg mt-5 max-w-xl">{COPY.finalCta.text}</p>
           <div className="mt-8">
             {action ?? (
               <a href="#lineup" className="btn">
-                SHOP THE LINEUP
+                {f.cta}
               </a>
             )}
           </div>

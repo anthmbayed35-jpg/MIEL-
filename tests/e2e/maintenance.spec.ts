@@ -224,7 +224,7 @@ test.describe("admin preview: the real storefront, for the signed-in admin only"
       await expect(admin.getByRole("heading", { level: 1 }), url).not.toContainText("under development");
     }
     await admin.goto("/");
-    await expect(admin.getByRole("button", { name: "Add RED BURN to cart" })).toBeVisible(); // the real lineup
+    await expect(admin.getByRole("link", { name: /RED BURN/ }).first()).toBeVisible(); // the real "pick your moment" cards
     await expect(admin.getByText("RED BURN").first()).toBeVisible();
 
     // a visitor at the same moment: still the under-development page

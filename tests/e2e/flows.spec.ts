@@ -213,7 +213,7 @@ test("a price edit in the admin shows on the storefront immediately", async ({ b
   await page.getByRole("button", { name: "Save product" }).click();
   await expect(page.getByText(/Saved/)).toBeVisible();
   expect((await visitorHtml(browser, "/products/red-burn")).html).toContain("$41");
-  expect((await visitorHtml(browser, "/")).html).toContain("$41");
+  expect((await visitorHtml(browser, "/products")).html).toContain("$41"); // the all-products lineup (the home page shows no prices)
   await ctx.close();
 });
 
@@ -243,7 +243,7 @@ test("stock at 0 disables purchase on the product page and the lineup, and check
   await p2.goto("/products/creatine");
   await expect(p2.getByRole("button", { name: "SOLD OUT" }).first()).toBeDisabled();
   await expect(p2.getByRole("button", { name: /ADD TO CART/ })).toHaveCount(0);
-  await p2.goto("/");
+  await p2.goto("/products");
   await expect(p2.getByRole("button", { name: "CREATINE is sold out" })).toBeDisabled();
   await fresh.close();
   exec("UPDATE inventory_items SET on_hand = 25 WHERE product_id = (SELECT id FROM products WHERE slug = 'creatine')");

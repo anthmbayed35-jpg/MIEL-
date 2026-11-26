@@ -50,3 +50,19 @@ export const MAINT_ENV = {
   NEXT_TELEMETRY_DISABLED: "1",
   PORT: String(MAINT_PORT),
 };
+
+/** Third server on the same build: COPY_CLAIMS=off (the facts-only storefront wording). Shares the database file. */
+export const COPY_OFF_PORT = 3404;
+export const COPY_OFF_URL = `http://localhost:${COPY_OFF_PORT}`;
+export const COPY_OFF_ENV = {
+  MIEL_ENV: "staging",
+  DATABASE_PATH: E2E_DB,
+  AUTH_SECRET: SENTINEL_AUTH_SECRET,
+  NEXT_PUBLIC_SITE_URL: COPY_OFF_URL,
+  COPY_CLAIMS: "off",
+  MAIL_PROVIDER: "file",
+  MAIL_OUTBOX: E2E_OUTBOX,
+  BACKUPS_DISABLED: "1",
+  NEXT_TELEMETRY_DISABLED: "1",
+  PORT: String(COPY_OFF_PORT),
+};

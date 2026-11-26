@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { findPhoto, type Product } from "@/config/products";
 import { SACHETS_PER_POUCH } from "@/config/site";
-import { COPY } from "@/config/copy";
 import { money } from "@/lib/format";
 import { Blobs } from "./Blobs";
 import { useCart } from "./CartProvider";
@@ -12,6 +11,7 @@ import { Reveal } from "./Reveal";
 
 export function Lineup({ products, total, title = true, heading, children }: { products: Product[]; total?: number; title?: boolean; heading?: React.ReactNode; children?: React.ReactNode }) {
   const { add } = useCart();
+  const c = { lineup: { kicker: "THE LINEUP", title1: "Pick your", title2: "flavour." } };
   return (
     <section id="lineup" className="relative isolate overflow-x-clip">
       <Blobs
@@ -24,9 +24,9 @@ export function Lineup({ products, total, title = true, heading, children }: { p
         {heading}
         {title && (
           <Reveal>
-            <p className="mono mb-3">{COPY.lineup.kicker}</p>
+            <p className="mono mb-3">{c.lineup.kicker}</p>
             <h2 className="display h-section mb-10 md:mb-14">
-              {COPY.lineup.title1} <span className="accent">{COPY.lineup.title2}</span>
+              {c.lineup.title1} <span className="accent">{c.lineup.title2}</span>
             </h2>
           </Reveal>
         )}

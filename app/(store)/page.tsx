@@ -1,18 +1,15 @@
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { ProofStrip } from "@/components/ProofStrip";
-import { Lineup } from "@/components/Lineup";
+import { Moments } from "@/components/Moments";
 import { HOME_LINEUP_LIMIT } from "@/lib/lineup";
-import { FeatureBand } from "@/components/FeatureBand";
-import { HowTo, WhyHoney, Value, Faq, FinalCta, Footer, Testimonials } from "@/components/Sections";
-import { findPhoto } from "@/config/products";
+import { Faq, FinalCta, Footer, WhySachet } from "@/components/Sections";
 import { getCatalog } from "@/lib/catalog";
-import { FEATURED_SLUG, SITE, CURRENCY } from "@/config/site";
+import { SITE, CURRENCY } from "@/config/site";
 
 export default async function Home() {
   const cat = await getCatalog();
   const { products } = cat;
-  const featured = products.find((p) => p.slug === FEATURED_SLUG) ?? products[0];
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -32,14 +29,8 @@ export default async function Home() {
       <main>
         <Hero products={products} hero={cat.hero} />
         <ProofStrip deliveryFee={cat.deliveryFee} />
-        <Lineup products={products.slice(0, HOME_LINEUP_LIMIT)} total={products.length} />
-        {[featured, ...products.filter((p) => p !== featured)].filter((p) => p && findPhoto(p, "ingredients")).map((p) => (
-          <FeatureBand key={p.slug} product={p} />
-        ))}
-        <HowTo />
-        <WhyHoney />
-        <Value price={featured?.price ?? 0} />
-        <Testimonials items={cat.testimonials} />
+        <Moments products={products.slice(0, HOME_LINEUP_LIMIT)} total={products.length} />
+        <WhySachet />
         <Faq items={cat.faq} />
         <FinalCta />
       </main>
