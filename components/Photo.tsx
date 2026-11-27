@@ -60,7 +60,7 @@ export function Photo({
   }
   if (!m) {
     // Any other single-file image (an https URL): plain <img>.
-    if (!/^https:\/\//.test(src)) return null;
+    if (!/^(https:\/\/|\/media\/)/.test(src)) return null;
     return (
       <span className={`relative block overflow-hidden ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}

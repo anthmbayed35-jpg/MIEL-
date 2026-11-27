@@ -72,7 +72,9 @@ describe("the agreed wording", () => {
     expect(on.hero.cta).toBe("SHOP THE LINEUP");
     expect(on.howTo.steps.map((s) => `${s.title}: ${s.text}`)).toEqual(["Rip: Tear the notch.", "Sip: Squeeze or sip straight.", "Go: Get on with it."]);
     expect(on.finalCta).toMatchObject({ title1: "Pick your moment.", title2: "Rip. Sip. Go." });
-    expect(on.whySachet.lines).toHaveLength(4);
+    expect(on.ticker).toEqual(["HALAL CERTIFIED", "STIM-FREE (RED BURN)", "RAW HONEY", "NO MIXING", "NO SCOOP", "12 SACHETS PER POUCH"]);
+    expect(on.stats.items.map((i) => `${i.value}${i.unit} ${i.caption}`)).toEqual(["12 sachets per pouch", "150mg caffeine in GOLD", "5g creatine in CREATINE", "0 mixing"]);
+    expect(on.usage.cards.map((c) => c.label)).toEqual(["BEFORE", "DURING", "EVERY DAY", "ON THE GO"]);
     expect(PRODUCT_COPY_ON.gold.moment).toEqual({ label: "BEFORE THE WORK", category: "ENERGY AND FOCUS", line: "150 mg of caffeine with L-theanine in vanilla honey. Rip it open in the car park." });
     expect(PRODUCT_COPY_ON["red-burn"].headline).toBe("Built for the long push.");
     expect(PRODUCT_COPY_ON.creatine.tagline).toBe("HONEY FOR STRENGTH");
@@ -152,12 +154,19 @@ describe("docs/COPY.md", () => {
       row("Hero subline", on.hero.sub, off.hero.sub, JOBS.hero),
       row("Hero chips", on.heroChips.join(" / "), off.heroChips.join(" / "), JOBS.heroChips),
       row("Hero button", on.hero.cta, off.hero.cta, JOBS.hero),
-      row("Facts strip", [...on.proofStrip, "$5 DELIVERY ACROSS LEBANON"].join(" / "), [...off.proofStrip, "$5 DELIVERY ACROSS LEBANON"].join(" / "), JOBS.proofStrip),
+      row("Facts ticker", on.ticker.join(" / "), off.ticker.join(" / "), JOBS.ticker),
       row("Pick your moment: heading", `${on.moments.kicker}: ${on.moments.title1} ${on.moments.title2}`, `${off.moments.kicker}: ${off.moments.title1} ${off.moments.title2}`, JOBS.moments),
       ...(["gold", "red-burn", "creatine"] as const).map((s) =>
         row(`Moment card: ${s.toUpperCase().replace("-", " ")}`, `${PRODUCT_COPY_ON[s].moment.label} / ${PRODUCT_COPY_ON[s].moment.category} / ${PRODUCT_COPY_ON[s].moment.line}`, `${PRODUCT_COPY_OFF[s].moment.label} / ${PRODUCT_COPY_OFF[s].moment.category} / ${PRODUCT_COPY_OFF[s].moment.line}`, JOBS.moments),
       ),
-      row("Why a sachet", on.whySachet.lines.join(" / "), off.whySachet.lines.join(" / "), JOBS.whySachet),
+      row("Stat numerals", on.stats.items.map((i) => `${i.value}${i.unit ? " " + i.unit : ""} ${i.caption}`).join(" / "), off.stats.items.map((i) => `${i.value}${i.unit ? " " + i.unit : ""} ${i.caption}`).join(" / "), JOBS.stats),
+      row("Lineup cards", `${on.lineup.kicker}: ${on.lineup.title1} ${on.lineup.title2} (${on.lineup.whenLabel}, ${on.lineup.perPouch}, ${on.lineup.perSachet}, ${on.lineup.add})`, "Same", JOBS.lineup),
+      row("Flavour explorer", `${on.explorer.kicker}: ${on.explorer.title1} ${on.explorer.title2}. Ingredients and nutrition: ${on.explorer.tbc}`, "Same", JOBS.explorer),
+      row("Old routine vs the sachet", `${on.oldVsNew.kicker}: ${on.oldVsNew.title1} ${on.oldVsNew.title2} (the three product lines below)`, "Same", JOBS.oldVsNew),
+      row("Usage guide", on.usage.cards.map((c) => `${c.label}: ${c.text}`).join(" / ") + " " + on.usage.note, "Same", JOBS.usage),
+      row("Typographic band", `${on.band.line1} ${on.band.line2} ${on.band.sub}`, "Same", JOBS.band),
+      row("Athletes and reviews", `${on.reviews.kicker}: ${on.reviews.title1} ${on.reviews.title2} (only when real entries exist)`, "Same", JOBS.reviews),
+      row("Footer", on.footer.slogan + " / Shop / Help / Follow / Contact", "Same", JOBS.footer),
       row("Closing section", `${on.finalCta.title1} ${on.finalCta.title2} [${on.finalCta.cta}]`, `${off.finalCta.title1} ${off.finalCta.title2} [${off.finalCta.cta}]`, JOBS.finalCta),
       "",
       "### Home FAQ",

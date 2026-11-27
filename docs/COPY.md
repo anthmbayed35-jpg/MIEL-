@@ -17,12 +17,19 @@ Generated from `config/copy.ts` (do not edit here; edit the file, then `UPDATE_C
 | Hero subline | Honey fuel that does the work: quick carbs, the exact dose, nothing to mix. Rip. Sip. Go. | Real honey in a sachet with the dose already set. Nothing to mix. Rip. Sip. Go. | Say what it is and who it is for in 3 seconds, then one button. |
 | Hero chips | 12 SACHETS / HALAL CERTIFIED / REAL HONEY | 12 SACHETS / HALAL CERTIFIED / REAL HONEY | The three facts that matter before scrolling. |
 | Hero button | SHOP THE LINEUP | SHOP THE LINEUP | Say what it is and who it is for in 3 seconds, then one button. |
-| Facts strip | REAL HONEY / 12 SACHETS PER POUCH / HALAL CERTIFIED / $5 DELIVERY ACROSS LEBANON | REAL HONEY / 12 SACHETS PER POUCH / HALAL CERTIFIED / $5 DELIVERY ACROSS LEBANON | The facts that make it feel safe to tap, in one line. |
+| Facts ticker | HALAL CERTIFIED / STIM-FREE (RED BURN) / RAW HONEY / NO MIXING / NO SCOOP / 12 SACHETS PER POUCH | HALAL CERTIFIED / STIM-FREE (RED BURN) / RAW HONEY / NO MIXING / NO SCOOP / 12 SACHETS PER POUCH | The true facts that make it feel safe to tap, always moving. |
 | Pick your moment: heading | PICK YOUR MOMENT: What are you training for? | PICK YOUR MOMENT: What are you training for? | Let the visitor spot themselves and route them to the right flavour. |
 | Moment card: GOLD | BEFORE THE WORK / ENERGY AND FOCUS / 150 mg of caffeine with L-theanine in vanilla honey. Rip it open in the car park. | BEFORE THE WORK / HONEY FOR THE WORK / 150 mg caffeine and L-theanine in vanilla honey. Rip it open in the car park. | Let the visitor spot themselves and route them to the right flavour. |
 | Moment card: RED BURN | THE LONG PUSH / ENDURANCE / Fast-digesting honey carbs for past the hour mark. Stim-free. | THE LONG PUSH / HONEY FOR DISTANCE / Stim-free pomegranate-and-beet honey. No caffeine. No mixing. | Let the visitor spot themselves and route them to the right flavour. |
 | Moment card: CREATINE | EVERY DAY / STRENGTH / 5 g of creatine in every sachet. No scoop. No shaker. No clumps. | EVERY DAY / CREATINE NO SCOOP / 5 g of creatine per sachet. No scoop. No shaker. No clumps. | Let the visitor spot themselves and route them to the right flavour. |
-| Why a sachet | No mixing. No scoop. / Pocket-size, tear open and go. / The dose is decided for you: 150 mg or 5 g, every time. / Raw honey as the base. | No mixing. No scoop. / Pocket-size, tear open and go. / The dose is decided for you: 150 mg or 5 g, every time. / Raw honey as the base. | Attack the old routine: scoop, shaker, mixing. |
+| Stat numerals | 12 sachets per pouch / 150 mg caffeine in GOLD / 5 g creatine in CREATINE / 0 mixing | 12 sachets per pouch / 150 mg caffeine in GOLD / 5 g creatine in CREATINE / 0 mixing | Big true numbers a glance can take in. |
+| Lineup cards | THE LINEUP: Pick your flavour. (WHEN TO USE, per pouch, per sachet, ADD TO CART) | Same | Compare the three flavours and add one to the cart. |
+| Flavour explorer | FLAVOUR EXPLORER: Tap a flavour.. Ingredients and nutrition: TBC. We are confirming this and will update it here. | Same | See what is in each flavour (details TBC until supplied). |
+| Old routine vs the sachet | OLD ROUTINE VS THE SACHET: Skip the routine. (the three product lines below) | Same | Show what they gain by switching. |
+| Usage guide | BEFORE: Rip one before you head out. / DURING: Carry a sachet for the long push. / EVERY DAY: Same sachet, same time. Make it a habit. / ON THE GO: Fits any pocket or gym bag. Serving timing: TBC. | Same | Four moments, four short lines. |
+| Typographic band | Fuel the grind. Rip. Sip. Go. | Same | The slogan, huge, as a pause before the proof. |
+| Athletes and reviews | PEOPLE WHO TRAIN: In their words. (only when real entries exist) | Same | Real words from real people (not rendered when there are none). |
+| Footer | Fuel the grind. / Shop / Help / Follow / Contact | Same | The slogan, the ways to reach us, where to follow. |
 | Closing section | Pick your moment. Rip. Sip. Go. [SHOP THE LINEUP] | Pick your moment. Rip. Sip. Go. [SHOP THE LINEUP] | One last clear action. |
 
 ### Home FAQ
@@ -143,7 +150,10 @@ FAQ (Remove the last doubts.)
 
 Copy answers marked TBC (shown on the site as a clearly marked placeholder):
 
+- `home.explorer.tbc`: TBC. We are confirming this and will update it here.
+- `home.usage.note`: Serving timing: TBC.
 - `home.howTo.timingNote`: Water guidance: TBC.
+- `home.product.bannerTbc`: Ingredient list: TBC.
 - `home.homeFaq[2].a`: TBC. We are confirming this and will update it here.
 - `home.homeFaq[3].a`: TBC. We are confirming this and will update it here.
 - `product.gold.warning`: Contains 150 mg of caffeine per sachet. Full caffeine advice: TBC.

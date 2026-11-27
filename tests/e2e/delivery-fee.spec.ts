@@ -85,7 +85,6 @@ test("admin: both orders show $5.00 delivery and the right total, and the delive
 test("the delivery fee shows consistently on the home page, a product page and the FAQ", async ({ browser }) => {
   const page = await (await ctxFor(browser)).newPage();
   await page.goto("/");
-  await expect(page.getByText(/\$5 DELIVERY ACROSS LEBANON/).first()).toBeAttached();
   await page.getByText("Do you deliver in Lebanon?").click();
   await expect(page.getByText(/flat \$5 delivery fee/)).toBeVisible();
   await page.goto("/products/gold");

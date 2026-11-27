@@ -39,11 +39,11 @@ test.describe("home page", () => {
   test("the hero shows RED BURN first and switches between all three flavours, with each flavour's glow", async ({ page }) => {
     await page.goto("/");
     const hero = page.locator("section#top");
-    const imgs = hero.locator("img[src*='/images/products/']");
+    const imgs = hero.locator("img[src*='-pouch-hero']");
     expect(await imgs.count()).toBe(3); // one per flavour, only one visible
     await expect(hero.locator("img[src*='red-burn-pouch-hero']")).toBeVisible();
     await expect(hero.locator("img[src*='gold-pouch-hero']")).toBeHidden();
-    const group = page.getByRole("group", { name: "Choose a flavour" });
+    const group = hero.getByRole("group", { name: "Choose a flavour" });
     for (const [slug, rgb] of [["gold", "245, 180, 0"], ["creatine", "77, 163, 255"], ["red-burn", "184, 20, 62"]] as const) {
       const btn = group.getByRole("button", { name: NAME[slug] });
       await btn.click();
@@ -61,7 +61,7 @@ test.describe("home page", () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
     await page.goto("/");
-    const buttons = page.getByRole("group", { name: "Choose a flavour" }).getByRole("button");
+    const buttons = page.locator("section#top").getByRole("group", { name: "Choose a flavour" }).getByRole("button");
     expect(await buttons.count()).toBe(3);
     for (let i = 0; i < 3; i++) {
       const box = (await buttons.nth(i).boundingBox())!;

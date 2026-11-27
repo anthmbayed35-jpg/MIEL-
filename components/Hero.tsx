@@ -3,13 +3,21 @@ import { findPhoto, type Product } from "@/config/products";
 import type { HeroContent } from "@/config/content";
 import { FEATURED_SLUG } from "@/config/site";
 import { copy } from "@/config/copy";
+import type { HeroMedia as HeroMediaData } from "@/lib/media";
 import { Blobs } from "./Blobs";
 import { photoPreload } from "./Photo";
 import { HeroPouches, type HeroPouch } from "./HeroPouches";
+import { HeroMedia } from "./media/HeroMedia";
+import { Parallax } from "./Parallax";
 
 const HERO_SIZES = "(min-width: 1024px) 520px, calc(100vw - 56px)";
 
-export function Hero({ products, hero }: { products: Product[]; hero: HeroContent }) {
+/**
+ * JOB: say what it is and who it is for in 3 seconds, then one button. Background: the hero loop video (or its poster, or a dimmed
+ * product photo) under a dark gradient; in front: the pouch with its flavour switcher (the glow changes with the flavour), the mono
+ * label, FUEL THE GRIND, the subline and the button. Phones: pouch first. Desktop: a 12-column split with a large pouch.
+ */
+export function Hero({ products, hero, media }: { products: Product[]; hero: HeroContent; media: HeroMediaData }) {
   const c = copy();
   const product = products.find((p) => p.slug === FEATURED_SLUG) ?? products[0];
   const photo = product && findPhoto(product, "pouch-hero");
@@ -18,7 +26,7 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
     .filter((p): p is Product => !!p && !!findPhoto(p, "pouch-hero"))
     .map((p) => ({ slug: p.slug, name: p.name, glow: p.glow, alt: p.images.find((i) => i.kind === "pouch-hero")?.alt ?? p.imageAlt, photo: findPhoto(p, "pouch-hero") }));
 
-  // The ONLY preload on the site: the hero (LCP) image.
+  // The ONLY preload on the site: the hero (LCP) image. The background poster/video is low priority and never preloaded.
   if (photo) {
     const pre = photoPreload(photo.src, HERO_SIZES);
     if (pre) preload(pre.href, { as: "image", type: "image/avif", imageSrcSet: pre.imageSrcSet, imageSizes: pre.imageSizes, fetchPriority: "high" });
@@ -26,6 +34,7 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
 
   return (
     <section id="top" className="relative isolate overflow-x-clip">
+      <HeroMedia mp4={media.mp4} webm={media.webm} poster={media.poster} fallback={media.fallback} />
       <Blobs
         float
         spots={[
@@ -34,19 +43,15 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
           { x: "20%", y: "72%", delay: -14 },
         ]}
       />
-      <div className="mx-auto grid max-w-7xl gap-10 px-5 pb-14 pt-[calc(var(--header-h,72px)+32px)] md:px-8 md:pt-[calc(var(--header-h,88px)+40px)] lg:min-h-[100svh] lg:grid-cols-2 lg:items-center lg:gap-12 lg:pb-16">
-        <div className="order-2 lg:order-1">
-          {/* Logo width = min(56vw, 520px) on phones, min(80vw, 520px) from 640px up (so the pouch, the label and the headline share the
-              first screen). Padding = half its height (height = 0.2169 × width) on all sides. */}
-          <div
-            className="logo-slide hero-logo hidden sm:block"
-            style={{ width: "var(--lw)", padding: "calc(var(--lw) * 0.1085) 0" }}
-          >
+      <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-10 px-5 pb-14 pt-[calc(var(--header-h,72px)+32px)] md:px-8 md:pt-[calc(var(--header-h,88px)+40px)] lg:min-h-[100svh] lg:grid-cols-12 lg:items-center lg:gap-12 lg:pb-16">
+        <div className="order-2 lg:order-1 lg:col-span-6">
+          {/* Logo width = min(80vw, 520px) from 640px up (hidden on phones: the header already shows it). Padding = half its height (height = 0.2169 × width) on all sides. */}
+          <div className="logo-slide hero-logo hidden sm:block" style={{ width: "var(--lw)", padding: "calc(var(--lw) * 0.1085) 0" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/miel-full.png" alt="MIEL+" width={1051} height={228} className="block h-auto w-full" />
           </div>
           {/* JOB: say what this is in a line, right under the logo. */}
-          <p className="mono mb-3 sm:-mt-2 sm:mb-4">{c.brandTagline}</p>
+          <p className="eyebrow mb-3 sm:-mt-2 sm:mb-4">{c.brandTagline}</p>
           <h1 className="display h-hero">
             {hero.headline1}
             <br />
@@ -65,14 +70,16 @@ export function Hero({ products, hero }: { products: Product[]; hero: HeroConten
           </ul>
         </div>
 
-        {/* Pouch photos in a glass-bordered rounded panel: right of the headline on desktop, full width below it on mobile.
-            Its own grid cell, so the headline can never overlap the pouch. Panel and photos are all 4:5. */}
+        {/* Pouch photos in a glass-bordered rounded panel: a large pouch right of the headline on desktop, full width above it on phones.
+            Its own grid cell, so the headline can never overlap the pouch. Panel and photos are all 4:5. Slow parallax on desktop only. */}
         {pouches.length ? (
-          <div className="order-1 mx-auto w-full max-w-[clamp(180px,calc(100svh_-_425px),250px)] sm:max-w-[520px] lg:order-2 lg:mx-0 lg:max-w-none lg:justify-self-end">
-            <HeroPouches pouches={pouches} sizes={HERO_SIZES} />
+          <div className="order-1 mx-auto w-full max-w-[clamp(180px,calc(100svh_-_425px),250px)] sm:max-w-[520px] lg:order-2 lg:col-span-6 lg:mx-0 lg:max-w-[560px] lg:justify-self-end">
+            <Parallax>
+              <HeroPouches pouches={pouches} sizes={HERO_SIZES} />
+            </Parallax>
           </div>
         ) : (
-          <div className="glass order-1 mx-auto w-full max-w-[clamp(180px,calc(100svh_-_425px),250px)] p-2 sm:max-w-[520px] sm:p-3 lg:order-2 lg:mx-0 lg:justify-self-end">
+          <div className="glass order-1 mx-auto w-full max-w-[clamp(180px,calc(100svh_-_425px),250px)] p-2 sm:max-w-[520px] sm:p-3 lg:order-2 lg:col-span-6 lg:mx-0 lg:justify-self-end">
             <div role="img" aria-label="MIEL+ honey sachet pouch (image placeholder)" className="flex aspect-[4/5] w-full items-center justify-center rounded-[12px]">
               <span className="mono !text-body opacity-70">HERO POUCH IMAGE</span>
             </div>

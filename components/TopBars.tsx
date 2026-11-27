@@ -56,6 +56,14 @@ export function AmbassadorStrip({ text }: { text: string }) {
  */
 export function TopOffsets() {
   const path = usePathname();
+  // the film grain (app/globals.css) is switched on once the page has loaded and the browser is idle
+  useEffect(() => {
+    const on = () => document.documentElement.classList.add("grain");
+    const idle = () => ("requestIdleCallback" in window ? (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(on) : setTimeout(on, 1200));
+    if (document.readyState === "complete") idle();
+    else window.addEventListener("load", idle, { once: true });
+    return () => window.removeEventListener("load", idle);
+  }, []);
   useEffect(() => {
     const root = document.documentElement;
     const h = (el: Element | null) => (el ? Math.round(el.getBoundingClientRect().height) : 0);

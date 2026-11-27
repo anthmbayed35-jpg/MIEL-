@@ -110,7 +110,7 @@ export function Inside({ product }: { product: Product }) {
       <Blobs spots={[{ x: "-10%", y: "0%" }, { x: "65%", y: "40%", delay: -9 }]} />
       <div className={`${wrap} py-14 md:py-20`}>
         <Reveal>
-          <p className="mono mb-3">{copy().product.insideKicker}</p>
+          <p className="eyebrow mb-3">{copy().product.insideKicker}</p>
           <h2 className="display h-section mb-8">{copy().product.insideTitle}</h2>
         </Reveal>
         <Reveal className="glass p-5 md:p-8">
@@ -145,7 +145,7 @@ export function WhatYouGet({ product }: { product: Product }) {
   const t = copy().product;
   const text = (
     <Reveal>
-      <p className="mono mb-3">{t.getKicker}</p>
+      <p className="eyebrow mb-3">{t.getKicker}</p>
       <h2 className="display h-section">{t.getTitle}</h2>
       <p className="body-lg mt-5 max-w-lg">{t.getLine}</p>
       <div className="mt-5">
@@ -182,7 +182,7 @@ export function ProductHowTo({ product }: { product: Product }) {
   return (
     <section className={`${wrap} py-14 md:py-20`}>
       <Reveal>
-        <p className="mono mb-3">{copy().howTo.kicker}</p>
+        <p className="eyebrow mb-3">{copy().howTo.kicker}</p>
         <h2 className="display h-section mb-8">{copy().howTo.title}</h2>
         <p className="mono !text-body -mt-5 mb-8 !text-[14px]">{copy().howTo.timingNote}</p>
       </Reveal>
@@ -258,7 +258,7 @@ export function TakeWhen({ product }: { product: Product }) {
   if (!tags?.length) return null;
   return (
     <section className={`${wrap} pt-2 pb-6 md:pb-10`} aria-label={copy().product.takeWhenLabel}>
-      <p className="mono mb-3">{copy().product.takeWhenLabel}</p>
+      <p className="eyebrow mb-3">{copy().product.takeWhenLabel}</p>
       <ul className="flex flex-wrap gap-2">
         {tags.map((t) => (
           <li key={t} className="glass-flat flex min-h-12 items-center px-5 text-[17px] text-fg">{t}</li>
@@ -276,7 +276,7 @@ export function BenefitBlocks({ product }: { product: Product }) {
       <Blobs spots={[{ x: "60%", y: "-10%", color: product.glow }]} />
       <div className={`${wrap} py-12 md:py-20`}>
         <Reveal>
-          <p className="mono mb-3">{t.benefitsKicker}</p>
+          <p className="eyebrow mb-3">{t.benefitsKicker}</p>
           <h2 className="display h-section mb-8">{t.benefitsTitle}</h2>
         </Reveal>
         <ul className="grid gap-4 lg:grid-cols-3">
@@ -293,6 +293,30 @@ export function BenefitBlocks({ product }: { product: Product }) {
   );
 }
 
+/** JOB: a full-bleed moment of flavour before the facts: the ingredient image dimmed under the flavour glow, with what is in it (TBC until supplied). */
+export function IngredientBanner({ product }: { product: Product }) {
+  const bg = findPhoto(product, "ingredients");
+  if (!bg) return null;
+  const t = copy().product;
+  const fade = "linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent)";
+  return (
+    <section aria-label={`What is in ${product.name}`} className="relative isolate overflow-x-clip">
+      <div aria-hidden className="absolute inset-0 -z-20 opacity-60" style={{ maskImage: fade, WebkitMaskImage: fade }}>
+        <Photo src={bg.src} alt="" sizes="100vw" position="50% 52%" className="h-full w-full" />
+      </div>
+      <div aria-hidden className="absolute inset-0 -z-10 bg-bg/50" />
+      <Blobs spots={[{ x: "62%", y: "10%", color: product.glow }]} />
+      <div className={`${wrap} py-20 md:py-32`}>
+        <Reveal className="glass max-w-xl p-6 md:p-10">
+          <p className="eyebrow mb-3">{t.bannerKicker}</p>
+          <h2 className="display h-section">{product.flavor}</h2>
+          <p className="body-lg mt-4 !text-fg">{product.ingredients ?? t.bannerTbc}</p>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 /** JOB: show what they gain by switching. Two columns, no brand names. */
 export function OldVsSachet({ product }: { product: Product }) {
   const c = product.pageCopy?.compare;
@@ -301,7 +325,7 @@ export function OldVsSachet({ product }: { product: Product }) {
   return (
     <section className={`${wrap} py-12 md:py-20`}>
       <Reveal>
-        <p className="mono mb-3">{t.compareKicker}</p>
+        <p className="eyebrow mb-3">{t.compareKicker}</p>
         <h2 className="display h-section mb-8">{t.compareTitle}</h2>
       </Reveal>
       <div className="grid gap-4 md:grid-cols-2">
@@ -324,7 +348,7 @@ export function ProductFaq({ product }: { product: Product }) {
       <Blobs spots={[{ x: "-12%", y: "10%" }, { x: "70%", y: "60%", delay: -9 }]} />
       <div className={`${wrap} pb-14 pt-6 md:pb-20`}>
         <Reveal>
-          <p className="mono mb-3">{copy().product.faqKicker}</p>
+          <p className="eyebrow mb-3">{copy().product.faqKicker}</p>
           <h2 className="display h-section mb-8">{copy().product.faqTitle}</h2>
         </Reveal>
         <Reveal className="space-y-3">

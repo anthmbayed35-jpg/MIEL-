@@ -66,21 +66,49 @@ const SHARED = {
   /** JOB (delivery lines): say the one delivery fact once, with the live flat fee. */
   deliveryFact: (fee: string) => `${fee} DELIVERY ACROSS LEBANON`,
   deliveryNote: (fee: string) => `+ ${fee} delivery across Lebanon`,
-  /** JOB (proof strip): the facts that make it feel safe to tap, in one line. */
-  proofStrip: ["REAL HONEY", "12 SACHETS PER POUCH", "HALAL CERTIFIED"],
+  /** JOB (facts ticker): the true facts that make it feel safe to tap, always moving, in one line. */
+  ticker: ["HALAL CERTIFIED", "STIM-FREE (RED BURN)", "RAW HONEY", "NO MIXING", "NO SCOOP", "12 SACHETS PER POUCH"],
   /** JOB (hero chips): the three facts that matter before scrolling. */
   heroChips: ["12 SACHETS", "HALAL CERTIFIED", "REAL HONEY"],
   /** JOB (hero): say what it is and who it is for in 3 seconds, then one button. */
   hero: { headline1: "Fuel the", headline2: "grind.", cta: "SHOP THE LINEUP" },
   /** JOB (pick your moment): let the visitor spot themselves and route them to the right flavour. */
   moments: { kicker: "PICK YOUR MOMENT", title1: "What are you", title2: "training for?", cta: "SHOP" },
-  /** JOB (why a sachet): attack the old routine: scoop, shaker, mixing. */
-  whySachet: {
-    kicker: "SKIP THE SHAKER",
-    title1: "Why a",
-    title2: "sachet.",
-    lines: ["No mixing. No scoop.", "Pocket-size, tear open and go.", "The dose is decided for you: 150 mg or 5 g, every time.", "Raw honey as the base."],
+  /** JOB (stat numerals): big true numbers a glance can take in. Only facts printed on the packs. */
+  stats: {
+    kicker: "THE NUMBERS",
+    items: [
+      { value: "12", unit: "", caption: "sachets per pouch" },
+      { value: "150", unit: "mg", caption: "caffeine in GOLD" },
+      { value: "5", unit: "g", caption: "creatine in CREATINE" },
+      { value: "0", unit: "", caption: "mixing" },
+    ],
   },
+  /** JOB (lineup cards): compare the three flavours side by side and add one to the cart without leaving the page. */
+  lineup: { kicker: "THE LINEUP", title1: "Pick your", title2: "flavour.", whenLabel: "WHEN TO USE", perPouch: "per pouch", perSachet: "per sachet", add: "ADD TO CART" },
+  /** JOB (flavour explorer): see what is in each flavour. Ingredient and nutrition details stay TBC until supplied. */
+  explorer: { kicker: "FLAVOUR EXPLORER", title1: "Tap a", title2: "flavour.", ingredients: "INGREDIENTS", nutrition: "NUTRITION", tbc: "TBC. We are confirming this and will update it here.", cta: "SEE" },
+  /** JOB (old routine vs the sachet): the three old routines next to the sachet. */
+  oldVsNew: { kicker: "OLD ROUTINE VS THE SACHET", title1: "Skip the", title2: "routine.", oldLabel: "THE OLD WAY", newLabel: "THE SACHET" },
+  /** JOB (usage guide): four moments, four short lines. Serving timing is not confirmed, so none is given. */
+  usage: {
+    kicker: "HOW TO USE IT",
+    title1: "Make it",
+    title2: "routine.",
+    cards: [
+      { label: "BEFORE", text: "Rip one before you head out." },
+      { label: "DURING", text: "Carry a sachet for the long push." },
+      { label: "EVERY DAY", text: "Same sachet, same time. Make it a habit." },
+      { label: "ON THE GO", text: "Fits any pocket or gym bag." },
+    ],
+    note: `Serving timing: ${TBC}.`,
+  },
+  /** JOB (typographic band): the slogan, huge, as a pause before the proof. */
+  band: { line1: "Fuel the", line2: "grind.", sub: "Rip. Sip. Go." },
+  /** JOB (reviews): real words from real people. Rendered only when real entries exist. */
+  reviews: { kicker: "PEOPLE WHO TRAIN", title1: "In their", title2: "words." },
+  /** JOB (footer): the slogan, the ways to reach us, and where to follow. */
+  footer: { slogan: "Fuel the grind.", shop: "Shop", help: "Help", follow: "Follow", contact: "Contact" },
   /** JOB (closing section): one last clear action. */
   finalCta: { title1: "Pick your moment.", title2: "Rip. Sip. Go.", cta: "SHOP THE LINEUP" },
   /** JOB (rip sip go): make it feel effortless: three verbs, one line each. Water guidance is TBC. */
@@ -110,6 +138,9 @@ const SHARED = {
     getTitle: "In every pouch.",
     getLine: "12 sachets in one stand-up pouch.",
     /** JOB: the facts table, honest about what is not confirmed. */
+    /** JOB: a full-bleed moment of flavour before the facts: what is in it (details TBC until supplied). */
+    bannerKicker: "WHAT IS IN IT",
+    bannerTbc: "Ingredient list: TBC.",
     insideKicker: "THE FACTS",
     insideTitle: "Full details.",
     faqKicker: "FAQ",
@@ -284,9 +315,16 @@ export const isLegacyFaq = (items: Qa[] | undefined): boolean =>
 export const JOBS = {
   hero: "Say what it is and who it is for in 3 seconds, then one button.",
   heroChips: "The three facts that matter before scrolling.",
-  proofStrip: "The facts that make it feel safe to tap, in one line.",
   moments: "Let the visitor spot themselves and route them to the right flavour.",
-  whySachet: "Attack the old routine: scoop, shaker, mixing.",
+  ticker: "The true facts that make it feel safe to tap, always moving.",
+  stats: "Big true numbers a glance can take in.",
+  lineup: "Compare the three flavours and add one to the cart.",
+  explorer: "See what is in each flavour (details TBC until supplied).",
+  oldVsNew: "Show what they gain by switching.",
+  usage: "Four moments, four short lines.",
+  band: "The slogan, huge, as a pause before the proof.",
+  reviews: "Real words from real people (not rendered when there are none).",
+  footer: "The slogan, the ways to reach us, where to follow.",
   finalCta: "One last clear action.",
   homeFaq: "Remove the last doubts about delivery and the basics.",
   headline: "Create desire by saying what the product does for them.",

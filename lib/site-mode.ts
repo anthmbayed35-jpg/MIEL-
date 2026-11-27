@@ -19,7 +19,7 @@ export function staysOpenInMaintenance(path: string): boolean {
   if (path === "/robots.txt") return true; // serves "disallow everything"
   if (path === "/api/health" || path.startsWith("/api/health/")) return true;
   if (path === "/admin" || path.startsWith("/admin/")) return true; // admin, its login, admin APIs, auth pages, exports, backups
-  if (path.startsWith("/uploads/") || path.startsWith("/_next/") || path.startsWith("/brand/") || path.startsWith("/images/")) return true;
+  if (path.startsWith("/uploads/") || path.startsWith("/_next/") || path.startsWith("/brand/") || path.startsWith("/images/") || path.startsWith("/media/")) return true;
   return STATIC_EXT.test(path); // icons, fonts, images. NOT sitemap.xml: it is hidden with the rest
 }
 
