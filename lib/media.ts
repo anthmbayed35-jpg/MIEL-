@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { LIFESTYLE_COUNT, MEDIA, type MediaSlot } from "@/config/media";
+import { LIFESTYLE_COUNT, MEDIA, POSTER_WIDTHS, posterSizePath, type MediaSlot } from "@/config/media";
 import { findPhoto, type Product, type ProductPhoto } from "@/config/products";
 
 /**
@@ -28,14 +28,16 @@ const have = (s: MediaSlot) => (exists(s.path) ? s : null);
 /** One picture: a supplied media file, or one of the product photos (the pipeline photos have AVIF/WebP and blur placeholders). */
 export type Pic = { kind: "file"; slot: MediaSlot } | { kind: "photo"; photo: ProductPhoto };
 
-export type HeroMedia = { mp4: string | null; webm: string | null; poster: string | null; /** a still to use behind the hero when there is no poster */ fallback: ProductPhoto | null };
+export type HeroMedia = { mp4: string | null; webm: string | null; poster: string | null; /** srcset of the poster (640, 1024 and the full size) when the smaller copies exist */ posterSet: string | null; /** a still to use behind the hero when there is no poster */ fallback: ProductPhoto | null };
 export function heroMedia(products: Product[]): HeroMedia {
   const poster = have(MEDIA.heroVideo.poster);
   const mp4 = have(MEDIA.heroVideo.mp4);
   const webm = have(MEDIA.heroVideo.webm);
   // no video, no poster: the dimmed ingredients photo of the first flavour that has one
   const fb = products.map((p) => findPhoto(p, "ingredients")).find(Boolean) ?? null;
-  return { mp4: mp4?.path ?? null, webm: webm?.path ?? null, poster: poster?.path ?? null, fallback: poster || mp4 ? null : fb };
+  const small = POSTER_WIDTHS.filter((w) => exists(posterSizePath(w)));
+  const posterSet = poster && small.length ? [...small.map((w) => `${posterSizePath(w)} ${w}w`), `${poster.path} ${poster.width}w`].join(", ") : null;
+  return { mp4: mp4?.path ?? null, webm: webm?.path ?? null, poster: poster?.path ?? null, posterSet, fallback: poster || mp4 ? null : fb };
 }
 
 /** The lifestyle pictures of a flavour: n supplied files (4:5 and 16:9) or, for the missing ones, the flat lay, sachet and ingredient photos. */

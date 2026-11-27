@@ -70,6 +70,8 @@ describe("docs/MEDIA.md", () => {
       "|---|---|---|---|",
       ...rows,
       "",
+      "After replacing the hero poster run `npm run media:sizes`: it makes `hero-poster-640.webp` and `hero-poster-1024.webp`, the smaller copies phones and tablets download (the LCP image). They are optional; the 1920 px poster is used when they are missing.",
+      "",
       "Per flavour (`gold`, `red-burn`, `creatine`): three lifestyle images, each in 4:5 (phones, cards) and 16:9 (wide panels). If you supply only one ratio of a pair it is used for both.",
       "",
     ].join("\n");

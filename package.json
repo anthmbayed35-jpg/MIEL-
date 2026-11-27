@@ -10,6 +10,7 @@
     "locations:v2": "node --no-warnings scripts/build-locations-v2.mjs",
     "icons": "node scripts/make-icons.mjs",
     "images": "node scripts/make-images.mjs",
+    "media:sizes": "node scripts/media-sizes.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test:unit": "vitest run tests/unit",

@@ -26,15 +26,17 @@ export function Hero({ products, hero, media }: { products: Product[]; hero: Her
     .filter((p): p is Product => !!p && !!findPhoto(p, "pouch-hero"))
     .map((p) => ({ slug: p.slug, name: p.name, glow: p.glow, alt: p.images.find((i) => i.kind === "pouch-hero")?.alt ?? p.imageAlt, photo: findPhoto(p, "pouch-hero") }));
 
-  // The ONLY preload on the site: the hero (LCP) image. The background poster/video is low priority and never preloaded.
-  if (photo) {
+  // The ONLY preload on the site: the hero (LCP) image. With a poster it is the LCP (it fills the hero), otherwise the featured pouch.
+  if (media.poster) {
+    preload(media.poster, { as: "image", type: "image/webp", imageSrcSet: media.posterSet ?? undefined, imageSizes: media.posterSet ? "100vw" : undefined, fetchPriority: "high" });
+  } else if (photo) {
     const pre = photoPreload(photo.src, HERO_SIZES);
     if (pre) preload(pre.href, { as: "image", type: "image/avif", imageSrcSet: pre.imageSrcSet, imageSizes: pre.imageSizes, fetchPriority: "high" });
   }
 
   return (
     <section id="top" className="relative isolate overflow-x-clip">
-      <HeroMedia mp4={media.mp4} webm={media.webm} poster={media.poster} fallback={media.fallback} />
+      <HeroMedia mp4={media.mp4} webm={media.webm} poster={media.poster} posterSet={media.posterSet} fallback={media.fallback} />
       <Blobs
         float
         spots={[

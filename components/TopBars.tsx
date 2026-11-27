@@ -92,7 +92,12 @@ export function TopOffsets() {
     };
     watch();
     // the strip can be dismissed and the header re-mounted by navigation: look again when the DOM around them changes
-    const mo = new MutationObserver(() => {
+    // only react when one of the three measured elements (or something containing them) came or went; the thousands of other
+    // mutations while the page hydrates must not trigger a forced layout each
+    const WATCHED = "[data-preview-bar],[data-ambassador-strip],.site-header";
+    const touches = (n: Node) => n.nodeType === 1 && ((n as Element).matches(WATCHED) || !!(n as Element).querySelector(WATCHED) || !!(n as Element).closest(WATCHED));
+    const mo = new MutationObserver((records) => {
+      if (!records.some((r) => [...r.addedNodes, ...r.removedNodes].some(touches))) return;
       watch();
       measure();
     });

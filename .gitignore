@@ -40,3 +40,6 @@ qa-results
 
 # raw HDX downloads for npm run locations (the generated migration is committed)
 data-src
+
+# raw media drop folder (the processed files live in public/media)
+media-incoming/

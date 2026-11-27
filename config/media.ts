@@ -38,3 +38,7 @@ export function allSlots(): MediaSlot[] {
   out.push(MEDIA.closing.wide, MEDIA.closing.tall);
   return out;
 }
+
+/** Smaller copies of the hero poster for phones and tablets (made by `npm run media:sizes`; optional: the 1920 px poster is used when they are missing). */
+export const POSTER_WIDTHS = [640, 1024] as const;
+export const posterSizePath = (w: number) => `/media/hero/hero-poster-${w}.webp`;

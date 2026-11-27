@@ -32,4 +32,6 @@ Lifestyle and background media are decorative (empty alt text); the text on the 
 | `public/media/cta/closing-cta-16x9.webp` | 1920 x 1080 | 16:9 | webp, 1920x1080, under 300 KB |
 | `public/media/cta/closing-cta-4x5.webp` | 1080 x 1350 | 4:5 | webp, 1080x1350, under 250 KB (phones) |
 
+After replacing the hero poster run `npm run media:sizes`: it makes `hero-poster-640.webp` and `hero-poster-1024.webp`, the smaller copies phones and tablets download (the LCP image). They are optional; the 1920 px poster is used when they are missing.
+
 Per flavour (`gold`, `red-burn`, `creatine`): three lifestyle images, each in 4:5 (phones, cards) and 16:9 (wide panels). If you supply only one ratio of a pair it is used for both.

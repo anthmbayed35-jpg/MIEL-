@@ -8,11 +8,11 @@ import { Photo } from "../Photo";
  * JOB: give the hero life without costing speed. The background layer of the hero: a muted looping video when one was supplied
  * (config/media.ts), otherwise its poster, otherwise a dimmed product photo. A dark gradient keeps the text legible.
  *
- * Loading rules: the poster is a low-priority image, never the LCP (the pouch is). The video element is preload="none" and is only
+ * Loading rules: the poster is the LCP image when there is one (it fills the hero), so it is preloaded by components/Hero.tsx, loads eagerly at high priority and has phone-sized copies in a srcset. The video element is preload="none" and is only
  * started after the page has loaded and the hero is on screen. It is NOT started with data-saver on, or under prefers-reduced-motion
  * (the poster stays). It pauses when it scrolls off screen and when the tab is hidden.
  */
-export function HeroMedia({ mp4, webm, poster, fallback }: { mp4: string | null; webm: string | null; poster: string | null; fallback: ProductPhoto | null }) {
+export function HeroMedia({ mp4, webm, poster, posterSet, fallback }: { mp4: string | null; webm: string | null; poster: string | null; posterSet: string | null; fallback: ProductPhoto | null }) {
   const video = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [still, setStill] = useState(true); // true until the video really plays (and always under reduced motion / data-saver)
@@ -60,7 +60,7 @@ export function HeroMedia({ mp4, webm, poster, fallback }: { mp4: string | null;
     <div ref={box} aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
       {poster ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={poster} alt="" width={1920} height={1080} loading="lazy" decoding="async" fetchPriority="low" className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${still ? "opacity-100" : "opacity-0"}`} />
+        <img src={poster} alt="" width={1920} height={1080} srcSet={posterSet ?? undefined} sizes="100vw" decoding="async" fetchPriority="high" className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${still ? "opacity-100" : "opacity-0"}`} />
       ) : fallback ? (
         <div className="hidden md:block">
           {/* not on phones: a hidden lazy image is never fetched, so the pouch (LCP) has the whole connection */}

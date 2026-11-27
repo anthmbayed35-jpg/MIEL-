@@ -86,7 +86,7 @@ test.describe("home page", () => {
     await page.goto("/");
     const pre = await productPreloads(page);
     expect(pre).toHaveLength(1);
-    expect(pre[0]).toContain("red-burn-pouch-hero");
+    expect(pre[0]).toMatch(/red-burn-pouch-hero|hero-poster/); // the LCP image: the poster when media is installed, otherwise the featured pouch
     const imgs = await page.locator("img[src*='/images/products/']").evaluateAll((els) =>
       (els as HTMLImageElement[]).map((i) => ({ src: i.getAttribute("src")!, w: i.getAttribute("width"), h: i.getAttribute("height"), loading: i.getAttribute("loading"), fetchpriority: i.getAttribute("fetchpriority") })),
     );

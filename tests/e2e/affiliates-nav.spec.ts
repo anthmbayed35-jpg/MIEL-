@@ -204,6 +204,7 @@ test("the orders list shows the affiliate and filters by it", async ({ browser }
 test("the personal link: /?ref=CODE fills the discount field at checkout, and a bad ref changes nothing", async ({ browser }) => {
   const shop = await (await ctxFor(browser, 375, 812)).newPage();
   await shop.goto(`/?ref=${CODE.toLowerCase()}`);
+  await shop.waitForFunction(() => !!localStorage.getItem("miel_ref")); // the page remembers it once it has hydrated (slower on a busy machine)
   await shop.goto("/products/red-burn"); // another page: the code was remembered
   await shop.getByRole("button", { name: /ADD TO CART/ }).first().click();
   await shop.getByRole("link", { name: "CHECKOUT" }).click();
