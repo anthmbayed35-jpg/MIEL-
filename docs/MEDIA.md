@@ -34,4 +34,13 @@ Lifestyle and background media are decorative (empty alt text); the text on the 
 
 After replacing the hero poster run `npm run media:sizes`: it makes `hero-poster-640.webp` and `hero-poster-1024.webp`, the smaller copies phones and tablets download (the LCP image). They are optional; the 1920 px poster is used when they are missing.
 
+## Optional (a section stays HIDDEN until the file exists)
+
+| File | Pixels | Ratio | Notes |
+|---|---|---|---|
+| `public/media/story/story.mp4` | 1280 x 720 | 16:9 | H.264 mp4, 1280x720, any length under about 90 s, under 12 MB, faststart |
+| `public/media/story/story-poster.webp` | 1920 x 1080 | 16:9 | webp, 1920x1080, under 200 KB (optional: the first frame is used when missing) |
+
+The brand story section (`#story`) renders only when `story.mp4` exists. Until then it is not on the page at all.
+
 Per flavour (`gold`, `red-burn`, `creatine`): three lifestyle images, each in 4:5 (phones, cards) and 16:9 (wide panels). If you supply only one ratio of a pair it is used for both.

@@ -38,6 +38,10 @@ export type ProductCopy = {
   benefits: [Step, Step, Step];
   /** JOB: show what they gain by switching. No brand names. */
   compare: { old: string; now: string };
+  /** Three words under the product name (cards, moment cards, flavour explorer). */
+  descriptor3: string;
+  /** The one confirmed number a product leads with (feature panel numerals). Only facts printed on the pack. */
+  stat: { value: string; unit: string; caption: string };
   /** One line for cards, share text and search snippets. */
   description: string;
   /** JOB: let the visitor spot themselves on the home page and route them to this flavour. */
@@ -71,26 +75,49 @@ const SHARED = {
   /** JOB (hero chips): the three facts that matter before scrolling. */
   heroChips: ["12 SACHETS", "HALAL CERTIFIED", "REAL HONEY"],
   /** JOB (hero): say what it is and who it is for in 3 seconds, then one button. */
-  hero: { headline1: "Fuel the", headline2: "grind.", cta: "SHOP THE LINEUP" },
+  hero: { headline1: "Fuel the", headline2: "grind.", cta: "SHOP", cta2: "FIND YOUR MOMENT" },
   /** JOB (pick your moment): let the visitor spot themselves and route them to the right flavour. */
   moments: { kicker: "PICK YOUR MOMENT", title1: "What are you", title2: "training for?", cta: "SHOP" },
-  /** JOB (stat numerals): big true numbers a glance can take in. Only facts printed on the packs. */
-  stats: {
-    kicker: "THE NUMBERS",
-    items: [
-      { value: "12", unit: "", caption: "sachets per pouch" },
-      { value: "150", unit: "mg", caption: "caffeine in GOLD" },
-      { value: "5", unit: "g", caption: "creatine in CREATINE" },
-      { value: "0", unit: "", caption: "mixing" },
-    ],
+  /** JOB (announcement strip): the three confirmed facts, always the same. No offer, no countdown, not dismissible. */
+  announcement: "FUEL THE GRIND · DELIVERY ACROSS LEBANON · HALAL CERTIFIED",
+  /** JOB (header): the four places a visitor goes, and the "shop by moment" panel behind SHOP. */
+  nav: { shop: "SHOP", moments: "MOMENTS", how: "HOW IT WORKS", faq: "FAQ", menu: "MENU", panelTitle: "SHOP BY MOMENT", panelAll: "SEE ALL PRODUCTS" },
+  /** JOB (hero facts row): confirmed facts under the buttons. No numbers about sales, ratings or athletes. */
+  heroFacts: ["HALAL CERTIFIED", "12 SACHETS PER POUCH", "NO SCOOP", "NO MIXING"],
+  /** JOB (lineup): compare the three flavours and add one to the cart without leaving the page. The image swaps to the open sachet on hover or tap. */
+  lineup: { kicker: "THE LINEUP", title1: "Pick your", title2: "flavour.", perPouch: "per pouch", perSachet: "per sachet", add: "ADD TO CART", swap: "Show the open sachet" },
+  /** JOB (feature panels): one confirmed number per product, big, with when to use it. */
+  features: { shop: "SHOP", whenLabel: "WHEN TO USE" },
+  /** JOB (flavour explorer): see what is in each flavour. Anything TBC is hidden, not shown as a gap. */
+  explorer: { kicker: "FLAVOUR EXPLORER", title1: "Tap a flavour", title2: "to see what's in it.", benefits: "WHY THIS ONE", usage: "WHEN TO USE", facts: "THE FACTS", cta: "SEE" },
+  /** JOB (why honey): four numbered pillars that attack the old routine. Plain facts: the same in both modes. */
+  whyHoney: {
+    kicker: "WHY HONEY",
+    title1: "Why",
+    title2: "honey.",
+    cards: [
+      { title: "No mixing. No scoop.", text: "No powder, no shaker, no waiting: tear, sip, go." },
+      { title: "Pocket-size, tear open and go.", text: "One sachet fits any pocket or gym bag." },
+      { title: "The dose is decided for you.", text: "150 mg of caffeine in GOLD, 5 g of creatine in CREATINE, every sachet." },
+      { title: "Raw honey as the base.", text: "Real honey is the base of every sachet." },
+    ] as Step[],
   },
-  /** JOB (lineup cards): compare the three flavours side by side and add one to the cart without leaving the page. */
-  lineup: { kicker: "THE LINEUP", title1: "Pick your", title2: "flavour.", whenLabel: "WHEN TO USE", perPouch: "per pouch", perSachet: "per sachet", add: "ADD TO CART" },
-  /** JOB (flavour explorer): see what is in each flavour. Ingredient and nutrition details stay TBC until supplied. */
-  explorer: { kicker: "FLAVOUR EXPLORER", title1: "Tap a", title2: "flavour.", ingredients: "INGREDIENTS", nutrition: "NUTRITION", tbc: "TBC. We are confirming this and will update it here.", cta: "SEE" },
-  /** JOB (old routine vs the sachet): the three old routines next to the sachet. */
-  oldVsNew: { kicker: "OLD ROUTINE VS THE SACHET", title1: "Skip the", title2: "routine.", oldLabel: "THE OLD WAY", newLabel: "THE SACHET" },
-  /** JOB (usage guide): four moments, four short lines. Serving timing is not confirmed, so none is given. */
+  /** JOB (comparison): factual, non-disparaging attributes of product TYPES (no brand names). EVERY ROW NEEDS OWNER APPROVAL before launch (docs/COPY.md). */
+  compare: {
+    kicker: "HOW IT COMPARES",
+    title1: "MIEL+ vs",
+    title2: "the usual.",
+    cols: ["MIEL+", "ENERGY GELS", "ENERGY DRINKS", "PRE-WORKOUT", "COFFEE"],
+    rows: [
+      { label: "Fits in a pocket", cells: ["Yes", "Yes", "Varies", "Varies", "No"] },
+      { label: "No scoop or mixing", cells: ["Yes", "Yes", "Yes", "Varies", "No"] },
+      { label: "Halal certified", cells: ["Yes", "Varies", "Varies", "Varies", "Varies"] },
+      { label: "Stim-free option", cells: ["Yes (RED BURN)", "Varies", "Varies", "Varies", "Varies"] },
+      { label: "Flavours", cells: ["3 honey flavours", "Varies", "Varies", "Varies", "Varies"] },
+    ],
+    note: "A general comparison of product types. It names no brand. Details vary by product.",
+  },
+  /** JOB (how to use): numbered steps per moment. Serving timing is not confirmed, so none is given. */
   usage: {
     kicker: "HOW TO USE IT",
     title1: "Make it",
@@ -103,12 +130,30 @@ const SHARED = {
     ],
     note: `Serving timing: ${TBC}.`,
   },
-  /** JOB (typographic band): the slogan, huge, as a pause before the proof. */
-  band: { line1: "Fuel the", line2: "grind.", sub: "Rip. Sip. Go." },
-  /** JOB (reviews): real words from real people. Rendered only when real entries exist. */
-  reviews: { kicker: "PEOPLE WHO TRAIN", title1: "In their", title2: "words." },
-  /** JOB (footer): the slogan, the ways to reach us, and where to follow. */
-  footer: { slogan: "Fuel the grind.", shop: "Shop", help: "Help", follow: "Follow", contact: "Contact" },
+  /** JOB (brand story): why we built MIEL+. Shown only when a story video exists (config/media.ts). */
+  story: { kicker: "OUR STORY", title1: "Why we built", title2: "MIEL+.", play: "PLAY THE FILM" },
+  /** JOB (community): real words and real photos from real people. Rendered only when approved entries exist. */
+  community: { reviewsKicker: "PEOPLE WHO TRAIN", reviewsTitle1: "In their", reviewsTitle2: "words.", galleryKicker: "FUELED BY YOU", galleryTitle1: "Fueled", galleryTitle2: "by you." },
+  /** JOB (ambassador band): one line and one button to the application. No money, levels or perks. */
+  ambassador: { kicker: "AMBASSADORS", title1: "Run with", title2: "MIEL+.", line: "Train with MIEL+. Become an ambassador.", cta: "APPLY" },
+  /** JOB (footer): the slogan, the ways to reach us, and where to follow. Mail is not required: a WhatsApp link replaces a newsletter field. */
+  footer: {
+    slogan: "Fuel the grind.",
+    shop: "Shop",
+    help: "Help",
+    company: "Company",
+    contact: "Contact",
+    follow: "Follow",
+    halal: "HALAL CERTIFIED",
+    payments: "We take cash on delivery.",
+    join: "Join on WhatsApp",
+    joinLine: "Updates from MIEL+, on WhatsApp.",
+    disclaimer: SAFE_FAQ,
+  },
+  /** JOB (mini add-to-cart bar, phones): buying stays one tap after the lineup scrolls away. */
+  miniBar: { add: "ADD TO CART", choose: "Choose a flavour" },
+  /** JOB (closing band): mirrors the hero. One last clear action. */
+  closing: { title1: "Fuel the", title2: "grind.", cta: "SHOP NOW" },
   /** JOB (closing section): one last clear action. */
   finalCta: { title1: "Pick your moment.", title2: "Rip. Sip. Go.", cta: "SHOP THE LINEUP" },
   /** JOB (rip sip go): make it feel effortless: three verbs, one line each. Water guidance is TBC. */
@@ -149,11 +194,15 @@ const SHARED = {
   },
   /** JOB (home FAQ): remove the last doubts about delivery and the basics. */
   homeFaq: [
-    { q: "Is it halal certified?", a: "Every pack carries the HALAL CERTIFIED mark." },
+    { q: "What is MIEL+?", a: "Honey fuel in single-serve sachets: real honey, the dose already set, nothing to mix." },
     { q: "How many sachets are in a pouch?", a: "12 sachets in every pouch." },
+    { q: "How much caffeine is in GOLD?", a: "150 mg of caffeine per sachet, with L-theanine." },
+    { q: "Is it halal certified?", a: "Every pack carries the HALAL CERTIFIED mark." },
+    { q: "Do you deliver in Lebanon?", a: "Yes. We deliver across Lebanon for a flat {fee} delivery fee. We confirm delivery details with you on WhatsApp." },
+    { q: "How do I pay?", a: "Cash on delivery: you pay when it arrives." },
+    { q: "Is it stim-free?", a: "RED BURN and CREATINE are stim-free. GOLD contains 150 mg of caffeine per sachet." },
     { q: "Do I need water with it?", a: TBC_NOTE },
     { q: "How do I store it?", a: TBC_NOTE },
-    { q: "Do you deliver in Lebanon?", a: "Yes. We deliver across Lebanon for a flat {fee} delivery fee, cash on delivery. We confirm delivery details with you on WhatsApp." },
     { q: "Who should check with a doctor first?", a: SAFE_FAQ },
   ] as Qa[],
 };
@@ -189,6 +238,8 @@ export const copy = (): Copy => copyFor(claimsOn());
 
 const PRODUCTS_ON: Record<string, ProductCopy> = {
   gold: {
+    descriptor3: "Energy and focus",
+    stat: { value: "150", unit: "mg", caption: "caffeine + L-theanine" },
     tagline: "HONEY FOR ENERGY AND FOCUS",
     taglineShort: "ENERGY AND FOCUS",
     headline: "Take it before the work.",
@@ -209,6 +260,8 @@ const PRODUCTS_ON: Record<string, ProductCopy> = {
     faqs: [...common(), { q: "How much caffeine is in a sachet?", a: "150 mg of caffeine per sachet." }],
   },
   "red-burn": {
+    descriptor3: "Honey for endurance",
+    stat: { value: "22", unit: "g", caption: "per sachet" },
     tagline: "HONEY FOR ENDURANCE",
     taglineShort: "ENDURANCE",
     headline: "Built for the long push.",
@@ -229,6 +282,8 @@ const PRODUCTS_ON: Record<string, ProductCopy> = {
     faqs: [...common(), { q: "Is it stim-free?", a: "Yes. RED BURN has no caffeine." }],
   },
   creatine: {
+    descriptor3: "Honey for strength",
+    stat: { value: "5", unit: "g", caption: "creatine per sachet" },
     tagline: "HONEY FOR STRENGTH",
     taglineShort: "STRENGTH",
     headline: "One sachet. Every day.",
@@ -254,6 +309,7 @@ const PRODUCTS_ON: Record<string, ProductCopy> = {
 const PRODUCTS_OFF: Record<string, ProductCopy> = {
   gold: {
     ...PRODUCTS_ON.gold,
+    descriptor3: "Honey for work",
     tagline: "HONEY FOR THE WORK",
     taglineShort: "HONEY FOR THE WORK",
     body: "150 mg caffeine and L-theanine in vanilla honey. Rip it open in the car park.",
@@ -267,6 +323,7 @@ const PRODUCTS_OFF: Record<string, ProductCopy> = {
   },
   "red-burn": {
     ...PRODUCTS_ON["red-burn"],
+    descriptor3: "Honey for distance",
     tagline: "HONEY FOR DISTANCE",
     taglineShort: "HONEY FOR DISTANCE",
     body: "Stim-free pomegranate-and-beet honey. No caffeine. No mixing.",
@@ -280,6 +337,7 @@ const PRODUCTS_OFF: Record<string, ProductCopy> = {
   },
   creatine: {
     ...PRODUCTS_ON.creatine,
+    descriptor3: "Creatine, no scoop",
     tagline: "CREATINE NO SCOOP",
     taglineShort: "CREATINE NO SCOOP",
     body: "5 g of creatine per sachet. No scoop. No shaker. No clumps.",
@@ -309,7 +367,11 @@ export const LEGACY_HERO_SUBS = [
 ];
 /** True for the FAQ seeded by earlier versions of this file (never for one the team has edited). */
 export const isLegacyFaq = (items: Qa[] | undefined): boolean =>
-  !!items?.length && (items[0].q === "What's in it?" || (items[0].q === "Do I need water with it?" && items[1]?.a === "Yes. MIEL+ is halal certified."));
+  !!items?.length &&
+  (items[0].q === "What's in it?" ||
+    (items[0].q === "Do I need water with it?" && items[1]?.a === "Yes. MIEL+ is halal certified.") ||
+    // the six-question default of the previous messaging pass
+    (items.length === 6 && items[0].q === "Is it halal certified?" && items[4]?.q === "Do you deliver in Lebanon?" && items[5]?.q === "Who should check with a doctor first?"));
 
 /** The ONE JOB of each block (the Purpose column of docs/COPY.md). Keep the intent when editing the words. */
 export const JOBS = {
@@ -317,13 +379,19 @@ export const JOBS = {
   heroChips: "The three facts that matter before scrolling.",
   moments: "Let the visitor spot themselves and route them to the right flavour.",
   ticker: "The true facts that make it feel safe to tap, always moving.",
-  stats: "Big true numbers a glance can take in.",
+  announcement: "The three confirmed facts, always the same. No offer, no countdown.",
+  nav: "The four places a visitor goes, and the shop-by-moment panel.",
+  features: "One confirmed number per product, big, with when to use it.",
+  whyHoney: "Four numbered pillars that attack the old routine.",
+  homeCompare: "Factual, non-disparaging attributes of product types. Every row needs owner approval.",
+  story: "Why we built MIEL+ (only with a story video).",
+  community: "Real words and real photos (not rendered when there are none).",
+  ambassador: "One line and one button to the application.",
+  miniBar: "Keep buying one tap after the lineup scrolls away (phones).",
+  closing: "Mirror the hero: one last clear action.",
   lineup: "Compare the three flavours and add one to the cart.",
   explorer: "See what is in each flavour (details TBC until supplied).",
-  oldVsNew: "Show what they gain by switching.",
   usage: "Four moments, four short lines.",
-  band: "The slogan, huge, as a pause before the proof.",
-  reviews: "Real words from real people (not rendered when there are none).",
   footer: "The slogan, the ways to reach us, where to follow.",
   finalCta: "One last clear action.",
   homeFaq: "Remove the last doubts about delivery and the basics.",

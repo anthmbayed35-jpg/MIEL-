@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  */
 const TYPES: Record<string, string> = { ".webp": "image/webp", ".jpg": "image/jpeg", ".png": "image/png", ".mp4": "video/mp4", ".webm": "video/webm" };
 const NAME = /^[a-z0-9][a-z0-9._-]{0,80}$/;
-const FOLDERS = new Set(["hero", "lifestyle", "cta"]);
+const FOLDERS = new Set(["hero", "lifestyle", "cta", "story"]);
 
 export async function GET(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const { path: parts } = await ctx.params;

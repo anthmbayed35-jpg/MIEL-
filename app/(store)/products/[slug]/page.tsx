@@ -6,7 +6,7 @@ import { sentence } from "@/config/copy";
 import { Header } from "@/components/Header";
 import { Blobs } from "@/components/Blobs";
 import { Footer } from "@/components/Sections";
-import { ClosingCta } from "@/components/HomeBlocks";
+import { ClosingCta } from "@/components/HomeSections";
 import { closingMedia, lifestyleFor } from "@/lib/media";
 import { Gallery } from "@/components/product/Gallery";
 import { AddOneButton, BuyBox } from "@/components/product/BuyBox";
@@ -81,7 +81,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
-      <Header />
+      <Header products={cat.products} />
       {/* Bottom padding on mobile so the sticky bar never covers content */}
       <main className="pb-24 md:pb-0">
         <section className="relative isolate overflow-x-clip">

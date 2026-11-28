@@ -84,7 +84,9 @@ test.describe("home page", () => {
 
   test("only the featured hero is preloaded, every photo has explicit width/height, and photos below the fold are lazy", async ({ page }) => {
     await page.goto("/");
-    const pre = await productPreloads(page);
+    // the one explicit preload: the hero poster when media is installed, otherwise the featured pouch
+    const poster = await page.locator('link[rel="preload"][as="image"][imagesrcset*="hero-poster"], link[rel="preload"][as="image"][href*="hero-poster"]').evaluateAll((ls) => ls.map((l) => l.getAttribute("imagesrcset") || l.getAttribute("href") || ""));
+    const pre = [...(await productPreloads(page)), ...poster];
     expect(pre).toHaveLength(1);
     expect(pre[0]).toMatch(/red-burn-pouch-hero|hero-poster/); // the LCP image: the poster when media is installed, otherwise the featured pouch
     const imgs = await page.locator("img[src*='/images/products/']").evaluateAll((els) =>

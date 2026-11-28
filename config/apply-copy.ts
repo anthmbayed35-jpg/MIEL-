@@ -21,7 +21,7 @@ export function applyCopy<T extends Product>(p: T, claims?: boolean): T {
     why: [...c.benefits],
     faqs: c.faqs,
     warning: c.warning ?? p.warning,
-    pageCopy: { tagline: c.tagline, taglineShort: c.taglineShort, body: c.body, whyToday: c.whyToday, takeWhen: c.takeWhen, compare: c.compare, moment: c.moment },
+    pageCopy: { descriptor3: c.descriptor3, stat: c.stat, tagline: c.tagline, taglineShort: c.taglineShort, body: c.body, whyToday: c.whyToday, takeWhen: c.takeWhen, compare: c.compare, moment: c.moment },
     facts: p.facts.map((f) => (f.label === "Carbs per sachet" ? { ...f, value: null } : f)),
   };
 }

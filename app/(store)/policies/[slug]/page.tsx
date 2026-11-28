@@ -21,7 +21,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug: s
   if (!TITLES[slug] || !text) notFound();
   return (
     <>
-      <Header />
+      <Header products={cat.products} />
       <main className="relative isolate overflow-x-clip">
         <Blobs spots={[{ x: "-10%", y: "0%" }, { x: "65%", y: "30%", delay: -9 }]} />
         <div className="mx-auto max-w-3xl px-5 pb-24 pt-[130px] md:px-8 md:pt-[150px]">

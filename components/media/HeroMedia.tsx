@@ -8,6 +8,7 @@ import { Photo } from "../Photo";
  * JOB: give the hero life without costing speed. The background layer of the hero: a muted looping video when one was supplied
  * (config/media.ts), otherwise its poster, otherwise a dimmed product photo. A dark gradient keeps the text legible.
  *
+ * The video itself starts only after the first interaction (or 6 s on desktop), never on its own at load.
  * Loading rules: the poster is the LCP image when there is one (it fills the hero), so it is preloaded by components/Hero.tsx, loads eagerly at high priority and has phone-sized copies in a srcset. The video element is preload="none" and is only
  * started after the page has loaded and the hero is on screen. It is NOT started with data-saver on, or under prefers-reduced-motion
  * (the poster stays). It pauses when it scrolls off screen and when the tab is hidden.
@@ -43,15 +44,23 @@ export function HeroMedia({ mp4, webm, poster, posterSet, fallback }: { mp4: str
       if (desktop) v.preload = "auto"; // phones keep preload="none": the file is fetched only when play() is called, once the hero is visible
       sync();
     };
-    // after load + idle, so the pouch (LCP) and the rest of the page are never competing with the video
-    const idle = () => ("requestIdleCallback" in window ? (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(start) : setTimeout(start, 800));
-    if (document.readyState === "complete") idle();
-    else window.addEventListener("load", idle, { once: true });
+    // The video starts only after the visitor's first interaction (scroll, touch, key, pointer) or, on desktop, after 6 seconds. Until then the
+    // poster is the one thing painted, so the video's first frame can never replace it as the LCP candidate, and nothing competes with the page.
+    const events = ["pointerdown", "touchstart", "keydown", "wheel", "scroll"] as const;
+    let timer = 0;
+    const go = () => {
+      for (const e of events) window.removeEventListener(e, go);
+      window.clearTimeout(timer);
+      start();
+    };
+    for (const e of events) window.addEventListener(e, go, { passive: true, once: true });
+    if (desktop) timer = window.setTimeout(go, 6000);
     document.addEventListener("visibilitychange", sync);
     return () => {
       io.disconnect();
       document.removeEventListener("visibilitychange", sync);
-      window.removeEventListener("load", idle);
+      for (const e of events) window.removeEventListener(e, go);
+      window.clearTimeout(timer);
       v.pause();
     };
   }, [mp4, webm]);

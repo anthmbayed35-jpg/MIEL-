@@ -17,7 +17,7 @@ export default async function AmbassadorsPage() {
   const cat = await getCatalog();
   return (
     <>
-      <Header />
+      <Header products={cat.products} />
       <main>
         <section id="apply" className="relative isolate overflow-x-clip">
           <Blobs spots={[{ x: "-10%", y: "0%" }, { x: "62%", y: "35%", delay: -9 }]} />

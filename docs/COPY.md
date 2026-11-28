@@ -16,31 +16,44 @@ Generated from `config/copy.ts` (do not edit here; edit the file, then `UPDATE_C
 | Hero headline | Fuel the grind. | Fuel the grind. | Say what it is and who it is for in 3 seconds, then one button. |
 | Hero subline | Honey fuel that does the work: quick carbs, the exact dose, nothing to mix. Rip. Sip. Go. | Real honey in a sachet with the dose already set. Nothing to mix. Rip. Sip. Go. | Say what it is and who it is for in 3 seconds, then one button. |
 | Hero chips | 12 SACHETS / HALAL CERTIFIED / REAL HONEY | 12 SACHETS / HALAL CERTIFIED / REAL HONEY | The three facts that matter before scrolling. |
-| Hero button | SHOP THE LINEUP | SHOP THE LINEUP | Say what it is and who it is for in 3 seconds, then one button. |
+| Hero button | SHOP | SHOP | Say what it is and who it is for in 3 seconds, then one button. |
 | Facts ticker | HALAL CERTIFIED / STIM-FREE (RED BURN) / RAW HONEY / NO MIXING / NO SCOOP / 12 SACHETS PER POUCH | HALAL CERTIFIED / STIM-FREE (RED BURN) / RAW HONEY / NO MIXING / NO SCOOP / 12 SACHETS PER POUCH | The true facts that make it feel safe to tap, always moving. |
 | Pick your moment: heading | PICK YOUR MOMENT: What are you training for? | PICK YOUR MOMENT: What are you training for? | Let the visitor spot themselves and route them to the right flavour. |
 | Moment card: GOLD | BEFORE THE WORK / ENERGY AND FOCUS / 150 mg of caffeine with L-theanine in vanilla honey. Rip it open in the car park. | BEFORE THE WORK / HONEY FOR THE WORK / 150 mg caffeine and L-theanine in vanilla honey. Rip it open in the car park. | Let the visitor spot themselves and route them to the right flavour. |
 | Moment card: RED BURN | THE LONG PUSH / ENDURANCE / Fast-digesting honey carbs for past the hour mark. Stim-free. | THE LONG PUSH / HONEY FOR DISTANCE / Stim-free pomegranate-and-beet honey. No caffeine. No mixing. | Let the visitor spot themselves and route them to the right flavour. |
 | Moment card: CREATINE | EVERY DAY / STRENGTH / 5 g of creatine in every sachet. No scoop. No shaker. No clumps. | EVERY DAY / CREATINE NO SCOOP / 5 g of creatine per sachet. No scoop. No shaker. No clumps. | Let the visitor spot themselves and route them to the right flavour. |
-| Stat numerals | 12 sachets per pouch / 150 mg caffeine in GOLD / 5 g creatine in CREATINE / 0 mixing | 12 sachets per pouch / 150 mg caffeine in GOLD / 5 g creatine in CREATINE / 0 mixing | Big true numbers a glance can take in. |
-| Lineup cards | THE LINEUP: Pick your flavour. (WHEN TO USE, per pouch, per sachet, ADD TO CART) | Same | Compare the three flavours and add one to the cart. |
-| Flavour explorer | FLAVOUR EXPLORER: Tap a flavour.. Ingredients and nutrition: TBC. We are confirming this and will update it here. | Same | See what is in each flavour (details TBC until supplied). |
-| Old routine vs the sachet | OLD ROUTINE VS THE SACHET: Skip the routine. (the three product lines below) | Same | Show what they gain by switching. |
+| Announcement strip | FUEL THE GRIND · DELIVERY ACROSS LEBANON · HALAL CERTIFIED | FUEL THE GRIND · DELIVERY ACROSS LEBANON · HALAL CERTIFIED | The three confirmed facts, always the same. No offer, no countdown. |
+| Header | SHOP / MOMENTS / HOW IT WORKS / FAQ; panel: SHOP BY MOMENT | Same | The four places a visitor goes, and the shop-by-moment panel. |
+| Hero facts row | HALAL CERTIFIED / 12 SACHETS PER POUCH / NO SCOOP / NO MIXING | HALAL CERTIFIED / 12 SACHETS PER POUCH / NO SCOOP / NO MIXING | Say what it is and who it is for in 3 seconds, then one button. |
+| Lineup cards | THE LINEUP: Pick your flavour. (per pouch, per sachet, ADD TO CART) | Same | Compare the three flavours and add one to the cart. |
+| Feature panel: GOLD | 150 mg caffeine + L-theanine / Energy and focus | 150 mg caffeine + L-theanine / Honey for work | One confirmed number per product, big, with when to use it. |
+| Feature panel: RED BURN | 22 g per sachet / Honey for endurance | 22 g per sachet / Honey for distance | One confirmed number per product, big, with when to use it. |
+| Feature panel: CREATINE | 5 g creatine per sachet / Honey for strength | 5 g creatine per sachet / Creatine, no scoop | One confirmed number per product, big, with when to use it. |
+| Flavour explorer | FLAVOUR EXPLORER: Tap a flavour to see what's in it. (WHY THIS ONE, WHEN TO USE, THE FACTS; TBC facts are hidden) | Same | See what is in each flavour (details TBC until supplied). |
+| Why honey | No mixing. No scoop. No powder, no shaker, no waiting: tear, sip, go. / Pocket-size, tear open and go. One sachet fits any pocket or gym bag. / The dose is decided for you. 150 mg of caffeine in GOLD, 5 g of creatine in CREATINE, every sachet. / Raw honey as the base. Real honey is the base of every sachet. | No mixing. No scoop. No powder, no shaker, no waiting: tear, sip, go. / Pocket-size, tear open and go. One sachet fits any pocket or gym bag. / The dose is decided for you. 150 mg of caffeine in GOLD, 5 g of creatine in CREATINE, every sachet. / Raw honey as the base. Real honey is the base of every sachet. | Four numbered pillars that attack the old routine. |
+| Comparison matrix (NEEDS OWNER APPROVAL) | MIEL+ / ENERGY GELS / ENERGY DRINKS / PRE-WORKOUT / COFFEE: Fits in a pocket = Yes / Yes / Varies / Varies / No; No scoop or mixing = Yes / Yes / Yes / Varies / No; Halal certified = Yes / Varies / Varies / Varies / Varies; Stim-free option = Yes (RED BURN) / Varies / Varies / Varies / Varies; Flavours = 3 honey flavours / Varies / Varies / Varies / Varies | Same | Factual, non-disparaging attributes of product types. Every row needs owner approval. |
 | Usage guide | BEFORE: Rip one before you head out. / DURING: Carry a sachet for the long push. / EVERY DAY: Same sachet, same time. Make it a habit. / ON THE GO: Fits any pocket or gym bag. Serving timing: TBC. | Same | Four moments, four short lines. |
-| Typographic band | Fuel the grind. Rip. Sip. Go. | Same | The slogan, huge, as a pause before the proof. |
-| Athletes and reviews | PEOPLE WHO TRAIN: In their words. (only when real entries exist) | Same | Real words from real people (not rendered when there are none). |
-| Footer | Fuel the grind. / Shop / Help / Follow / Contact | Same | The slogan, the ways to reach us, where to follow. |
-| Closing section | Pick your moment. Rip. Sip. Go. [SHOP THE LINEUP] | Pick your moment. Rip. Sip. Go. [SHOP THE LINEUP] | One last clear action. |
+| Brand story (hidden until a story film exists) | OUR STORY: Why we built MIEL+. | Same | Why we built MIEL+ (only with a story video). |
+| Reviews and gallery (hidden until approved entries exist) | PEOPLE WHO TRAIN: In their words. / FUELED BY YOU | Same | Real words and real photos (not rendered when there are none). |
+| Ambassador band | AMBASSADORS: Run with MIEL+. Train with MIEL+. Become an ambassador. [APPLY] | Same | One line and one button to the application. |
+| Footer | Fuel the grind. / HALAL CERTIFIED / We take cash on delivery. / If you have a medical condition, are pregnant or breastfeeding, or are under 18, check with your doctor first. | Same | The slogan, the ways to reach us, where to follow. |
+| Closing band | Fuel the grind. [SHOP NOW] | Fuel the grind. [SHOP NOW] | Mirror the hero: one last clear action. |
+| Mini add-to-cart bar (phones) | ADD TO CART; Choose a flavour | Same | Keep buying one tap after the lineup scrolls away (phones). |
+| Product-page closing section | Pick your moment. Rip. Sip. Go. [SHOP THE LINEUP] | Pick your moment. Rip. Sip. Go. [SHOP THE LINEUP] | One last clear action. |
 
 ### Home FAQ
 
 | Question | Answer | Purpose |
 |---|---|---|
-| Is it halal certified? | Every pack carries the HALAL CERTIFIED mark. | Remove the last doubts about delivery and the basics. |
+| What is MIEL+? | Honey fuel in single-serve sachets: real honey, the dose already set, nothing to mix. | Remove the last doubts about delivery and the basics. |
 | How many sachets are in a pouch? | 12 sachets in every pouch. | Remove the last doubts about delivery and the basics. |
+| How much caffeine is in GOLD? | 150 mg of caffeine per sachet, with L-theanine. | Remove the last doubts about delivery and the basics. |
+| Is it halal certified? | Every pack carries the HALAL CERTIFIED mark. | Remove the last doubts about delivery and the basics. |
+| Do you deliver in Lebanon? | Yes. We deliver across Lebanon for a flat {fee} delivery fee. We confirm delivery details with you on WhatsApp. | Remove the last doubts about delivery and the basics. |
+| How do I pay? | Cash on delivery: you pay when it arrives. | Remove the last doubts about delivery and the basics. |
+| Is it stim-free? | RED BURN and CREATINE are stim-free. GOLD contains 150 mg of caffeine per sachet. | Remove the last doubts about delivery and the basics. |
 | Do I need water with it? | TBC. We are confirming this and will update it here. | Remove the last doubts about delivery and the basics. |
 | How do I store it? | TBC. We are confirming this and will update it here. | Remove the last doubts about delivery and the basics. |
-| Do you deliver in Lebanon? | Yes. We deliver across Lebanon for a flat {fee} delivery fee, cash on delivery. We confirm delivery details with you on WhatsApp. | Remove the last doubts about delivery and the basics. |
 | Who should check with a doctor first? | If you have a medical condition, are pregnant or breastfeeding, or are under 18, check with your doctor first. | Remove the last doubts about delivery and the basics. |
 
 ## GOLD
@@ -146,16 +159,27 @@ FAQ (Remove the last doubts.)
 - Product pages: `<NAME> | <TAGLINE>`; description starts with the tagline. Open Graph and Twitter text reuse them. noindex stays while `SITE_MODE=maintenance`.
 - Alt text describes only what is visible in the image.
 
+## Needs owner approval before launch
+
+The comparison matrix on the home page (`compare` in `config/copy.ts`). It compares product TYPES, names no brand and is meant to be factual and non-disparaging, but each row and each cell is a statement about other products, so the owner must approve every one:
+
+- **Fits in a pocket**: MIEL+ = Yes; ENERGY GELS = Yes; ENERGY DRINKS = Varies; PRE-WORKOUT = Varies; COFFEE = No
+- **No scoop or mixing**: MIEL+ = Yes; ENERGY GELS = Yes; ENERGY DRINKS = Yes; PRE-WORKOUT = Varies; COFFEE = No
+- **Halal certified**: MIEL+ = Yes; ENERGY GELS = Varies; ENERGY DRINKS = Varies; PRE-WORKOUT = Varies; COFFEE = Varies
+- **Stim-free option**: MIEL+ = Yes (RED BURN); ENERGY GELS = Varies; ENERGY DRINKS = Varies; PRE-WORKOUT = Varies; COFFEE = Varies
+- **Flavours**: MIEL+ = 3 honey flavours; ENERGY GELS = Varies; ENERGY DRINKS = Varies; PRE-WORKOUT = Varies; COFFEE = Varies
+
+Also new in this pass and awaiting approval: the three-word descriptors (`descriptor3`), the four Why honey card bodies, and the usage-guide lines. The row "No water needed" was left out because the water answer is TBC.
+
 ## Every TBC left
 
 Copy answers marked TBC (shown on the site as a clearly marked placeholder):
 
-- `home.explorer.tbc`: TBC. We are confirming this and will update it here.
 - `home.usage.note`: Serving timing: TBC.
 - `home.howTo.timingNote`: Water guidance: TBC.
 - `home.product.bannerTbc`: Ingredient list: TBC.
-- `home.homeFaq[2].a`: TBC. We are confirming this and will update it here.
-- `home.homeFaq[3].a`: TBC. We are confirming this and will update it here.
+- `home.homeFaq[7].a`: TBC. We are confirming this and will update it here.
+- `home.homeFaq[8].a`: TBC. We are confirming this and will update it here.
 - `product.gold.warning`: Contains 150 mg of caffeine per sachet. Full caffeine advice: TBC.
 - `product.gold.faqs[2].a`: TBC. We are confirming this and will update it here.
 - `product.gold.faqs[3].a`: TBC. We are confirming this and will update it here.

@@ -12,20 +12,21 @@ const rank = (slug: string) => {
   const i = ORDER.indexOf(slug);
   return i < 0 ? ORDER.length : i;
 };
-/** "rgba(r, g, b, a)" with a different alpha. */
+/** "rgba(r, g, b, a)" with a different alpha / as an opaque colour. */
 const alpha = (rgba: string, a: number) => rgba.replace(/rgba\(([^)]+),\s*[\d.]+\)/, `rgba($1, ${a})`);
+const solid = (rgba: string) => alpha(rgba, 1);
 
 /**
  * JOB: let the visitor spot themselves ("before the work", "the long push", "every day") and route them to the right flavour.
- * Three large full-bleed cards, each a link to its product page: a lifestyle image (or the flavour's own photo until one is supplied),
- * the flavour glow, the moment label, the descriptor, one line and a Shop button. The text sits on a dark gradient at the bottom, away
- * from any packaging. The anchor id stays "lineup": the hero button scrolls here.
+ * Three tall photo cards (4:5 on every width, three columns on desktop) from the lifestyle media slots (or the flavour's own photo until
+ * one is supplied): the moment label, the product, its three-word descriptor, the why-today line and a "SHOP GOLD" link. Hover and
+ * tap lift the card and tint its border with the flavour colour. Anchor: #moments.
  */
 export function Moments({ products, total }: { products: Product[]; total: number }) {
   const m = copy().moments;
   products = [...products].sort((a, b) => rank(a.slug) - rank(b.slug));
   return (
-    <section id="lineup" className="relative isolate overflow-x-clip">
+    <section id="moments" className="relative isolate scroll-mt-14 overflow-x-clip">
       <Blobs spots={[{ x: "70%", y: "-4%" }, { x: "-15%", y: "50%", delay: -10 }]} />
       <div className="mx-auto max-w-[1280px] px-5 py-14 md:px-8 md:py-24">
         <Reveal>
@@ -43,23 +44,18 @@ export function Moments({ products, total }: { products: Product[]; total: numbe
                 <Link
                   href={`/products/${p.slug}`}
                   aria-label={`${p.name}: ${c?.moment.label ?? p.descriptor}`}
-                  className="zoom-hover group relative isolate flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-[22px] border border-white/15 p-5 shadow-[0_16px_50px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:-translate-y-1 focus-visible:-translate-y-1 motion-reduce:transition-none md:aspect-[16/9] md:p-8 lg:aspect-[4/5] lg:p-6"
-                  style={{ ["--glow" as string]: alpha(p.glow, 0.55) }}
+                  className="tint-card zoom-hover relative isolate flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-[22px] border border-white/15 p-5 shadow-[0_16px_50px_rgba(0,0,0,0.45)] lg:p-6"
+                  style={{ ["--glow" as string]: alpha(p.glow, 0.55), ["--tint" as string]: solid(p.glow) }}
                 >
-                  {shot && (
-                    <>
-                      <PicView pic={shot.tall} sizes="(min-width: 1024px) 410px, calc(100vw - 40px)" className="absolute inset-0 -z-20 h-full w-full md:hidden lg:block" position="50% 40%" />
-                      <PicView pic={shot.wide} sizes="(min-width: 768px) 700px, 0px" className="absolute inset-0 -z-20 hidden h-full w-full md:block lg:hidden" position="50% 40%" />
-                    </>
-                  )}
+                  {shot && <PicView pic={shot.tall} sizes="(min-width: 1024px) 410px, calc(100vw - 40px)" className="absolute inset-0 -z-20 h-full w-full" position="50% 40%" />}
                   <span aria-hidden className="mesh absolute inset-0 -z-10 opacity-80 mix-blend-screen" />
-                  <span aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(to_top,rgba(20,18,15,0.96)_8%,rgba(20,18,15,0.55)_48%,rgba(20,18,15,0.1)_100%)]" />
+                  <span aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(to_top,rgba(20,18,15,0.96)_10%,rgba(20,18,15,0.6)_50%,rgba(20,18,15,0.1)_100%)]" />
                   <span className="mono">{c?.moment.label ?? p.descriptor}</span>
-                  <span className="display h-product mt-2">{p.name}</span>
-                  <span className="mt-1 text-[17px] text-fg md:text-[18px]">{p.flavor}</span>
-                  <span className="body-lg mt-2 !text-fg/90">{c?.moment.line ?? p.description}</span>
-                  <span aria-hidden className="btn btn-block mt-4">
-                    {m.cta} {p.name}
+                  <span className="display mt-2 text-[28px] leading-none">{p.name}</span>
+                  <span className="display mt-2 text-[17px] leading-tight text-fg/90">{c?.descriptor3 ?? p.flavor}</span>
+                  <span className="body-lg mt-3 !text-fg/90">{c?.whyToday ?? p.description}</span>
+                  <span className="mono mt-4 inline-flex min-h-12 items-center !text-[14px] !tracking-[0.14em]">
+                    {m.cta} {p.name} <span aria-hidden className="ml-2">→</span>
                   </span>
                 </Link>
               </Reveal>

@@ -69,11 +69,17 @@ describe("the agreed wording", () => {
     expect(on.brandTagline).toBe("HONEY FOR PERFORMANCE");
     expect(on.hero.sub).toBe("Honey fuel that does the work: quick carbs, the exact dose, nothing to mix. Rip. Sip. Go.");
     expect(on.heroChips).toEqual(["12 SACHETS", "HALAL CERTIFIED", "REAL HONEY"]);
-    expect(on.hero.cta).toBe("SHOP THE LINEUP");
+    expect(on.hero.cta).toBe("SHOP");
     expect(on.howTo.steps.map((s) => `${s.title}: ${s.text}`)).toEqual(["Rip: Tear the notch.", "Sip: Squeeze or sip straight.", "Go: Get on with it."]);
     expect(on.finalCta).toMatchObject({ title1: "Pick your moment.", title2: "Rip. Sip. Go." });
     expect(on.ticker).toEqual(["HALAL CERTIFIED", "STIM-FREE (RED BURN)", "RAW HONEY", "NO MIXING", "NO SCOOP", "12 SACHETS PER POUCH"]);
-    expect(on.stats.items.map((i) => `${i.value}${i.unit} ${i.caption}`)).toEqual(["12 sachets per pouch", "150mg caffeine in GOLD", "5g creatine in CREATINE", "0 mixing"]);
+    expect(on.heroFacts).toEqual(["HALAL CERTIFIED", "12 SACHETS PER POUCH", "NO SCOOP", "NO MIXING"]);
+    expect(on.announcement).toBe("FUEL THE GRIND · DELIVERY ACROSS LEBANON · HALAL CERTIFIED");
+    expect(on.hero).toMatchObject({ cta: "SHOP", cta2: "FIND YOUR MOMENT" });
+    expect(PRODUCT_COPY_ON.gold.stat).toEqual({ value: "150", unit: "mg", caption: "caffeine + L-theanine" });
+    expect(PRODUCT_COPY_ON["red-burn"].stat).toMatchObject({ value: "22", unit: "g" });
+    expect(PRODUCT_COPY_ON.creatine.stat).toMatchObject({ value: "5", unit: "g" });
+    for (const m of MODES) for (const c of Object.values(m.products)) expect(c.descriptor3.split(/[\s,]+/).filter(Boolean), c.descriptor3).toHaveLength(3); // three-word descriptors
     expect(on.usage.cards.map((c) => c.label)).toEqual(["BEFORE", "DURING", "EVERY DAY", "ON THE GO"]);
     expect(PRODUCT_COPY_ON.gold.moment).toEqual({ label: "BEFORE THE WORK", category: "ENERGY AND FOCUS", line: "150 mg of caffeine with L-theanine in vanilla honey. Rip it open in the car park." });
     expect(PRODUCT_COPY_ON["red-burn"].headline).toBe("Built for the long push.");
@@ -159,15 +165,22 @@ describe("docs/COPY.md", () => {
       ...(["gold", "red-burn", "creatine"] as const).map((s) =>
         row(`Moment card: ${s.toUpperCase().replace("-", " ")}`, `${PRODUCT_COPY_ON[s].moment.label} / ${PRODUCT_COPY_ON[s].moment.category} / ${PRODUCT_COPY_ON[s].moment.line}`, `${PRODUCT_COPY_OFF[s].moment.label} / ${PRODUCT_COPY_OFF[s].moment.category} / ${PRODUCT_COPY_OFF[s].moment.line}`, JOBS.moments),
       ),
-      row("Stat numerals", on.stats.items.map((i) => `${i.value}${i.unit ? " " + i.unit : ""} ${i.caption}`).join(" / "), off.stats.items.map((i) => `${i.value}${i.unit ? " " + i.unit : ""} ${i.caption}`).join(" / "), JOBS.stats),
-      row("Lineup cards", `${on.lineup.kicker}: ${on.lineup.title1} ${on.lineup.title2} (${on.lineup.whenLabel}, ${on.lineup.perPouch}, ${on.lineup.perSachet}, ${on.lineup.add})`, "Same", JOBS.lineup),
-      row("Flavour explorer", `${on.explorer.kicker}: ${on.explorer.title1} ${on.explorer.title2}. Ingredients and nutrition: ${on.explorer.tbc}`, "Same", JOBS.explorer),
-      row("Old routine vs the sachet", `${on.oldVsNew.kicker}: ${on.oldVsNew.title1} ${on.oldVsNew.title2} (the three product lines below)`, "Same", JOBS.oldVsNew),
+      row("Announcement strip", on.announcement, off.announcement, JOBS.announcement),
+      row("Header", `${on.nav.shop} / ${on.nav.moments} / ${on.nav.how} / ${on.nav.faq}; panel: ${on.nav.panelTitle}`, "Same", JOBS.nav),
+      row("Hero facts row", on.heroFacts.join(" / "), off.heroFacts.join(" / "), JOBS.hero),
+      row("Lineup cards", `${on.lineup.kicker}: ${on.lineup.title1} ${on.lineup.title2} (${on.lineup.perPouch}, ${on.lineup.perSachet}, ${on.lineup.add})`, "Same", JOBS.lineup),
+      ...(["gold", "red-burn", "creatine"] as const).map((s) => row(`Feature panel: ${s.toUpperCase().replace("-", " ")}`, `${PRODUCT_COPY_ON[s].stat.value} ${PRODUCT_COPY_ON[s].stat.unit} ${PRODUCT_COPY_ON[s].stat.caption} / ${PRODUCT_COPY_ON[s].descriptor3}`, `${PRODUCT_COPY_OFF[s].stat.value} ${PRODUCT_COPY_OFF[s].stat.unit} ${PRODUCT_COPY_OFF[s].stat.caption} / ${PRODUCT_COPY_OFF[s].descriptor3}`, JOBS.features)),
+      row("Flavour explorer", `${on.explorer.kicker}: ${on.explorer.title1} ${on.explorer.title2} (${on.explorer.benefits}, ${on.explorer.usage}, ${on.explorer.facts}; TBC facts are hidden)`, "Same", JOBS.explorer),
+      row("Why honey", on.whyHoney.cards.map((c) => `${c.title} ${c.text}`).join(" / "), off.whyHoney.cards.map((c) => `${c.title} ${c.text}`).join(" / "), JOBS.whyHoney),
+      row("Comparison matrix (NEEDS OWNER APPROVAL)", `${on.compare.cols.join(" / ")}: ${on.compare.rows.map((r) => `${r.label} = ${r.cells.join(" | ")}`).join("; ")}`, "Same", JOBS.homeCompare),
       row("Usage guide", on.usage.cards.map((c) => `${c.label}: ${c.text}`).join(" / ") + " " + on.usage.note, "Same", JOBS.usage),
-      row("Typographic band", `${on.band.line1} ${on.band.line2} ${on.band.sub}`, "Same", JOBS.band),
-      row("Athletes and reviews", `${on.reviews.kicker}: ${on.reviews.title1} ${on.reviews.title2} (only when real entries exist)`, "Same", JOBS.reviews),
-      row("Footer", on.footer.slogan + " / Shop / Help / Follow / Contact", "Same", JOBS.footer),
-      row("Closing section", `${on.finalCta.title1} ${on.finalCta.title2} [${on.finalCta.cta}]`, `${off.finalCta.title1} ${off.finalCta.title2} [${off.finalCta.cta}]`, JOBS.finalCta),
+      row("Brand story (hidden until a story film exists)", `${on.story.kicker}: ${on.story.title1} ${on.story.title2}`, "Same", JOBS.story),
+      row("Reviews and gallery (hidden until approved entries exist)", `${on.community.reviewsKicker}: ${on.community.reviewsTitle1} ${on.community.reviewsTitle2} / ${on.community.galleryKicker}`, "Same", JOBS.community),
+      row("Ambassador band", `${on.ambassador.kicker}: ${on.ambassador.title1} ${on.ambassador.title2} ${on.ambassador.line} [${on.ambassador.cta}]`, "Same", JOBS.ambassador),
+      row("Footer", `${on.footer.slogan} / ${on.footer.halal} / ${on.footer.payments} / ${on.footer.disclaimer}`, "Same", JOBS.footer),
+      row("Closing band", `${on.closing.title1} ${on.closing.title2} [${on.closing.cta}]`, `${off.closing.title1} ${off.closing.title2} [${off.closing.cta}]`, JOBS.closing),
+      row("Mini add-to-cart bar (phones)", `${on.miniBar.add}; ${on.miniBar.choose}`, "Same", JOBS.miniBar),
+      row("Product-page closing section", `${on.finalCta.title1} ${on.finalCta.title2} [${on.finalCta.cta}]`, `${off.finalCta.title1} ${off.finalCta.title2} [${off.finalCta.cta}]`, JOBS.finalCta),
       "",
       "### Home FAQ",
       "",
@@ -209,6 +222,14 @@ describe("docs/COPY.md", () => {
       `- Site title: ${on.site.title}. Description: ${on.site.description}`,
       "- Product pages: `<NAME> | <TAGLINE>`; description starts with the tagline. Open Graph and Twitter text reuse them. noindex stays while `SITE_MODE=maintenance`.",
       "- Alt text describes only what is visible in the image.",
+      "",
+      "## Needs owner approval before launch",
+      "",
+      "The comparison matrix on the home page (`compare` in `config/copy.ts`). It compares product TYPES, names no brand and is meant to be factual and non-disparaging, but each row and each cell is a statement about other products, so the owner must approve every one:",
+      "",
+      ...on.compare.rows.map((r) => `- **${r.label}**: ${on.compare.cols.map((c, i) => `${c} = ${r.cells[i]}`).join("; ")}`),
+      "",
+      "Also new in this pass and awaiting approval: the three-word descriptors (`descriptor3`), the four Why honey card bodies, and the usage-guide lines. The row \"No water needed\" was left out because the water answer is TBC.",
       "",
       "## Every TBC left",
       "",

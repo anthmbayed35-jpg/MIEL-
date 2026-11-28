@@ -14,7 +14,7 @@ export default async function CheckoutPage() {
   const methods = activePaymentMethods(cat.store.cod_enabled).map((m) => ({ id: m.id, label: m.label, description: m.description }));
   return (
     <>
-      <Header />
+      <Header products={cat.products} />
       <main className="relative isolate overflow-x-clip">
         <Blobs spots={[{ x: "-10%", y: "0%" }, { x: "65%", y: "35%", delay: -9 }]} />
         <div className="mx-auto max-w-6xl px-5 pb-24 pt-[calc(var(--header-h,72px)+32px)] md:px-8 md:pt-[calc(var(--header-h,88px)+40px)]">

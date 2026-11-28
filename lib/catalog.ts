@@ -4,7 +4,7 @@ import { isDefaultHeroSub, isLegacyFaq } from "@/config/copy";
 import { products as configProducts, type Product, type ProductPhoto } from "@/config/products";
 import {
   DEFAULT_ANNOUNCEMENT, DEFAULT_FAQ, defaultHero, DEFAULT_POLICIES, DEFAULT_STORE, DEFAULT_TRACKING, DEFAULT_ZONES,
-  type Policies, type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
+  type Policies, type GalleryItem, type Announcement, type FaqItem, type HeroContent, type StoreSettings, type Testimonial, type TrackingSettings,
 } from "@/config/content";
 import { DEFAULT_DELIVERY_FEE, deliveryFee } from "./delivery";
 import { money } from "./format";
@@ -22,6 +22,7 @@ export type Catalog = {
   announcement: Announcement;
   hero: HeroContent;
   testimonials: Testimonial[];
+  gallery: GalleryItem[];
   store: StoreSettings;
   tracking: TrackingSettings;
   policies: Policies;
@@ -53,7 +54,7 @@ const configCatalog = (): Catalog => ({
   products: configProducts.map((p) => applyCopy(p)),
   zones: DEFAULT_ZONES.map((z, i) => ({ id: `z${i}`, active: true, ...z })),
   deliveryFee: DEFAULT_DELIVERY_FEE,
-  faq: withFee(DEFAULT_FAQ, DEFAULT_DELIVERY_FEE), announcement: DEFAULT_ANNOUNCEMENT, hero: defaultHero(), testimonials: [],
+  faq: withFee(DEFAULT_FAQ, DEFAULT_DELIVERY_FEE), announcement: DEFAULT_ANNOUNCEMENT, hero: defaultHero(), testimonials: [], gallery: [],
   store: DEFAULT_STORE, tracking: DEFAULT_TRACKING, policies: DEFAULT_POLICIES, live: false,
 });
 
@@ -89,6 +90,7 @@ export async function getCatalog(): Promise<Catalog> {
       announcement: { ...DEFAULT_ANNOUNCEMENT, ...(c("announcement") ?? {}) },
       hero: { ...defaultHero(), ...(isDefaultHeroSub(c("hero")?.sub) ? {} : (c("hero") ?? {})) },
       testimonials: (c("testimonials") ?? []).filter((t: Testimonial) => t.approved),
+      gallery: ((c("gallery") ?? []) as GalleryItem[]).filter((g) => g.approved && g.src && g.alt),
       store: { ...DEFAULT_STORE, ...(s("store") ?? {}) },
       tracking: { ...DEFAULT_TRACKING, ...(s("tracking") ?? {}) },
       policies: { ...DEFAULT_POLICIES, ...(s("policies") ?? {}) },

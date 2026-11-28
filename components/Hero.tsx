@@ -60,13 +60,16 @@ export function Hero({ products, hero, media }: { products: Product[]; hero: Her
             <span className="accent">{hero.headline2}</span>
           </h1>
           <p className="body-lg mt-5 max-w-xl">{hero.sub}</p>
-          <div className="mt-6">
-            <a href="#lineup" className="btn">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <a href="#shop" className="btn">
               {c.hero.cta}
+            </a>
+            <a href="#moments" className="btn btn-ghost">
+              {c.hero.cta2}
             </a>
           </div>
           <ul className="mt-5 flex flex-wrap gap-2" aria-label="Key facts">
-            {c.heroChips.map((chip) => (
+            {c.heroFacts.map((chip) => (
               <li key={chip} className="glass-flat mono flex min-h-10 items-center px-4 !text-[13px]">{chip}</li>
             ))}
           </ul>

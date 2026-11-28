@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { LIFESTYLE_COUNT, MEDIA, POSTER_WIDTHS, posterSizePath, type MediaSlot } from "@/config/media";
+import { LIFESTYLE_COUNT, MEDIA, OPTIONAL_MEDIA, POSTER_WIDTHS, posterSizePath, type MediaSlot } from "@/config/media";
 import { findPhoto, type Product, type ProductPhoto } from "@/config/products";
 
 /**
@@ -63,4 +63,11 @@ export function closingMedia(products: Product[]): { wide: Pic; tall: Pic } | nu
   if (wide || tall) return { wide: wide ? { kind: "file", slot: wide } : { kind: "file", slot: tall! }, tall: tall ? { kind: "file", slot: tall } : { kind: "file", slot: wide! } };
   const fb = products.map((p) => findPhoto(p, "ingredients")).find(Boolean);
   return fb ? { wide: { kind: "photo", photo: fb }, tall: { kind: "photo", photo: fb } } : null;
+}
+
+/** The brand film, or null: the story section is hidden until the mp4 exists. */
+export function storyMedia(): { mp4: string; poster: string | null } | null {
+  const mp4 = have(OPTIONAL_MEDIA.story.mp4);
+  if (!mp4) return null;
+  return { mp4: mp4.path, poster: have(OPTIONAL_MEDIA.story.poster)?.path ?? null };
 }

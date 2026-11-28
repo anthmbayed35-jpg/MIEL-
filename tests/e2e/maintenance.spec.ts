@@ -244,12 +244,14 @@ test.describe("admin preview: the real storefront, for the signed-in admin only"
       const page = await ctx.newPage();
       await signIn(page);
       await page.goto("/");
-      await page.evaluate(() => window.scrollTo(0, 600));
+      await page.evaluate(() => window.scrollTo(0, 900));
       await page.waitForTimeout(300);
+      await page.evaluate(() => window.scrollTo(0, 700)); // scrolling up brings the header back
+      await page.waitForTimeout(500);
       const bar = await page.locator("[data-preview-bar]").boundingBox();
       const header = await page.locator(".site-header header").first().boundingBox();
       expect(bar && header).toBeTruthy();
-      expect(header!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height - 1); // header sits below the bar, also when scrolled
+      expect(header!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height - 1); // header sits directly below the bar, also when scrolled
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
       await ctx.close();
     }

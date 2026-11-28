@@ -30,8 +30,8 @@ const PAGES = [
 
 const WORDS: Record<string, { on: RegExp[]; off: RegExp[] }> = {
   home: {
-    on: [/HONEY FOR PERFORMANCE/i, /FUEL THE\s+GRIND/i, /quick carbs, the exact dose, nothing to mix/i, /BEFORE THE WORK/i, /THE LONG PUSH/i, /EVERY DAY/i, /NO SCOOP/i, /12 sachets per pouch/i, /ON THE GO/i, /Pick your moment\./i],
-    off: [/HONEY FOR TRAINING/i, /FUEL THE\s+GRIND/i, /dose already set/i, /BEFORE THE WORK/i, /Stim-free pomegranate-and-beet honey\. No caffeine\. No mixing\./i, /5 g of creatine per sachet\. No scoop\./i, /Pick your moment\./i],
+    on: [/HONEY FOR PERFORMANCE/i, /FUEL THE\s+GRIND/i, /quick carbs, the exact dose, nothing to mix/i, /BEFORE THE WORK/i, /THE LONG PUSH/i, /EVERY DAY/i, /NO SCOOP/i, /12 sachets per pouch/i, /ON THE GO/i, /FIND YOUR MOMENT/i, /Fuel the\s+grind/i],
+    off: [/HONEY FOR TRAINING/i, /FUEL THE\s+GRIND/i, /dose already set/i, /BEFORE THE WORK/i, /Stim-free pomegranate-and-beet honey\. No caffeine\. No mixing\./i, /5 g of creatine per sachet\. No scoop\./i, /FIND YOUR MOMENT/i, /Fuel the\s+grind/i],
   },
   gold: { on: [/HONEY FOR ENERGY AND FOCUS/i, /TAKE IT BEFORE THE WORK/i, /Your next session is the reason\./i, /Car park/i, /Measure, mix, wait/i], off: [/HONEY FOR THE WORK/i, /150 mg caffeine and L-theanine in vanilla honey\. Rip it open in the car park\./i, /Your next session is the reason\./i] },
   creatine: { on: [/HONEY FOR STRENGTH/i, /ONE SACHET\. EVERY DAY\./i, /Creatine builds up in your muscles/i, /Same time daily/i], off: [/CREATINE NO SCOOP/i, /5 g of creatine per sachet\. No scoop\. No shaker\. No clumps\./i] },

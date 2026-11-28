@@ -42,3 +42,15 @@ export function allSlots(): MediaSlot[] {
 /** Smaller copies of the hero poster for phones and tablets (made by `npm run media:sizes`; optional: the 1920 px poster is used when they are missing). */
 export const POSTER_WIDTHS = [640, 1024] as const;
 export const posterSizePath = (w: number) => `/media/hero/hero-poster-${w}.webp`;
+
+/**
+ * OPTIONAL media: the section that uses it is HIDDEN until the file exists (never shown empty).
+ * story: the brand film ("why we built MIEL+"), played on demand from its poster.
+ */
+export const OPTIONAL_MEDIA = {
+  story: {
+    mp4: { path: "/media/story/story.mp4", width: 1280, height: 720, ratio: "16:9", note: "H.264 mp4, 1280x720, any length under about 90 s, under 12 MB, faststart" } as MediaSlot,
+    poster: { path: "/media/story/story-poster.webp", width: 1920, height: 1080, ratio: "16:9", note: "webp, 1920x1080, under 200 KB (optional: the first frame is used when missing)" } as MediaSlot,
+  },
+} as const;
+export const optionalSlots = (): MediaSlot[] => [OPTIONAL_MEDIA.story.mp4, OPTIONAL_MEDIA.story.poster];

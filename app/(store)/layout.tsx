@@ -4,9 +4,9 @@ import { CartProvider } from "@/components/CartProvider";
 import { CartDrawer } from "@/components/CartDrawer";
 import { Tracker } from "@/components/Tracker";
 import { PreviewBar } from "@/components/PreviewBar";
-import { AmbassadorStrip, TopOffsets } from "@/components/TopBars";
+import { TopOffsets } from "@/components/TopBars";
+import { AnnouncementStrip } from "@/components/AnnouncementStrip";
 import { RefCapture } from "@/components/RefCapture";
-import { getProgram } from "@/lib/program";
 import { previewAdmin } from "@/lib/preview";
 
 // The storefront reads the database on every request (SQLite on the volume answers in well under a millisecond), so a
@@ -17,16 +17,15 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   const cat = await getCatalog();
   const preview = !!(await previewAdmin()); // SITE_MODE=maintenance and a signed-in admin: the real storefront, for them only
   const { tracking } = cat;
-  const banner = getProgram().banner;
   return (
     <CartProvider
       products={cat.products.map((p) => ({ id: p.id, name: p.name, price: p.price, slug: p.slug, flavor: p.flavor, soldOut: !!p.soldOut }))}
       deliveryFee={cat.deliveryFee}
       preview={preview}
     >
-      {/* The top of every page, in this order: preview bar (admins), ambassador strip, then the floating header (sticky, below the bars). */}
+      {/* The top of every page, in this order: preview bar (admins), announcement strip, then the header (sticky, below the preview bar). */}
       {preview && <PreviewBar />}
-      {banner.enabled && <AmbassadorStrip text={banner.text} />}
+      <AnnouncementStrip />
       <TopOffsets />
       <RefCapture />
       {/* No announcement bar: the storefront shows no offers, countdowns or scarcity (the admin keeps its discount and inventory tools). */}

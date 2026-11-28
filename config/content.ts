@@ -8,6 +8,8 @@ import { INSTAGRAM_HANDLE, INSTAGRAM_URL, SITE, WHATSAPP_NUMBER } from "./site";
 export type FaqItem = { q: string; a: string };
 export type Announcement = { enabled: boolean; text: string; link: string };
 export type HeroContent = { headline1: string; headline2: string; sub: string };
+/** A "Fueled by you" photo (Admin content, key `gallery`). Shown only when approved and it has an image: there are no placeholders. */
+export type GalleryItem = { id: string; src: string; alt: string; credit?: string; approved: boolean };
 export type Testimonial = { id: string; name: string; text: string; rating: number; approved: boolean };
 
 export const DEFAULT_FAQ: FaqItem[] = copyFor(true).homeFaq.map((f) => ({ ...f }));

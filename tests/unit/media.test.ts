@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { allSlots, LIFESTYLE_COUNT } from "../../config/media";
+import { allSlots, LIFESTYLE_COUNT, optionalSlots } from "../../config/media";
 import { products } from "../../config/products";
 import { closingMedia, heroMedia, lifestyleFor } from "../../lib/media";
 
@@ -71,6 +71,14 @@ describe("docs/MEDIA.md", () => {
       ...rows,
       "",
       "After replacing the hero poster run `npm run media:sizes`: it makes `hero-poster-640.webp` and `hero-poster-1024.webp`, the smaller copies phones and tablets download (the LCP image). They are optional; the 1920 px poster is used when they are missing.",
+      "",
+      "## Optional (a section stays HIDDEN until the file exists)",
+      "",
+      "| File | Pixels | Ratio | Notes |",
+      "|---|---|---|---|",
+      ...optionalSlots().map((s) => `| \`public${s.path}\` | ${s.width} x ${s.height} | ${s.ratio} | ${s.note} |`),
+      "",
+      "The brand story section (`#story`) renders only when `story.mp4` exists. Until then it is not on the page at all.",
       "",
       "Per flavour (`gold`, `red-burn`, `creatine`): three lifestyle images, each in 4:5 (phones, cards) and 16:9 (wide panels). If you supply only one ratio of a pair it is used for both.",
       "",

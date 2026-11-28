@@ -24,7 +24,7 @@ export function layoutReport(page: Page): Promise<string[]> {
   }
   // overlapping text: leaf text elements that cross each other (skip fixed/sticky bars, marquee, hidden)
   const leaves = [...document.querySelectorAll("h1,h2,h3,p,li,span,a,button,dt,dd")].filter((el) => {
-    if (!visible(el) || el.closest(".marquee-track,.ticker-track,.site-header,[data-ambassador-strip],[aria-hidden='true'],details:not([open]) > :not(summary)")) return false;
+    if (!visible(el) || el.closest(".marquee-track,.ticker-track,.site-header,[data-announcement-strip],[aria-hidden='true'],details:not([open]) > :not(summary)")) return false;
     if (el.children.length && [...el.children].some((c) => visible(c) && (c.textContent ?? "").trim())) return false;
     let n: Element | null = el;
     while (n) {

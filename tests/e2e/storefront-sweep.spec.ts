@@ -93,18 +93,19 @@ for (const size of SIZES) {
       });
       expect(over.px, `horizontal overflow: ${over.wide.join(" | ")}`).toBeLessThanOrEqual(1);
 
-      // 2. the top stack: strip (>= 48px, fully visible) above the header, no overlap, header not covered
-      const strip = await boxOf(page, "[data-ambassador-strip]");
+      // 2. the top stack: the 40px announcement strip above the 56px header, no overlap, header not covered
+      const strip = await boxOf(page, "[data-announcement-strip]");
       const header = await boxOf(page, ".site-header > header");
-      expect(strip, "ambassador strip is rendered").not.toBeNull();
+      expect(strip, "announcement strip is rendered").not.toBeNull();
       expect(header, "header is rendered").not.toBeNull();
-      expect(strip!.height).toBeGreaterThanOrEqual(47.5);
+      expect(Math.round(strip!.height), "strip is 40px").toBe(40);
+      expect(Math.round(header!.height), "header is 56px").toBe(56);
       expect(strip!.top).toBeGreaterThanOrEqual(-0.5);
       expect(strip!.bottom, "the strip ends above the header").toBeLessThanOrEqual(header!.top + 0.5);
       const topEl = await page.evaluate(() => {
-        const s = document.querySelector("[data-ambassador-strip]")!.getBoundingClientRect();
+        const s = document.querySelector("[data-announcement-strip]")!.getBoundingClientRect();
         const el = document.elementFromPoint(s.left + 8, s.top + s.height / 2);
-        return !!el?.closest("[data-ambassador-strip]");
+        return !!el?.closest("[data-announcement-strip]");
       });
       expect(topEl, "nothing is drawn on top of the strip").toBe(true);
 
@@ -140,7 +141,7 @@ for (const size of [{ w: 360, h: 640 }, { w: 360, h: 740 }, { w: 375, h: 667 }, 
     await page.waitForTimeout(500);
     const h1 = await boxOf(page, "h1");
     const btn = await page.evaluate(() => {
-      const a = [...document.querySelectorAll("#top a.btn")].find((x) => /SHOP THE LINEUP/.test(x.textContent ?? ""));
+      const a = [...document.querySelectorAll("#top a.btn")].find((x) => /^SHOP$/.test((x.textContent ?? "").trim()));
       const r = a?.getBoundingClientRect();
       return r ? { top: r.top, bottom: r.bottom } : null;
     });
@@ -152,41 +153,23 @@ for (const size of [{ w: 360, h: 640 }, { w: 360, h: 740 }, { w: 375, h: 667 }, 
   });
 }
 
-test("the ambassador strip can be dismissed, stays dismissed, and the header does not jump under it", async ({ browser }) => {
+test("announcement strip: 40px, not dismissible, no offer or countdown; header: 56px, hides on scroll down and returns on scroll up", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 667 } });
   const page = await ctx.newPage();
   await page.goto("/");
-  await expect(page.locator("[data-ambassador-strip]")).toBeVisible();
-  const dismiss = page.getByRole("button", { name: /Dismiss the ambassador banner/ });
-  expect((await dismiss.boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
-  await dismiss.click();
-  await expect(page.locator("[data-ambassador-strip]")).toHaveCount(0);
-  await page.reload();
-  await expect(page.locator("[data-ambassador-strip]")).toHaveCount(0);
-  const header = await boxOf(page, ".site-header > header");
-  expect(header!.top).toBeGreaterThanOrEqual(11);
-  // scrolling keeps the header on screen
-  await page.mouse.wheel(0, 1500);
-  await page.waitForTimeout(300);
-  const h2 = await boxOf(page, ".site-header > header");
-  expect(h2!.top).toBeGreaterThanOrEqual(11);
-  expect(h2!.top).toBeLessThanOrEqual(14);
-  await ctx.close();
-});
-
-test("the strip comes back when storage is blocked (nothing throws)", async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 667 } });
-  const page = await ctx.newPage();
-  await page.addInitScript(() => {
-    Object.defineProperty(window, "localStorage", { get() { throw new Error("blocked"); } });
-  });
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
-  await expect(page.locator("[data-ambassador-strip]")).toBeVisible();
-  await page.getByRole("button", { name: /Dismiss the ambassador banner/ }).click();
-  await expect(page.locator("[data-ambassador-strip]")).toHaveCount(0);
-  expect(errors.filter((e) => /blocked/.test(e))).toEqual([]);
+  const strip = page.locator("[data-announcement-strip]");
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText("FUEL THE GRIND · DELIVERY ACROSS LEBANON · HALAL CERTIFIED");
+  expect(Math.round((await strip.boundingBox())!.height)).toBe(40);
+  await expect(strip.getByRole("button")).toHaveCount(0); // nothing to dismiss
+  expect(await strip.innerText()).not.toMatch(/off|sale|offer|limited|left|countdown|\d+:\d+/i);
+  const header = page.locator(".site-header > header");
+  expect(Math.round((await header.boundingBox())!.height)).toBe(56);
+  const top = async () => (await header.boundingBox())!.y;
+  await page.mouse.wheel(0, 1500); // scroll down: the header slides away
+  await expect.poll(top).toBeLessThan(-40);
+  await page.mouse.wheel(0, -300); // scroll up: it returns
+  await expect.poll(top).toBeGreaterThanOrEqual(-0.5);
   await ctx.close();
 });
 
@@ -207,20 +190,22 @@ test("preview mode: bar, strip, header stack in that order without overlap at ev
     await page.waitForTimeout(500);
     await shot(page, `preview-${size.w}`);
     const bar = await boxOf(page, "[data-preview-bar]");
-    const strip = await boxOf(page, "[data-ambassador-strip]");
+    const strip = await boxOf(page, "[data-announcement-strip]");
     const header = await boxOf(page, ".site-header > header");
     expect(bar && strip && header, `all three bars at ${size.w}`).toBeTruthy();
     expect(bar!.bottom, "preview bar above the strip").toBeLessThanOrEqual(strip!.top + 0.5);
     expect(strip!.bottom, "strip above the header").toBeLessThanOrEqual(header!.top + 0.5);
-    expect(strip!.height).toBeGreaterThanOrEqual(47.5);
-    // scroll: the preview bar stays on top and the header sits directly below it
+    expect(Math.round(strip!.height)).toBe(40);
+    // scroll down then up a little: the preview bar stays on top and the header (back in view) sits directly below it
     await page.mouse.wheel(0, 1200);
     await page.waitForTimeout(300);
+    await page.mouse.wheel(0, -300);
+    await page.waitForTimeout(500);
     const bar2 = await boxOf(page, "[data-preview-bar]");
     const header2 = await boxOf(page, ".site-header > header");
     expect(bar2!.top).toBeCloseTo(0, 0);
-    expect(header2!.top, "header just below the preview bar").toBeGreaterThanOrEqual(bar2!.bottom + 10);
-    expect(header2!.top).toBeLessThanOrEqual(bar2!.bottom + 14);
+    expect(header2!.top, "header just below the preview bar").toBeGreaterThanOrEqual(bar2!.bottom - 1);
+    expect(header2!.top).toBeLessThanOrEqual(bar2!.bottom + 2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     await ctx.close();
   }

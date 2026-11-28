@@ -24,7 +24,7 @@ const VIEWPORTS = [
   { w: 1440, h: 900 },
 ];
 
-const ORDER = ["#top", ".ticker", "#lineup", "[aria-label='THE NUMBERS']", "#flavours", "section:has-text('FLAVOUR EXPLORER')", "section:has-text('OLD ROUTINE VS THE SACHET')", "section:has-text('HOW TO USE IT')", "[aria-label='Fuel the grind.']", "#faq"];
+const ORDER = ["#top", ".ticker", "#moments", "#shop", "#features", "#explorer", "#how-it-works", "#compare", "#usage", "#faq", "#closing"];
 
 let ip = 60;
 const open = async (browser: Browser, w: number, h: number, opts: { reduce?: boolean } = {}) => {
@@ -86,10 +86,10 @@ for (const withMedia of [false, true]) {
         await expect(page.locator("#top video")).toHaveCount(withMedia ? 1 : 0);
         if (withMedia && vp.w < 1024) await expect(page.locator("#top video")).toHaveAttribute("preload", "none"); // phones and tablets never preload it (desktop starts it after load)
         // three moment cards, each linking to its product
-        await expect(page.locator("#lineup a[href^='/products/']")).toHaveCount(3);
-        // lineup cards: pouch and a second image, chips, prices
-        await expect(page.locator("#flavours ul.gap-6 > li")).toHaveCount(3);
-        await expect(page.locator("#flavours").getByText(/per sachet/i).first()).toBeVisible();
+        await expect(page.locator("#moments a[href^='/products/']")).toHaveCount(3);
+        // lineup cards: three cards with prices per pouch and per sachet
+        await expect(page.locator("#shop ul.gap-6 > li")).toHaveCount(3);
+        await expect(page.locator("#shop").getByText(/per sachet/i).first()).toBeVisible();
         await check(page, `${tag}_${vp.w}_gold`, "/products/gold");
         await ctx.close();
       });
@@ -127,8 +127,9 @@ test("ticker pauses on hover; keyboard: Tab reaches the hero button with a visib
   // the flavour switcher and the explorer change glow and content
   await page.locator("#top").getByRole("button", { name: "GOLD" }).click();
   await expect(page.locator("#top").getByRole("button", { name: "GOLD" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("group", { name: "Choose a flavour" }).last().getByRole("button", { name: "CREATINE" }).click();
-  await expect(page.getByText("5g").first()).toBeVisible();
+  await page.getByRole("tab", { name: /CREATINE/ }).click();
+  await expect(page.getByRole("tab", { name: /CREATINE/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toContainText("CREATINE");
   await ctx.close();
 });
 

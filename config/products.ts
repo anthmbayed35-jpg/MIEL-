@@ -69,6 +69,8 @@ export type Product = {
   faqs: Faq[];
   /** Page copy added by applyCopy() (config/copy.ts): tagline, body, why-today line, take-it-when tags, old-routine comparison, home moment card. */
   pageCopy?: {
+    descriptor3: string;
+    stat: { value: string; unit: string; caption: string };
     tagline: string;
     taglineShort: string;
     body: string;

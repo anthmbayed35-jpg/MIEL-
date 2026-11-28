@@ -17,7 +17,7 @@ export default async function CreditsPage() {
   const cat = await getCatalog();
   return (
     <>
-      <Header />
+      <Header products={cat.products} />
       <main className="relative isolate overflow-x-clip">
         <Blobs spots={[{ x: "-10%", y: "0%" }, { x: "65%", y: "30%", delay: -9 }]} />
         <div className="mx-auto max-w-3xl px-5 pb-24 pt-[calc(var(--header-h,72px)+32px)] md:px-8 md:pt-[calc(var(--header-h,88px)+40px)]">

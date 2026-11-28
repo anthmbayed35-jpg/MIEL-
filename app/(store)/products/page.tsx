@@ -19,9 +19,10 @@ export default async function AllProducts({ searchParams }: { searchParams: Prom
   const slice = cat.products.slice((page - 1) * PAGE, page * PAGE);
   return (
     <>
-      <Header />
+      <Header products={cat.products} />
       <main className="pt-[104px] md:pt-[120px]">
         <Lineup
+          id="lineup"
           products={slice}
           title={false}
           heading={

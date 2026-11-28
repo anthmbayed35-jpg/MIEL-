@@ -36,7 +36,7 @@ export function HeroPouches({ pouches, sizes }: { pouches: HeroPouch[]; sizes: s
               type="button"
               onClick={() => setActive(i)}
               aria-pressed={i === active}
-              className={`${i === active ? "glass-accent" : "glass-flat"} flex min-h-14 items-center justify-center gap-2 rounded-2xl px-2 py-2 text-center`}
+              className={`${i === active ? "glass-accent" : "glass-flat"} flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center sm:flex-row sm:gap-2 sm:px-2`}
             >
               <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ background: solid(p.glow) }} />
               <span className="display text-[13px] leading-tight sm:text-[14px]">{p.name}</span>
